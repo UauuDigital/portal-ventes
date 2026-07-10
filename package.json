@@ -1,0 +1,19 @@
+{
+  "name": "espai-economic-portal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Portal de venda d'entrades online per als esdeveniments mensuals d'Espai Econòmic (UAUU Weddings & Events).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "stripe": "^16.8.0"
+  }
+}

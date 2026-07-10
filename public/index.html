@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Espai Econòmic — Reserva la teva entrada</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Inter via Google Fonts (Ogg és una tipografia amb llicència pròpia de UAUU:
+     veure comentari a css/style.css sobre com afegir-la a public/fonts/) -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!--
+  DECISIÓ PENDENT #3 (veure briefing / README): quin costat porta la info de
+  l'esdeveniment i quin el formulari de compra.
+  Per defecte: costat fosc (esquerra) = info de l'esdeveniment,
+               costat clar (dreta) = formulari.
+  Per intercanviar-ho: canvia data-layout="info-left" a "info-right" aquí sota.
+-->
+<main class="card" data-layout="info-left">
+
+  <section class="panel panel-color evento-info">
+    <div class="logo">
+      <span class="logo-icon"></span>
+      <span>Espai Econòmic</span>
+    </div>
+    <div>
+      <span class="eyebrow">Esdeveniment del mes</span>
+      <h1 id="evento-nombre">Carregant l'esdeveniment…</h1>
+      <p id="evento-descripcio"></p>
+    </div>
+    <div class="evento-meta">
+      <span id="evento-data"></span>
+      <span id="evento-preu"></span>
+      <span id="evento-aforo"></span>
+    </div>
+  </section>
+
+  <section class="panel panel-white form-side">
+    <span class="asterisk">✳</span>
+    <span class="eyebrow">Reserva la teva plaça</span>
+    <h1>Compra la teva entrada</h1>
+    <p class="subtitle">Paga de forma segura amb targeta a través de Stripe.</p>
+
+    <div id="estat-no-disponible" class="estat-missatge hidden"></div>
+
+    <form id="form-compra">
+      <label for="cantidad">Nombre d'entrades</label>
+      <input type="number" id="cantidad" name="cantidad" min="1" value="1" required>
+
+      <label for="nombre_comprador">Nom i cognoms</label>
+      <input type="text" id="nombre_comprador" name="nombre_comprador" required>
+
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required>
+
+      <label for="telefono">Telèfon</label>
+      <input type="tel" id="telefono" name="telefono">
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="quiere_factura" name="quiere_factura">
+        <label for="quiere_factura" style="margin:0; text-transform:none; letter-spacing:normal; font-weight:300;">Vull factura amb dades fiscals</label>
+      </div>
+
+      <div id="camps-fiscals" class="fiscal-fields hidden">
+        <label for="nif">NIF / CIF</label>
+        <input type="text" id="nif" name="nif">
+        <label for="nombre_fiscal">Nom fiscal</label>
+        <input type="text" id="nombre_fiscal" name="nombre_fiscal">
+        <label for="direccion_fiscal">Adreça fiscal</label>
+        <input type="text" id="direccion_fiscal" name="direccion_fiscal">
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="accepta_condicions" name="accepta_condicions" required>
+        <label for="accepta_condicions" style="margin:0; text-transform:none; letter-spacing:normal; font-weight:300;">
+          Accepto les <a href="/condicions.html" target="_blank">condicions de venda</a>
+          i la <a href="/privacitat.html" target="_blank">política de privacitat</a>.
+        </label>
+      </div>
+
+      <button type="submit" class="btn-primary" id="btn-comprar">Pagar i reservar entrada</button>
+      <p id="error-missatge" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-sans);"></p>
+    </form>
+
+    <div class="divider">mètodes de pagament acceptats</div>
+    <div class="payment-icons">
+      <span>VISA</span><span>Mastercard</span>
+    </div>
+  </section>
+
+</main>
+
+<script src="/js/checkout.js"></script>
+</body>
+</html>
