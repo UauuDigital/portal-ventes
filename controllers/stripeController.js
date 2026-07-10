@@ -5,6 +5,22 @@ const Compra = require('../models/Compra');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const EXPIRA_MINUTS = parseInt(process.env.CHECKOUT_EXPIRES_MINUTES || '15', 10);
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Telèfon: accepta prefix internacional opcional, espais, guions i parèntesis,
+// entre 9 i 15 dígits en total (suficient per a fixos/mòbils ES i estrangers).
+const TELEFON_REGEX = /^\+?[\d\s().-]{9,20}$/;
+// NIF (DNI + lletra), NIE (X/Y/Z + 7 dígits + lletra) i CIF (lletra + 7 dígits + lletra/dígit).
+// Valida format, no el dígit de control — suficient per detectar errors de picada
+// sense necessitat d'una llibreria externa.
+const NIF_REGEX = /^[0-9]{8}[A-Za-z]$/;
+const NIE_REGEX = /^[XYZxyz][0-9]{7}[A-Za-z]$/;
+const CIF_REGEX = /^[A-Za-z][0-9]{7}[A-Za-z0-9]$/;
+
+function nifValid(value) {
+  const v = String(value || '').trim().toUpperCase();
+  return NIF_REGEX.test(v) || NIE_REGEX.test(v) || CIF_REGEX.test(v);
+}
+
 function validarBody(body) {
   const errors = [];
 
@@ -12,9 +28,13 @@ function validarBody(body) {
     errors.push('nombre_comprador invàlid');
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(body.email || '')) {
+  if (!EMAIL_REGEX.test(body.email || '')) {
     errors.push('email invàlid');
+  }
+
+  const telefono = String(body.telefono || '').trim();
+  if (telefono && !TELEFON_REGEX.test(telefono)) {
+    errors.push('telefono invàlid');
   }
 
   const cantidad = parseInt(body.cantidad, 10);
@@ -29,6 +49,8 @@ function validarBody(body) {
   if (body.quiere_factura) {
     if (!body.nif || !body.nombre_fiscal || !body.direccion_fiscal) {
       errors.push('dades fiscals incompletes');
+    } else if (!nifValid(body.nif)) {
+      errors.push('nif invàlid');
     }
   }
 
@@ -67,17 +89,19 @@ async function crearCheckoutSession(req, res) {
 
     const importeTotal = cantidad * evento.precio; // cèntims
 
+    const telefono = String(req.body.telefono || '').trim();
+
     const compra = Compra.create({
       evento_id: evento.id,
       nombre_comprador: req.body.nombre_comprador.trim(),
-      email: req.body.email.trim(),
-      telefono: req.body.telefono || null,
+      email: req.body.email.trim().toLowerCase(),
+      telefono: telefono || null,
       cantidad,
       importe_total: importeTotal,
       quiere_factura: !!req.body.quiere_factura,
-      nif: req.body.quiere_factura ? req.body.nif : null,
-      nombre_fiscal: req.body.quiere_factura ? req.body.nombre_fiscal : null,
-      direccion_fiscal: req.body.quiere_factura ? req.body.direccion_fiscal : null,
+      nif: req.body.quiere_factura ? String(req.body.nif).trim().toUpperCase() : null,
+      nombre_fiscal: req.body.quiere_factura ? String(req.body.nombre_fiscal).trim() : null,
+      direccion_fiscal: req.body.quiere_factura ? String(req.body.direccion_fiscal).trim() : null,
     });
 
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;

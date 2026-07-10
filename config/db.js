@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const Database = require('better-sqlite3');
+const { DatabaseSync } = require('node:sqlite');
 
 const DB_PATH = process.env.DB_PATH
   ? path.resolve(process.cwd(), process.env.DB_PATH)
@@ -9,11 +9,59 @@ const DB_PATH = process.env.DB_PATH
 // Assegura que la carpeta de destí existeix (ex: data/)
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+const raw = new DatabaseSync(DB_PATH);
+raw.exec('PRAGMA journal_mode = WAL');
+raw.exec('PRAGMA foreign_keys = ON');
 
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-db.exec(schema);
+raw.exec(schema);
+
+/**
+ * Embolcall petit sobre node:sqlite (mòdul SQLite integrat a Node, sense
+ * dependències natives — cap Python ni compilador C++ necessaris).
+ * Permet que models/ segueixi fent servir paràmetres amb nom estil "@nom"
+ * als INSERT/UPDATE (com abans amb better-sqlite3), convertint-los aquí a
+ * la sintaxi ":nom" que espera node:sqlite.
+ */
+function toNamedParams(sql, data) {
+  const params = {};
+  for (const [key, value] of Object.entries(data)) {
+    params[':' + key] = value;
+  }
+  return { sql: sql.replace(/@(\w+)/g, ':$1'), params };
+}
+
+function isPlainObjectParam(value, restLength) {
+  return restLength === 0 && typeof value === 'object' && value !== null;
+}
+
+const db = {
+  exec: (sql) => raw.exec(sql),
+  prepare(sql) {
+    return {
+      get(first, ...rest) {
+        if (isPlainObjectParam(first, rest.length)) {
+          const { sql: convertedSql, params } = toNamedParams(sql, first);
+          return raw.prepare(convertedSql).get(params);
+        }
+        return raw.prepare(sql).get(first, ...rest);
+      },
+      all(first, ...rest) {
+        if (isPlainObjectParam(first, rest.length)) {
+          const { sql: convertedSql, params } = toNamedParams(sql, first);
+          return raw.prepare(convertedSql).all(params);
+        }
+        return raw.prepare(sql).all(first, ...rest);
+      },
+      run(first, ...rest) {
+        if (isPlainObjectParam(first, rest.length)) {
+          const { sql: convertedSql, params } = toNamedParams(sql, first);
+          return raw.prepare(convertedSql).run(params);
+        }
+        return raw.prepare(sql).run(first, ...rest);
+      },
+    };
+  },
+};
 
 module.exports = db;

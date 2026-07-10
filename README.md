@@ -12,8 +12,8 @@ Portal standalone per a la venda d'entrades online als esdeveniments mensuals d'
 
 ## Stack
 
-- Backend: Node.js + Express
-- Base de dades: SQLite via `better-sqlite3` — volum baix i autocontingut, sense dependre de cap servei extern
+- Backend: Node.js + Express (requereix Node ≥ 22.5, que és quan `node:sqlite` va arribar integrat)
+- Base de dades: SQLite via `node:sqlite`, el mòdul integrat a Node — volum baix i autocontingut, sense cap dependència nativa (no cal Python ni compilador C++, a diferència de `better-sqlite3`)
 - Frontend: HTML/CSS/JS vanilla
 - Pagaments: Stripe Checkout (mode test)
 - Desplegament previst: Plesk / Servàtica (Git push → Pull → restart Node.js), mateix patró que altres eines internes
@@ -21,7 +21,7 @@ Portal standalone per a la venda d'entrades online als esdeveniments mensuals d'
 ## Estructura
 
 ```
-config/       Connexió a la BD (better-sqlite3) i schema SQL
+config/       Connexió a la BD (node:sqlite) i schema SQL
 models/       Evento i Compra (accés a dades)
 controllers/  Lògica de negoci: esdeveniment actiu, creació de Checkout Session, webhook
 routes/       Rutes Express (públiques i webhook)
@@ -71,6 +71,10 @@ Per això el costat "de color" de la targeta és ara fons fosc pla (`#221F1E`) e
 
 **Decisió pendent #3 del briefing**: quin costat porta la info de l'esdeveniment i quin el formulari. Per defecte aquí: fosc = info de l'esdeveniment (esquerra), clar = formulari (dreta). Per intercanviar-ho, canvia l'atribut `data-layout="info-left"` a `"info-right"` a `<main class="card">` a `public/index.html` (i a `success.html`/`cancel.html` si es vol mantenir coherència visual). No cal tocar cap altre fitxer.
 
+## Base de dades sense dependències natives
+
+Inicialment el projecte feia servir `better-sqlite3`, però requereix compilar un mòdul natiu (calen Python i un compilador C++), cosa que dona problemes habituals a Windows sense eines de desenvolupament instal·lades. S'ha substituït per `node:sqlite`, el mòdul SQLite integrat directament a Node des de la versió 22.5 — `npm install` ja no necessita compilar res. Únic requisit: Node ≥ 22.5 (comprova amb `node --version`).
+
 ## Control de versions
 
 S'ha inicialitzat el repositori amb `git init` però **sense cap commit**: els fitxers estan preparats i sense stagejar perquè puguis revisar-los amb `git status` / `git diff` i fer tu mateix el primer commit quan hi estiguis d'acord. No hi ha cap remote configurat.
@@ -79,7 +83,7 @@ S'ha inicialitzat el repositori amb `git init` però **sense cap commit**: els f
 
 - Panell d'administració (crear/editar esdeveniment, llistat de compres, exportació CSV, login).
 - Enviament de l'email de confirmació de compra.
-- Textos legals definitius (avís legal, privacitat, cookies, condicions de venda) — `public/condicions.html` i `public/privacitat.html` són només placeholders. Pendents de validar amb assessoria, especialment el punt del dret de desistiment (art. 103.l TRLGDCU).
+- Textos legals definitius (avís legal, privacitat, cookies, condicions de venda) — `public/avis-legal.html`, `public/privacitat.html`, `public/cookies.html` i `public/condicions.html` són només placeholders enllaçats des del peu de la landing. Pendents de validar amb assessoria, especialment el punt del dret de desistiment (art. 103.l TRLGDCU) i l'esment a la política de cookies/privacitat de la càrrega de Google Fonts (única petició a tercers del portal).
 - Política de cancel·lació/reemborsament — criteri encara no fixat.
 - Fitxers reals de la tipografia Ogg a `public/fonts/`.
 
@@ -90,4 +94,4 @@ Aquestes decisions no s'han assumit ni donat per fetes; queden documentades tal 
 - Mai s'emmagatzemen dades de targeta (les gestiona Stripe).
 - La signatura del webhook de Stripe es verifica sempre (`STRIPE_WEBHOOK_SECRET`), amb el body en brut.
 - Rate limiting a l'endpoint de creació de Checkout Session.
-- Validació d'inputs del formulari (email, quantitat, dades fiscals si es demana factura, acceptació de condicions obligatòria).
+- Validació d'inputs del formulari: email (format), telèfon (format, si s'indica), quantitat (enter positiu), NIF/NIE/CIF (format, si es demana factura — sense dígit de control), i acceptació de condicions obligatòria. Els camps es sanegen (trim, email/NIF normalitzats) abans de desar-los.

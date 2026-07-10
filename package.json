@@ -4,13 +4,15 @@
   "private": true,
   "description": "Portal de venda d'entrades online per als esdeveniments mensuals d'Espai Econòmic (UAUU Weddings & Events).",
   "main": "server.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node scripts/seed.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.3.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",

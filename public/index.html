@@ -77,8 +77,8 @@
       <div class="checkbox-row">
         <input type="checkbox" id="accepta_condicions" name="accepta_condicions" required>
         <label for="accepta_condicions" style="margin:0; text-transform:none; letter-spacing:normal; font-weight:300;">
-          Accepto les <a href="/condicions.html" target="_blank">condicions de venda</a>
-          i la <a href="/privacitat.html" target="_blank">política de privacitat</a>.
+          Accepto les <a href="/condicions.html" data-legal="condicions">condicions de venda</a>
+          i la <a href="/privacitat.html" data-legal="privacitat">política de privacitat</a>.
         </label>
       </div>
 
@@ -94,6 +94,21 @@
 
 </main>
 
+<footer style="max-width:920px; width:100%; margin:16px auto 0; text-align:center; font-family:var(--font-sans); font-size:11px; color:rgba(34,31,30,0.4); display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+  <a href="/avis-legal.html" data-legal="avis-legal" style="color:inherit;">Avís legal</a>
+  <a href="/privacitat.html" data-legal="privacitat" style="color:inherit;">Privacitat</a>
+  <a href="/cookies.html" data-legal="cookies" style="color:inherit;">Cookies</a>
+  <a href="/condicions.html" data-legal="condicions" style="color:inherit;">Condicions de venda</a>
+</footer>
+
+<div class="legal-modal-overlay" id="legal-modal-overlay">
+  <div class="legal-modal" id="legal-modal" role="dialog" aria-modal="true">
+    <button type="button" class="legal-modal-close" id="legal-modal-close" aria-label="Tanca">✕</button>
+    <div id="legal-modal-body">Carregant…</div>
+  </div>
+</div>
+
 <script src="/js/checkout.js"></script>
+<script src="/js/legal-modal.js"></script>
 </body>
 </html>
