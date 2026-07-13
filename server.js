@@ -5,6 +5,7 @@ const express = require('express');
 
 const webhookRoutes = require('./routes/webhookRoutes');
 const publicRoutes = require('./routes/publicRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +15,7 @@ const PORT = process.env.PORT || 3000;
 app.use(webhookRoutes);
 
 app.use(express.json());
+app.use(adminRoutes);
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(publicRoutes);
