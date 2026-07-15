@@ -84,6 +84,26 @@ function actualitzarEvento(req, res) {
   res.json(evento);
 }
 
+function eliminarEvento(req, res) {
+  const id = parseInt(req.params.id, 10);
+  const evento = Evento.getById(id);
+  if (!evento) return res.status(404).json({ error: 'no_trobat' });
+
+  const teCompres = Compra.listByEvento(id).length > 0;
+  const forcar = req.query.forzar === '1';
+
+  if (teCompres && !forcar) {
+    return res.status(409).json({ error: 'te_compres_associades' });
+  }
+
+  if (teCompres) {
+    Compra.eliminarPerEvento(id);
+  }
+
+  Evento.remove(id);
+  res.status(204).send();
+}
+
 function llistarCompresEvento(req, res) {
   const eventoId = parseInt(req.params.id, 10);
   const evento = Evento.getById(eventoId);
@@ -138,6 +158,7 @@ module.exports = {
   obtenirEvento,
   crearEvento,
   actualitzarEvento,
+  eliminarEvento,
   llistarCompresEvento,
   cancelarCompra,
   exportarComprasCsv,

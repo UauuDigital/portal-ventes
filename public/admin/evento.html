@@ -12,10 +12,12 @@
 <div class="admin-shell">
   <div class="admin-topbar">
     <a href="/admin/index.html" class="admin-link-back">← Tots els esdeveniments</a>
-    <button type="button" id="btn-logout" class="btn-secundari">Tanca sessió</button>
   </div>
 
-  <h1 id="titol-evento">Carregant…</h1>
+  <div class="admin-topbar">
+    <h1 id="titol-evento">Carregant…</h1>
+    <button type="button" id="btn-eliminar-evento" class="btn-perillos">Eliminar esdeveniment</button>
+  </div>
 
   <form id="form-evento-editar" class="admin-form">
     <label for="nombre">Nom</label>
@@ -43,7 +45,7 @@
     </select>
 
     <button type="submit" class="btn-primary">Desar canvis</button>
-    <p id="error-evento-editar" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-sans);"></p>
+    <p id="error-evento-editar" class="form-error"></p>
   </form>
 
   <div class="admin-topbar" style="margin-top:32px;">

@@ -64,6 +64,10 @@ function listByEvento(eventoId) {
     .all(eventoId);
 }
 
+function eliminarPerEvento(eventoId) {
+  db.prepare('DELETE FROM compras WHERE evento_id = ?').run(eventoId);
+}
+
 module.exports = {
   create,
   getById,
@@ -73,4 +77,5 @@ module.exports = {
   marcarCancelado,
   cantidadOcupada,
   listByEvento,
+  eliminarPerEvento,
 };

@@ -31,6 +31,7 @@ input[type="tel"],
 input[type="number"],
 input[type="password"],
 input[type="datetime-local"],
+select,
 textarea {
   width: 100%;
   background: var(--white);
@@ -44,12 +45,23 @@ textarea {
   color: var(--dark);
 }
 
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23221F1E' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   filter: invert(0.3);
   cursor: pointer;
 }
 
 input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
 textarea:focus {
   outline: none;
   border-color: rgba(34, 31, 30, 0.4);

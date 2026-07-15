@@ -1,11 +1,25 @@
 const db = require('../config/db');
 
 /**
+ * Tanca automàticament els esdeveniments oberts la data límit de compra dels
+ * quals ja ha passat. Es crida abans de qualsevol lectura per mantenir
+ * l'estat sempre al dia sense necessitat d'una tasca programada.
+ */
+function tancarExpirats() {
+  const now = new Date().toISOString();
+  db.prepare(
+    `UPDATE eventos SET estado = 'cerrado'
+     WHERE estado = 'abierto' AND fecha_limite_compra <= ?`
+  ).run(now);
+}
+
+/**
  * Retorna l'esdeveniment actiu: el que està "abierto" i encara no ha superat
  * la seva data límit de compra. Si n'hi hagués més d'un, es queda amb el que
  * té el termini de compra més proper (més urgent per reservar).
  */
 function getActivo() {
+  tancarExpirats();
   const now = new Date().toISOString();
   return db
     .prepare(
@@ -18,6 +32,7 @@ function getActivo() {
 }
 
 function getById(id) {
+  tancarExpirats();
   return db.prepare('SELECT * FROM eventos WHERE id = ?').get(id);
 }
 
@@ -46,7 +61,12 @@ function update(id, data) {
 }
 
 function listAll() {
+  tancarExpirats();
   return db.prepare('SELECT * FROM eventos ORDER BY fecha DESC').all();
 }
 
-module.exports = { getActivo, getById, create, update, listAll };
+function remove(id) {
+  db.prepare('DELETE FROM eventos WHERE id = ?').run(id);
+}
+
+module.exports = { getActivo, getById, create, update, listAll, remove };

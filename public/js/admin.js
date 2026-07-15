@@ -21,6 +21,12 @@ function traduirEstatEvento(estado) {
   return ESTATS_EVENTO[estado] || estado;
 }
 
+const ESTATS_PAGO = { pendiente: 'Pendent', pagado: 'Pagat', cancelado: 'Cancel·lat' };
+function badgeEstatPago(estado) {
+  const etiqueta = ESTATS_PAGO[estado] || estado;
+  return `<span class="badge-estat badge-estat--${escapeHtml(estado)}">${escapeHtml(etiqueta)}</span>`;
+}
+
 function formatData(isoString) {
   const data = new Date(isoString);
   const dataText = data.toLocaleDateString('ca-ES', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -142,6 +148,36 @@ if (formEventoEditar) {
 
   document.getElementById('link-export-csv').href = `/api/admin/eventos/${eventoId}/compras/export.csv`;
 
+  const btnEliminar = document.getElementById('btn-eliminar-evento');
+  btnEliminar.addEventListener('click', async () => {
+    const errorEl = document.getElementById('error-evento-editar');
+    errorEl.textContent = '';
+
+    if (!window.confirm('Segur que vols eliminar aquest esdeveniment? Aquesta acció no es pot desfer.')) {
+      return;
+    }
+
+    let res = await apiFetch(`/api/admin/eventos/${eventoId}`, { method: 'DELETE' });
+    if (!res) return;
+
+    if (res.status === 409) {
+      const volForcar = window.confirm(
+        'Aquest esdeveniment té compres associades. Si continues, també s\'eliminaran totes les compres registrades. Estàs completament segur?'
+      );
+      if (!volForcar) return;
+
+      res = await apiFetch(`/api/admin/eventos/${eventoId}?forzar=1`, { method: 'DELETE' });
+      if (!res) return;
+    }
+
+    if (res.ok) {
+      window.location.href = '/admin/index.html';
+    } else {
+      const data = await res.json();
+      errorEl.textContent = data.error || 'No s\'ha pogut eliminar l\'esdeveniment.';
+    }
+  });
+
   async function carregarEvento() {
     const res = await apiFetch(`/api/admin/eventos/${eventoId}`);
     if (!res) return;
@@ -182,7 +218,7 @@ if (formEventoEditar) {
     if (!res) return;
 
     if (res.ok) {
-      carregarEvento();
+      window.location.href = '/admin/index.html';
     } else {
       const data = await res.json();
       errorEl.textContent = (data.detalls || [data.error]).join(', ');
@@ -204,7 +240,7 @@ if (formEventoEditar) {
         <td>${escapeHtml(c.email)}</td>
         <td>${c.cantidad}</td>
         <td>${formatEuros(c.importe_total)}</td>
-        <td>${escapeHtml(c.estado_pago)}</td>
+        <td>${badgeEstatPago(c.estado_pago)}</td>
         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
       `;
       taulaCompras.appendChild(tr);

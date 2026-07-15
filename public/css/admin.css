@@ -139,7 +139,33 @@
   text-align: center;
 }
 
+.badge-estat {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.badge-estat--pendiente {
+  background: rgba(34, 31, 30, 0.08);
+  color: var(--dark-muted);
+}
+
+.badge-estat--pagado {
+  background: rgba(46, 125, 50, 0.12);
+  color: #2e7d32;
+}
+
+.badge-estat--cancelado {
+  background: rgba(179, 38, 30, 0.1);
+  color: var(--error);
+}
+
 .btn-secundari {
+  display: inline-block;
   background: transparent;
   border: 1px solid rgba(34, 31, 30, 0.3);
   border-radius: var(--radius-pill);
@@ -149,5 +175,33 @@
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--dark);
+  text-decoration: none;
   cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-secundari:hover {
+  background: rgba(34, 31, 30, 0.06);
+}
+
+.btn-perillos {
+  display: inline-block;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid rgba(179, 38, 30, 0.4);
+  border-radius: var(--radius-pill);
+  padding: 8px 16px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--error);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-perillos:hover {
+  background: rgba(179, 38, 30, 0.08);
 }

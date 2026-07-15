@@ -8,6 +8,7 @@ const {
   obtenirEvento,
   crearEvento,
   actualitzarEvento,
+  eliminarEvento,
   llistarCompresEvento,
   cancelarCompra,
   exportarComprasCsv,
@@ -20,6 +21,7 @@ router.get('/api/admin/eventos', requireAuth, llistarEventos);
 router.get('/api/admin/eventos/:id', requireAuth, obtenirEvento);
 router.post('/api/admin/eventos', requireAuth, crearEvento);
 router.put('/api/admin/eventos/:id', requireAuth, actualitzarEvento);
+router.delete('/api/admin/eventos/:id', requireAuth, eliminarEvento);
 
 router.get('/api/admin/eventos/:id/compras', requireAuth, llistarCompresEvento);
 router.post('/api/admin/compras/:id/cancelar', requireAuth, cancelarCompra);
