@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accés administració — Espai Econòmic</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<main class="admin-login-card">
+  <h1>Accés administració</h1>
+  <form id="form-login">
+    <label for="usuari">Usuari</label>
+    <input type="text" id="usuari" name="usuari" required autofocus>
+    <label for="contrasenya">Contrasenya</label>
+    <input type="password" id="contrasenya" name="contrasenya" required>
+    <button type="submit" class="btn-primary">Entrar</button>
+    <p id="error-login" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-sans);"></p>
+  </form>
+</main>
+<script src="/js/admin.js"></script>
+</body>
+</html>

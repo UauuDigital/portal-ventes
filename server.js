@@ -6,6 +6,7 @@ const express = require('express');
 const webhookRoutes = require('./routes/webhookRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const { requireAuthPage } = require('./middleware/authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,6 +17,14 @@ app.use(webhookRoutes);
 
 app.use(express.json());
 app.use(adminRoutes);
+
+// La pàgina de login queda fora de protecció: es registra abans del
+// middleware requireAuthPage, així Express la serveix sense demanar sessió.
+app.get('/admin/login.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin', 'login.html'));
+});
+app.use('/admin', requireAuthPage, express.static(path.join(__dirname, 'public', 'admin')));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(publicRoutes);

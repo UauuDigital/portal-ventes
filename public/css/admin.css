@@ -1,0 +1,83 @@
+.admin-login-card {
+  max-width: 360px;
+  width: 100%;
+  background: var(--light);
+  border-radius: var(--radius-card);
+  box-shadow: 0 30px 60px -20px rgba(34, 31, 30, 0.35);
+  padding: 40px;
+}
+
+.admin-login-card h1 {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 500;
+  margin: 0 0 24px;
+}
+
+.admin-shell {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.admin-shell h1 {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 500;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--white);
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 24px 0;
+  font-size: 13px;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(34, 31, 30, 0.08);
+}
+
+.admin-table th {
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--dark-muted);
+}
+
+.admin-form {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 480px;
+}
+
+.admin-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-link-back {
+  color: var(--dark);
+  font-size: 13px;
+}
+
+.btn-secundari {
+  background: transparent;
+  border: 1px solid rgba(34, 31, 30, 0.3);
+  border-radius: var(--radius-pill);
+  padding: 8px 16px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
