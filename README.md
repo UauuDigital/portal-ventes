@@ -23,10 +23,11 @@ Portal standalone per a la venda d'entrades online als esdeveniments mensuals d'
 ```
 config/       Connexió a la BD (node:sqlite) i schema SQL
 models/       Evento i Compra (accés a dades)
-controllers/  Lògica de negoci: esdeveniment actiu, creació de Checkout Session, webhook
-routes/       Rutes Express (públiques i webhook)
-middleware/   Rate limiting de l'endpoint de checkout
-public/       Landing + checkout (HTML/CSS/JS vanilla, estil BrightNest + identitat UAUU)
+controllers/  Lògica de negoci: esdeveniment actiu, checkout, webhook, admin
+routes/       Rutes Express (públiques, webhook i admin)
+middleware/   Rate limiting i autenticació del panell d'admin
+utils/        Cookie de sessió signada i generació de CSV
+public/       Landing + checkout + panell d'admin (HTML/CSS/JS vanilla)
 scripts/      Script de seed per crear un esdeveniment de prova
 data/         Fitxer SQLite (es genera automàticament, no es versiona)
 ```
@@ -47,6 +48,16 @@ stripe listen --forward-to localhost:3000/webhook/stripe
 ```
 
 Copia el `whsec_...` que et dona la CLI a `STRIPE_WEBHOOK_SECRET` del `.env`.
+
+## Panell d'administració
+
+Accessible a `/admin/login.html` amb les credencials `ADMIN_USER`/`ADMIN_PASS` de l'`.env` (cal també definir `SESSION_SECRET`, una cadena llarga i aleatòria, per signar la cookie de sessió). Permet:
+
+- Crear i editar esdeveniments, i "tancar-los" (equivalent a esborrar-los: deixen d'acceptar compres però l'històric es manté).
+- Veure el llistat de compres de cada esdeveniment i cancellar-ne manualment.
+- Exportar les compres d'un esdeveniment a CSV.
+
+La sessió és una cookie signada amb HMAC-SHA256 (`utils/sessionCookie.js`), sense estat al servidor ni dependències noves.
 
 ## Model de dades
 
@@ -81,7 +92,6 @@ S'ha inicialitzat el repositori amb `git init` però **sense cap commit**: els f
 
 ## Pendent (fora d'abast d'aquesta primera entrega)
 
-- Panell d'administració (crear/editar esdeveniment, llistat de compres, exportació CSV, login).
 - Enviament de l'email de confirmació de compra.
 - Textos legals definitius (avís legal, privacitat, cookies, condicions de venda) — `public/avis-legal.html`, `public/privacitat.html`, `public/cookies.html` i `public/condicions.html` són només placeholders enllaçats des del peu de la landing. Pendents de validar amb assessoria, especialment el punt del dret de desistiment (art. 103.l TRLGDCU) i l'esment a la política de cookies/privacitat de la càrrega de Google Fonts (única petició a tercers del portal).
 - Política de cancel·lació/reemborsament — criteri encara no fixat.
