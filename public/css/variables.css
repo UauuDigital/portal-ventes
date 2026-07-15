@@ -27,6 +27,7 @@
   --dark-faint: rgba(34, 31, 30, 0.35);
   --light-muted: rgba(255, 255, 255, 0.6);
   --light-faint: rgba(255, 255, 255, 0.35);
+  --error: #b3261e;
 
   --font-serif: 'Ogg', Georgia, serif;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -50,4 +51,58 @@ body {
   font-family: var(--font-sans);
   color: var(--dark);
   padding: 24px;
+}
+
+/* Fons de la pantalla principal: dues taques radials borroses ("bombolles")
+   que deriven lleugerament a les seves cantonades. Purament atmosfèric. */
+body.pagina-principal {
+  position: relative;
+  z-index: 0;
+  overflow-x: hidden;
+}
+
+body.pagina-principal::before,
+body.pagina-principal::after {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(35px);
+  will-change: transform;
+}
+
+body.pagina-principal::before {
+  top: -18%;
+  left: -12%;
+  width: 60vw;
+  height: 60vw;
+  background: radial-gradient(circle, rgba(34, 31, 30, 0.4), transparent 68%);
+  animation: bombolles-a 11s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+
+body.pagina-principal::after {
+  bottom: -22%;
+  right: -14%;
+  width: 65vw;
+  height: 65vw;
+  background: radial-gradient(circle, rgba(34, 31, 30, 0.32), transparent 68%);
+  animation: bombolles-b 13s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+
+@keyframes bombolles-a {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(4vw, 5vh) scale(1.12); }
+}
+
+@keyframes bombolles-b {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-4vw, -5vh) scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.pagina-principal::before,
+  body.pagina-principal::after {
+    animation: none;
+  }
 }

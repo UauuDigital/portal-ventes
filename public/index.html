@@ -9,9 +9,9 @@
 <!-- Inter via Google Fonts (Ogg és una tipografia amb llicència pròpia de UAUU:
      veure comentari a css/style.css sobre com afegir-la a public/fonts/) -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/style.css?v=2">
 </head>
-<body>
+<body class="pagina-principal">
 
 <!--
   DECISIÓ PENDENT #3 (veure briefing / README): quin costat porta la info de
@@ -24,7 +24,7 @@
 
   <section class="panel panel-color evento-info">
     <div class="logo">
-      <span class="logo-icon"></span>
+      <span class="logo-icon" aria-hidden="true"></span>
       <span>Espai Econòmic</span>
     </div>
     <div>
@@ -40,12 +40,12 @@
   </section>
 
   <section class="panel panel-white form-side">
-    <span class="asterisk">✳</span>
+    <span class="asterisk" aria-hidden="true">✳</span>
     <span class="eyebrow">Reserva la teva plaça</span>
     <h1>Compra la teva entrada</h1>
     <p class="subtitle">Paga de forma segura amb targeta a través de Stripe.</p>
 
-    <div id="estat-no-disponible" class="estat-missatge hidden"></div>
+    <div id="estat-no-disponible" class="estat-missatge hidden" role="status" aria-live="polite"></div>
 
     <form id="form-compra">
       <label for="cantidad">Nombre d'entrades</label>
@@ -62,7 +62,7 @@
 
       <div class="checkbox-row">
         <input type="checkbox" id="quiere_factura" name="quiere_factura">
-        <label for="quiere_factura" style="margin:0; text-transform:none; letter-spacing:normal; font-weight:300;">Vull factura amb dades fiscals</label>
+        <label for="quiere_factura">Vull factura amb dades fiscals</label>
       </div>
 
       <div id="camps-fiscals" class="fiscal-fields hidden">
@@ -76,14 +76,14 @@
 
       <div class="checkbox-row">
         <input type="checkbox" id="accepta_condicions" name="accepta_condicions" required>
-        <label for="accepta_condicions" style="margin:0; text-transform:none; letter-spacing:normal; font-weight:300;">
+        <label for="accepta_condicions">
           Accepto les <a href="/condicions.html" data-legal="condicions">condicions de venda</a>
           i la <a href="/privacitat.html" data-legal="privacitat">política de privacitat</a>.
         </label>
       </div>
 
       <button type="submit" class="btn-primary" id="btn-comprar">Pagar i reservar entrada</button>
-      <p id="error-missatge" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-sans);"></p>
+      <p id="error-missatge" class="form-error" role="alert" aria-live="polite"></p>
     </form>
 
     <div class="divider">mètodes de pagament acceptats</div>
