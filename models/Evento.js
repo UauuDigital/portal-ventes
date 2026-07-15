@@ -2,8 +2,8 @@ const db = require('../config/db');
 
 /**
  * Retorna l'esdeveniment actiu: el que està "abierto" i encara no ha superat
- * la seva data límit de compra. Si n'hi hagués més d'un (no hauria de passar
- * en operativa normal), es queda amb el més proper en el temps.
+ * la seva data límit de compra. Si n'hi hagués més d'un, es queda amb el que
+ * té el termini de compra més proper (més urgent per reservar).
  */
 function getActivo() {
   const now = new Date().toISOString();
@@ -11,7 +11,7 @@ function getActivo() {
     .prepare(
       `SELECT * FROM eventos
        WHERE estado = 'abierto' AND fecha_limite_compra > ?
-       ORDER BY fecha ASC
+       ORDER BY fecha_limite_compra ASC
        LIMIT 1`
     )
     .get(now);
