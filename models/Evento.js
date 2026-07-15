@@ -42,4 +42,8 @@ function update(id, data) {
   return getById(id);
 }
 
-module.exports = { getActivo, getById, create, update };
+function listAll() {
+  return db.prepare('SELECT * FROM eventos ORDER BY fecha DESC').all();
+}
+
+module.exports = { getActivo, getById, create, update, listAll };

@@ -39,26 +39,29 @@ const db = {
   exec: (sql) => raw.exec(sql),
   prepare(sql) {
     return {
-      get(first, ...rest) {
+      get(...args) {
+        const [first, ...rest] = args;
         if (isPlainObjectParam(first, rest.length)) {
           const { sql: convertedSql, params } = toNamedParams(sql, first);
           return raw.prepare(convertedSql).get(params);
         }
-        return raw.prepare(sql).get(first, ...rest);
+        return raw.prepare(sql).get(...args);
       },
-      all(first, ...rest) {
+      all(...args) {
+        const [first, ...rest] = args;
         if (isPlainObjectParam(first, rest.length)) {
           const { sql: convertedSql, params } = toNamedParams(sql, first);
           return raw.prepare(convertedSql).all(params);
         }
-        return raw.prepare(sql).all(first, ...rest);
+        return raw.prepare(sql).all(...args);
       },
-      run(first, ...rest) {
+      run(...args) {
+        const [first, ...rest] = args;
         if (isPlainObjectParam(first, rest.length)) {
           const { sql: convertedSql, params } = toNamedParams(sql, first);
           return raw.prepare(convertedSql).run(params);
         }
-        return raw.prepare(sql).run(first, ...rest);
+        return raw.prepare(sql).run(...args);
       },
     };
   },
