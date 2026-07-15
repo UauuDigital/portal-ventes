@@ -31,3 +31,19 @@ test('sense files retorna només la capçalera', () => {
   const csv = toCsv([], columnes);
   assert.equal(csv, 'Nom,Import\r\n');
 });
+
+test('neutralitza injeccio de formules CSV que comencen per =', () => {
+  const csv = toCsv([{ nom: "=cmd|' /C calc'!A1", importe: '10.00' }], columnes);
+  assert.equal(csv, "Nom,Import\r\n'=cmd|' /C calc'!A1,10.00\r\n");
+});
+
+test('neutralitza injeccio de formules CSV que comencen per +, - o @', () => {
+  const csvMes = toCsv([{ nom: '+1+1', importe: '10.00' }], columnes);
+  assert.equal(csvMes, "Nom,Import\r\n'+1+1,10.00\r\n");
+
+  const csvMenys = toCsv([{ nom: '-1+1', importe: '10.00' }], columnes);
+  assert.equal(csvMenys, "Nom,Import\r\n'-1+1,10.00\r\n");
+
+  const csvArroba = toCsv([{ nom: '@SUM(A1)', importe: '10.00' }], columnes);
+  assert.equal(csvArroba, "Nom,Import\r\n'@SUM(A1),10.00\r\n");
+});

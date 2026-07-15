@@ -16,6 +16,14 @@ function formatEuros(centims) {
   return (centims / 100).toFixed(2) + ' €';
 }
 
+// Escapa text no fiable abans d'interpolar-lo dins innerHTML, per evitar XSS
+// amb dades provinents del formulari public (noms, emails, descripcions, etc.)
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text === null || text === undefined ? '' : String(text);
+  return div.innerHTML;
+}
+
 // Formulari de login
 const formLogin = document.getElementById('form-login');
 if (formLogin) {
@@ -60,11 +68,11 @@ if (taulaEventos) {
     eventos.forEach((ev) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${ev.nombre}</td>
+        <td>${escapeHtml(ev.nombre)}</td>
         <td>${new Date(ev.fecha).toLocaleString('ca-ES')}</td>
         <td>${formatEuros(ev.precio)}</td>
         <td>${ev.aforo_total}</td>
-        <td>${ev.estado}</td>
+        <td>${escapeHtml(ev.estado)}</td>
         <td><a href="/admin/evento.html?id=${ev.id}">Veure</a></td>
       `;
       taulaEventos.appendChild(tr);
@@ -176,11 +184,11 @@ if (formEventoEditar) {
       const potCancelar = ['pendiente', 'pagado'].includes(c.estado_pago);
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${c.nombre_comprador}</td>
-        <td>${c.email}</td>
+        <td>${escapeHtml(c.nombre_comprador)}</td>
+        <td>${escapeHtml(c.email)}</td>
         <td>${c.cantidad}</td>
         <td>${formatEuros(c.importe_total)}</td>
-        <td>${c.estado_pago}</td>
+        <td>${escapeHtml(c.estado_pago)}</td>
         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
       `;
       taulaCompras.appendChild(tr);

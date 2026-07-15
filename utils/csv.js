@@ -1,5 +1,10 @@
 function escaparCamp(valor) {
-  const text = valor === null || valor === undefined ? '' : String(valor);
+  let text = valor === null || valor === undefined ? '' : String(valor);
+  // Neutralitza la injeccio de formules CSV (Excel/Sheets interpreten com a
+  // formula qualsevol cel·la que comenci per =, +, - o @).
+  if (/^[=+\-@]/.test(text)) {
+    text = `'${text}`;
+  }
   if (/[",\n]/.test(text)) {
     return `"${text.replace(/"/g, '""')}"`;
   }
