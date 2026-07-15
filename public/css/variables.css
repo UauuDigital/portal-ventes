@@ -1,0 +1,53 @@
+/* ============================================================
+   Espai Econòmic — fusió estructura BrightNest + identitat UAUU
+   Tipografia: Ogg (serif, titulars) + Inter (sans, body/UI)
+   Paleta: #221F1E (fosc) / #F2EFEE (clar) / blanc
+   Referència de marca: github.com/UauuDigital/catalegs-web (css/styles.css)
+   ============================================================ */
+
+/*
+  Ogg és una tipografia amb llicència pròpia de UAUU (no distribuïble
+  públicament). Copia els fitxers Ogg-Medium.otf / .ttf del repositori
+  catalegs-web a public/fonts/ perquè es carregui correctament; mentre
+  no hi siguin, cau automàticament a Georgia (serif) sense trencar res.
+*/
+@font-face {
+  font-family: 'Ogg';
+  src: url('/fonts/Ogg-Medium.otf') format('opentype'),
+       url('/fonts/Ogg-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+}
+
+:root {
+  --dark: #221F1E;
+  --light: #F2EFEE;
+  --white: #ffffff;
+  --dark-muted: rgba(34, 31, 30, 0.6);
+  --dark-faint: rgba(34, 31, 30, 0.35);
+  --light-muted: rgba(255, 255, 255, 0.6);
+  --light-faint: rgba(255, 255, 255, 0.35);
+
+  --font-serif: 'Ogg', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --radius-card: 32px;
+  --radius-image: 16px;
+  --radius-pill: 100px;
+  --radius-input: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #e4e2e0;
+  font-family: var(--font-sans);
+  color: var(--dark);
+  padding: 24px;
+}

@@ -8,3 +8,4 @@ data/*.sqlite-shm
 .DS_Store
 
 .superpowers/
+GLOBAL_CLAUDE.md
