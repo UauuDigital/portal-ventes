@@ -54,7 +54,7 @@ Copia el `whsec_...` que et dona la CLI a `STRIPE_WEBHOOK_SECRET` del `.env`.
 Accessible a `/admin/login.html` amb les credencials `ADMIN_USER`/`ADMIN_PASS` de l'`.env` (cal també definir `SESSION_SECRET`, una cadena llarga i aleatòria, per signar la cookie de sessió). Permet:
 
 - Crear i editar esdeveniments, i "tancar-los" (equivalent a esborrar-los: deixen d'acceptar compres però l'històric es manté).
-- Veure el llistat de compres de cada esdeveniment i cancellar-ne manualment.
+- Veure el llistat de compres de cada esdeveniment i cancel·lar-ne manualment.
 - Exportar les compres d'un esdeveniment a CSV.
 
 La sessió és una cookie signada amb HMAC-SHA256 (`utils/sessionCookie.js`), sense estat al servidor ni dependències noves.
