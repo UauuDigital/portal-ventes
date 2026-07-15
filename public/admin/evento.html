@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Detall d'esdeveniment — Administració Espai Econòmic</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<div class="admin-shell">
+  <div class="admin-topbar">
+    <a href="/admin/index.html" class="admin-link-back">← Tots els esdeveniments</a>
+    <button type="button" id="btn-logout" class="btn-secundari">Tanca sessió</button>
+  </div>
+
+  <h1 id="titol-evento">Carregant…</h1>
+
+  <form id="form-evento-editar" class="admin-form">
+    <label for="nombre">Nom</label>
+    <input type="text" id="nombre" name="nombre" required>
+
+    <label for="fecha">Data de l'esdeveniment</label>
+    <input type="datetime-local" id="fecha" name="fecha" required>
+
+    <label for="descripcion">Descripció</label>
+    <input type="text" id="descripcion" name="descripcion">
+
+    <label for="precio">Preu (€)</label>
+    <input type="number" id="precio" name="precio" min="0.01" step="0.01" required>
+
+    <label for="aforo_total">Aforament total</label>
+    <input type="number" id="aforo_total" name="aforo_total" min="1" step="1" required>
+
+    <label for="fecha_limite_compra">Data límit de compra</label>
+    <input type="datetime-local" id="fecha_limite_compra" name="fecha_limite_compra" required>
+
+    <label for="estado">Estat</label>
+    <select id="estado" name="estado">
+      <option value="abierto">Obert</option>
+      <option value="cerrado">Tancat</option>
+    </select>
+
+    <button type="submit" class="btn-primary">Desar canvis</button>
+    <p id="error-evento-editar" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-sans);"></p>
+  </form>
+
+  <div class="admin-topbar" style="margin-top:32px;">
+    <h2 style="font-family:var(--font-sans); font-size:14px; text-transform:uppercase; letter-spacing:0.05em; color:var(--dark-muted);">Compres</h2>
+    <a id="link-export-csv" class="btn-secundari" href="#">Exportar CSV</a>
+  </div>
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Comprador</th>
+        <th>Email</th>
+        <th>Quantitat</th>
+        <th>Import</th>
+        <th>Estat</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="taula-compras"></tbody>
+  </table>
+</div>
+<script src="/js/admin.js"></script>
+</body>
+</html>
