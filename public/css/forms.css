@@ -36,6 +36,8 @@ input[type="text"],
 input[type="email"],
 input[type="tel"],
 input[type="number"],
+input[type="password"],
+input[type="datetime-local"],
 textarea {
   width: 100%;
   background: var(--white);
@@ -47,6 +49,11 @@ textarea {
   font-weight: 400;
   margin-bottom: 16px;
   color: var(--dark);
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.3);
+  cursor: pointer;
 }
 
 input:focus,

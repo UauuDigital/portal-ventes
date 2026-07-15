@@ -15,43 +15,51 @@
     <button type="button" id="btn-logout" class="btn-secundari">Tanca sessió</button>
   </div>
 
-  <table class="admin-table">
-    <thead>
-      <tr>
-        <th>Nom</th>
-        <th>Data</th>
-        <th>Preu</th>
-        <th>Aforament</th>
-        <th>Estat</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody id="taula-eventos"></tbody>
-  </table>
+  <div class="admin-columns">
+    <div class="admin-col">
+      <h2 class="admin-col-title">Crear esdeveniment</h2>
+      <form id="form-evento" class="admin-form">
+        <label for="nombre">Nom</label>
+        <input type="text" id="nombre" name="nombre" required>
 
-  <h2 style="font-family:var(--font-sans); font-size:14px; text-transform:uppercase; letter-spacing:0.05em; color:var(--dark-muted);">Crear esdeveniment</h2>
-  <form id="form-evento" class="admin-form">
-    <label for="nombre">Nom</label>
-    <input type="text" id="nombre" name="nombre" required>
+        <label for="fecha">Data de l'esdeveniment</label>
+        <input type="datetime-local" id="fecha" name="fecha" required>
 
-    <label for="fecha">Data de l'esdeveniment</label>
-    <input type="datetime-local" id="fecha" name="fecha" required>
+        <label for="descripcion">Descripció</label>
+        <input type="text" id="descripcion" name="descripcion">
 
-    <label for="descripcion">Descripció</label>
-    <input type="text" id="descripcion" name="descripcion">
+        <label for="precio">Preu (€)</label>
+        <input type="number" id="precio" name="precio" min="0.01" step="0.01" required>
 
-    <label for="precio">Preu (€)</label>
-    <input type="number" id="precio" name="precio" min="0.01" step="0.01" required>
+        <label for="aforo_total">Aforament total</label>
+        <input type="number" id="aforo_total" name="aforo_total" min="1" step="1" required>
 
-    <label for="aforo_total">Aforament total</label>
-    <input type="number" id="aforo_total" name="aforo_total" min="1" step="1" required>
+        <label for="fecha_limite_compra">Data límit de compra</label>
+        <input type="datetime-local" id="fecha_limite_compra" name="fecha_limite_compra" required>
 
-    <label for="fecha_limite_compra">Data límit de compra</label>
-    <input type="datetime-local" id="fecha_limite_compra" name="fecha_limite_compra" required>
+        <button type="submit" class="btn-primary">Crear esdeveniment</button>
+        <p id="error-evento" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-sans);"></p>
+      </form>
+    </div>
 
-    <button type="submit" class="btn-primary">Crear esdeveniment</button>
-    <p id="error-evento" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-sans);"></p>
-  </form>
+    <div class="admin-col">
+      <h2 class="admin-col-title">Esdeveniments</h2>
+      <div class="admin-table-scroll">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Data</th>
+              <th>Preu</th>
+              <th>Aforament</th>
+              <th>Estat</th>
+            </tr>
+          </thead>
+          <tbody id="taula-eventos"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 <script src="/js/admin.js"></script>
 </body>

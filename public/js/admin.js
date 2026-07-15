@@ -16,6 +16,18 @@ function formatEuros(centims) {
   return (centims / 100).toFixed(2) + ' €';
 }
 
+const ESTATS_EVENTO = { abierto: 'Obert', cerrado: 'Tancat' };
+function traduirEstatEvento(estado) {
+  return ESTATS_EVENTO[estado] || estado;
+}
+
+function formatData(isoString) {
+  const data = new Date(isoString);
+  const dataText = data.toLocaleDateString('ca-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+  const horaText = data.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' });
+  return `${dataText} · ${horaText}`;
+}
+
 // Escapa text no fiable abans d'interpolar-lo dins innerHTML, per evitar XSS
 // amb dades provinents del formulari public (noms, emails, descripcions, etc.)
 function escapeHtml(text) {
@@ -64,17 +76,21 @@ if (taulaEventos) {
     const res = await apiFetch('/api/admin/eventos');
     if (!res) return;
     const eventos = await res.json();
+    eventos.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
     taulaEventos.innerHTML = '';
     eventos.forEach((ev) => {
       const tr = document.createElement('tr');
+      tr.className = 'admin-table-row-link';
       tr.innerHTML = `
-        <td>${escapeHtml(ev.nombre)}</td>
-        <td>${new Date(ev.fecha).toLocaleString('ca-ES')}</td>
+        <td><span>${escapeHtml(ev.nombre)}</span></td>
+        <td><span>${formatData(ev.fecha)}</span></td>
         <td>${formatEuros(ev.precio)}</td>
         <td>${ev.aforo_total}</td>
-        <td>${escapeHtml(ev.estado)}</td>
-        <td><a href="/admin/evento.html?id=${ev.id}">Veure</a></td>
+        <td>${escapeHtml(traduirEstatEvento(ev.estado))}</td>
       `;
+      tr.addEventListener('click', () => {
+        window.location.href = `/admin/evento.html?id=${ev.id}`;
+      });
       taulaEventos.appendChild(tr);
     });
   }

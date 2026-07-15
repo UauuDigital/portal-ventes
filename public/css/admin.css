@@ -16,7 +16,7 @@
 
 .admin-shell {
   width: 100%;
-  max-width: 960px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 32px 24px;
 }
@@ -27,14 +27,46 @@
   font-weight: 500;
 }
 
+.admin-columns {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.admin-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.admin-col-title {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dark-muted);
+  margin: 0 0 12px;
+}
+
+@media (max-width: 720px) {
+  .admin-columns {
+    flex-direction: column;
+  }
+}
+
+.admin-table-scroll {
+  overflow-x: auto;
+  border-radius: 16px;
+}
+
 .admin-table {
   width: 100%;
+  min-width: 640px;
   border-collapse: collapse;
   background: var(--white);
-  border-radius: 16px;
-  overflow: hidden;
-  margin: 24px 0;
+  margin: 0;
   font-size: 13px;
+  table-layout: fixed;
 }
 
 .admin-table th,
@@ -51,11 +83,46 @@
   color: var(--dark-muted);
 }
 
+.admin-table th:nth-child(1), .admin-table td:nth-child(1) { width: 26%; }
+.admin-table th:nth-child(2), .admin-table td:nth-child(2) { width: 24%; }
+.admin-table th:nth-child(3), .admin-table td:nth-child(3) { width: 17%; }
+.admin-table th:nth-child(4), .admin-table td:nth-child(4) { width: 17%; }
+.admin-table th:nth-child(5), .admin-table td:nth-child(5) { width: 16%; }
+
+.admin-table-row-link {
+  cursor: pointer;
+}
+
+.admin-table tbody tr.admin-table-row-link:hover {
+  background: rgba(34, 31, 30, 0.06);
+}
+
+.admin-table td:nth-child(1) span,
+.admin-table td:nth-child(2) span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.admin-table td:nth-child(3),
+.admin-table td:nth-child(4),
+.admin-table td:nth-child(5) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-table tbody tr:nth-child(even) {
+  background: var(--light);
+}
+
 .admin-form {
   background: var(--white);
   border-radius: 16px;
   padding: 24px;
-  max-width: 480px;
+  width: 100%;
 }
 
 .admin-topbar {
@@ -67,6 +134,9 @@
 .admin-link-back {
   color: var(--dark);
   font-size: 13px;
+  display: block;
+  margin-top: 16px;
+  text-align: center;
 }
 
 .btn-secundari {

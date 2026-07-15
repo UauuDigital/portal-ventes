@@ -40,8 +40,17 @@ function toggleCampsFiscals() {
   });
 }
 
+function comprovarAccesAdmin(evt) {
+  if (document.getElementById('nombre_comprador').value.trim().toLowerCase() === 'admin') {
+    evt.preventDefault();
+    evt.stopPropagation();
+    window.location.href = '/admin/login.html';
+  }
+}
+
 async function enviarFormulari(evt) {
   evt.preventDefault();
+
   const btn = document.getElementById('btn-comprar');
   const errorEl = document.getElementById('error-missatge');
   errorEl.textContent = '';
@@ -86,5 +95,6 @@ async function enviarFormulari(evt) {
 document.addEventListener('DOMContentLoaded', () => {
   carregarEvento();
   document.getElementById('quiere_factura').addEventListener('change', toggleCampsFiscals);
+  document.getElementById('btn-comprar').addEventListener('click', comprovarAccesAdmin, true);
   document.getElementById('form-compra').addEventListener('submit', enviarFormulari);
 });
