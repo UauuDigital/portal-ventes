@@ -33,12 +33,15 @@ function create(data) {
 function update(id, data) {
   const actual = getById(id);
   if (!actual) return null;
-  const merged = { ...actual, ...data, id };
+  const { nombre, fecha, descripcion, precio, aforo_total, fecha_limite_compra, estado } = {
+    ...actual,
+    ...data,
+  };
   db.prepare(
     `UPDATE eventos SET nombre=@nombre, fecha=@fecha, descripcion=@descripcion, precio=@precio,
        aforo_total=@aforo_total, fecha_limite_compra=@fecha_limite_compra, estado=@estado
      WHERE id=@id`
-  ).run(merged);
+  ).run({ nombre, fecha, descripcion, precio, aforo_total, fecha_limite_compra, estado, id });
   return getById(id);
 }
 
