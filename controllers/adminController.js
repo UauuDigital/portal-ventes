@@ -35,21 +35,21 @@ function validarEvento(body, { parcial } = {}) {
   return errors;
 }
 
-function llistarEventos(req, res) {
-  res.json(Evento.listAll());
+async function llistarEventos(req, res) {
+  res.json(await Evento.listAll());
 }
 
-function obtenirEvento(req, res) {
-  const evento = Evento.getById(parseInt(req.params.id, 10));
+async function obtenirEvento(req, res) {
+  const evento = await Evento.getById(parseInt(req.params.id, 10));
   if (!evento) return res.status(404).json({ error: 'no_trobat' });
   res.json(evento);
 }
 
-function crearEvento(req, res) {
+async function crearEvento(req, res) {
   const errors = validarEvento(req.body);
   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
 
-  const evento = Evento.create({
+  const evento = await Evento.create({
     nombre: String(req.body.nombre).trim(),
     fecha: new Date(req.body.fecha).toISOString(),
     descripcion: req.body.descripcion ? String(req.body.descripcion).trim() : null,
@@ -61,9 +61,9 @@ function crearEvento(req, res) {
   res.status(201).json(evento);
 }
 
-function actualitzarEvento(req, res) {
+async function actualitzarEvento(req, res) {
   const id = parseInt(req.params.id, 10);
-  const actual = Evento.getById(id);
+  const actual = await Evento.getById(id);
   if (!actual) return res.status(404).json({ error: 'no_trobat' });
 
   const errors = validarEvento(req.body, { parcial: true });
@@ -80,16 +80,17 @@ function actualitzarEvento(req, res) {
     canvis.fecha_limite_compra = new Date(req.body.fecha_limite_compra).toISOString();
   }
 
-  const evento = Evento.update(id, canvis);
+  const evento = await Evento.update(id, canvis);
   res.json(evento);
 }
 
-function eliminarEvento(req, res) {
+async function eliminarEvento(req, res) {
   const id = parseInt(req.params.id, 10);
-  const evento = Evento.getById(id);
+  const evento = await Evento.getById(id);
   if (!evento) return res.status(404).json({ error: 'no_trobat' });
 
-  const teCompres = Compra.listByEvento(id).length > 0;
+  const compresEvento = await Compra.listByEvento(id);
+  const teCompres = compresEvento.length > 0;
   const forcar = req.query.forzar === '1';
 
   if (teCompres && !forcar) {
@@ -97,29 +98,29 @@ function eliminarEvento(req, res) {
   }
 
   if (teCompres) {
-    Compra.eliminarPerEvento(id);
+    await Compra.eliminarPerEvento(id);
   }
 
-  Evento.remove(id);
+  await Evento.remove(id);
   res.status(204).send();
 }
 
-function llistarCompresEvento(req, res) {
+async function llistarCompresEvento(req, res) {
   const eventoId = parseInt(req.params.id, 10);
-  const evento = Evento.getById(eventoId);
+  const evento = await Evento.getById(eventoId);
   if (!evento) return res.status(404).json({ error: 'no_trobat' });
-  res.json(Compra.listByEvento(eventoId));
+  res.json(await Compra.listByEvento(eventoId));
 }
 
-function cancelarCompra(req, res) {
+async function cancelarCompra(req, res) {
   const id = parseInt(req.params.id, 10);
-  const compra = Compra.getById(id);
+  const compra = await Compra.getById(id);
   if (!compra) return res.status(404).json({ error: 'no_trobat' });
   if (['cancelado', 'reembolsado'].includes(compra.estado_pago)) {
     return res.status(409).json({ error: 'operacio_no_aplicable' });
   }
-  Compra.marcarCancelado(id);
-  res.json(Compra.getById(id));
+  await Compra.marcarCancelado(id);
+  res.json(await Compra.getById(id));
 }
 
 const COLUMNES_CSV = [
@@ -136,12 +137,13 @@ const COLUMNES_CSV = [
   { clau: 'created_at', capsalera: 'Data compra' },
 ];
 
-function exportarComprasCsv(req, res) {
+async function exportarComprasCsv(req, res) {
   const eventoId = parseInt(req.params.id, 10);
-  const evento = Evento.getById(eventoId);
+  const evento = await Evento.getById(eventoId);
   if (!evento) return res.status(404).json({ error: 'no_trobat' });
 
-  const files = Compra.listByEvento(eventoId).map((c) => ({
+  const compres = await Compra.listByEvento(eventoId);
+  const files = compres.map((c) => ({
     ...c,
     importe_total_eur: (c.importe_total / 100).toFixed(2),
     quiere_factura_text: c.quiere_factura ? 'Sí' : 'No',

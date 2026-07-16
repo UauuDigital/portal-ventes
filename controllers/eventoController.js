@@ -7,13 +7,13 @@ const Compra = require('../models/Compra');
  * a l'instant. Si no n'hi ha (o s'ha exhaurit / superat la data límit), informa
  * del motiu perquè la landing pugui mostrar "compra tancada".
  */
-function getEventoActual(req, res) {
-  const evento = Evento.getActivo();
+async function getEventoActual(req, res) {
+  const evento = await Evento.getActivo();
   if (!evento) {
     return res.json({ disponible: false, motiu: 'no_hi_ha_event_actiu' });
   }
 
-  const ocupades = Compra.cantidadOcupada(evento.id);
+  const ocupades = await Compra.cantidadOcupada(evento.id);
   const disponibles = evento.aforo_total - ocupades;
   const dataLimitSuperada = new Date() > new Date(evento.fecha_limite_compra);
 
