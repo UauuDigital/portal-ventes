@@ -10,8 +10,7 @@
 </head>
 <body>
 <div class="admin-shell">
-  <div class="admin-topbar">
-    <h1>Esdeveniments</h1>
+  <div class="admin-topbar" style="justify-content:flex-end;">
     <button type="button" id="btn-logout" class="btn-secundari">Tanca sessió</button>
   </div>
 
@@ -57,6 +56,26 @@
           </thead>
           <tbody id="taula-eventos"></tbody>
         </table>
+      </div>
+    </div>
+
+    <div class="admin-col admin-col--calendari">
+      <h2 class="admin-col-title">Calendari</h2>
+      <div class="admin-calendari" id="calendari-eventos">
+        <div class="admin-calendari-header">
+          <button type="button" class="btn-calendari-nav" id="calendari-mes-anterior" aria-label="Mes anterior">‹</button>
+          <span class="admin-calendari-mes" id="calendari-mes-actual"></span>
+          <button type="button" class="btn-calendari-nav" id="calendari-mes-seguent" aria-label="Mes següent">›</button>
+        </div>
+        <div class="admin-calendari-diesetmana">
+          <span>DL</span><span>DM</span><span>DC</span><span>DJ</span><span>DV</span><span>DS</span><span>DG</span>
+        </div>
+        <div class="admin-calendari-graella" id="calendari-graella"></div>
+        <div class="admin-calendari-llegenda">
+          <span><i class="calendari-punt calendari-punt--verd"></i> Compra oberta</span>
+          <span><i class="calendari-punt calendari-punt--vermell"></i> Tancat (esgotat / termini)</span>
+          <span><i class="calendari-punt calendari-punt--gris"></i> Ja celebrat</span>
+        </div>
       </div>
     </div>
   </div>

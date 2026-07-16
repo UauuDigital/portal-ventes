@@ -21,7 +21,7 @@ function traduirEstatEvento(estado) {
   return ESTATS_EVENTO[estado] || estado;
 }
 
-const ESTATS_PAGO = { pendiente: 'Pendent', pagado: 'Pagat', cancelado: 'Cancel·lat' };
+const ESTATS_PAGO = { pendiente: 'Pendent', pagado: 'Pagat', cancelado: 'Cancellat' };
 function badgeEstatPago(estado) {
   const etiqueta = ESTATS_PAGO[estado] || estado;
   return `<span class="badge-estat badge-estat--${escapeHtml(estado)}">${escapeHtml(etiqueta)}</span>`;
@@ -75,6 +75,146 @@ if (btnLogout) {
   });
 }
 
+// Calendari d'esdeveniments (columna al costat de la taula)
+const calendariGraella = document.getElementById('calendari-graella');
+let calendariMesVisible = null; // Date (dia 1 del mes mostrat)
+let calendariTooltipEl = null;
+
+function clauData(data) {
+  // Clau local (no UTC) per agrupar esdeveniments pel dia de calendari.
+  const y = data.getFullYear();
+  const m = String(data.getMonth() + 1).padStart(2, '0');
+  const d = String(data.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function colorEstatEvento(ev) {
+  const ara = new Date();
+  if (new Date(ev.fecha) < ara) return 'gris';
+  const terminiSuperat = new Date(ev.fecha_limite_compra) <= ara;
+  const exhaurit = (ev.ocupadas || 0) >= ev.aforo_total;
+  if (terminiSuperat || exhaurit) return 'vermell';
+  return 'verd';
+}
+
+function amagarTooltipCalendari() {
+  if (calendariTooltipEl) {
+    calendariTooltipEl.remove();
+    calendariTooltipEl = null;
+  }
+}
+
+function mostrarTooltipCalendari(evt, eventosDia) {
+  amagarTooltipCalendari();
+  const div = document.createElement('div');
+  div.className = 'calendari-tooltip';
+  div.innerHTML = eventosDia
+    .map(
+      (ev) => `
+        <div>${escapeHtml(ev.nombre)}</div>
+        <div>Aforament: <strong>${ev.aforo_total}</strong></div>
+        <div>Entrades comprades: <strong>${ev.ocupadas || 0}</strong></div>
+      `
+    )
+    .join('<hr style="border:none; border-top:1px solid rgba(242,239,238,0.2); margin:6px 0;">');
+  document.body.appendChild(div);
+  const rect = evt.target.getBoundingClientRect();
+  div.style.left = `${rect.left + rect.width / 2}px`;
+  div.style.top = `${rect.top}px`;
+  calendariTooltipEl = div;
+}
+
+// Prioritat de color quan hi ha diversos esdeveniments el mateix dia.
+const PRIORITAT_COLOR = { vermell: 0, verd: 1, gris: 2 };
+
+function renderCalendari(eventos) {
+  if (!calendariGraella || !calendariMesVisible) return;
+
+  const eventosPerDia = new Map();
+  eventos.forEach((ev) => {
+    const clau = clauData(new Date(ev.fecha));
+    if (!eventosPerDia.has(clau)) eventosPerDia.set(clau, []);
+    eventosPerDia.get(clau).push(ev);
+  });
+
+  const any = calendariMesVisible.getFullYear();
+  const mes = calendariMesVisible.getMonth();
+
+  document.getElementById('calendari-mes-actual').textContent = calendariMesVisible.toLocaleDateString('ca-ES', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const primerDiaMes = new Date(any, mes, 1);
+  // getDay(): 0=diumenge..6=dissabte -> convertim a índex on 0=dilluns
+  const offsetInicial = (primerDiaMes.getDay() + 6) % 7;
+  const diesAlMes = new Date(any, mes + 1, 0).getDate();
+  const avui = clauData(new Date());
+
+  calendariGraella.innerHTML = '';
+
+  for (let i = 0; i < offsetInicial; i++) {
+    const buit = document.createElement('div');
+    buit.className = 'calendari-dia calendari-dia--buit';
+    calendariGraella.appendChild(buit);
+  }
+
+  for (let dia = 1; dia <= diesAlMes; dia++) {
+    const clauDia = clauData(new Date(any, mes, dia));
+    const cella = document.createElement('div');
+    cella.className = 'calendari-dia' + (clauDia === avui ? ' calendari-dia--avui' : '');
+
+    const eventosDia = eventosPerDia.get(clauDia) || [];
+
+    if (eventosDia.length === 0) {
+      cella.innerHTML = `<span class="calendari-dia-numero">${dia}</span>`;
+    } else {
+      const colors = eventosDia.map(colorEstatEvento);
+      const colorPrincipal = colors.sort((a, b) => PRIORITAT_COLOR[a] - PRIORITAT_COLOR[b])[0];
+
+      const embolcall = document.createElement('div');
+      embolcall.className = 'calendari-event-embolcall';
+
+      const marcador = document.createElement('button');
+      marcador.type = 'button';
+      marcador.className = `calendari-dia-numero calendari-event calendari-event--${colorPrincipal}`;
+      marcador.textContent = dia;
+      marcador.setAttribute('aria-label', eventosDia.map((ev) => ev.nombre).join(', '));
+      marcador.addEventListener('mouseenter', (evt) => mostrarTooltipCalendari(evt, eventosDia));
+      marcador.addEventListener('mouseleave', amagarTooltipCalendari);
+      marcador.addEventListener('click', () => {
+        window.location.href = `/admin/evento.html?id=${eventosDia[0].id}`;
+      });
+      embolcall.appendChild(marcador);
+
+      if (eventosDia.length > 1) {
+        const comptador = document.createElement('span');
+        comptador.className = 'calendari-event-comptador';
+        comptador.textContent = eventosDia.length;
+        embolcall.appendChild(comptador);
+      }
+
+      cella.appendChild(embolcall);
+    }
+
+    calendariGraella.appendChild(cella);
+  }
+}
+
+const btnMesAnterior = document.getElementById('calendari-mes-anterior');
+const btnMesSeguent = document.getElementById('calendari-mes-seguent');
+let ultimsEventosCalendari = [];
+if (btnMesAnterior && btnMesSeguent) {
+  btnMesAnterior.addEventListener('click', () => {
+    calendariMesVisible.setMonth(calendariMesVisible.getMonth() - 1);
+    renderCalendari(ultimsEventosCalendari);
+  });
+  btnMesSeguent.addEventListener('click', () => {
+    calendariMesVisible.setMonth(calendariMesVisible.getMonth() + 1);
+    renderCalendari(ultimsEventosCalendari);
+  });
+}
+
 // Llistat i creacio d'esdeveniments
 const taulaEventos = document.getElementById('taula-eventos');
 if (taulaEventos) {
@@ -99,6 +239,16 @@ if (taulaEventos) {
       });
       taulaEventos.appendChild(tr);
     });
+
+    if (calendariGraella) {
+      ultimsEventosCalendari = eventos;
+      if (!calendariMesVisible) {
+        const primerEventFutur = eventos.find((ev) => new Date(ev.fecha) >= new Date());
+        const dataBase = primerEventFutur ? new Date(primerEventFutur.fecha) : new Date();
+        calendariMesVisible = new Date(dataBase.getFullYear(), dataBase.getMonth(), 1);
+      }
+      renderCalendari(eventos);
+    }
   }
 
   const formEvento = document.getElementById('form-evento');
@@ -241,7 +391,7 @@ if (formEventoEditar) {
         <td>${c.cantidad}</td>
         <td>${formatEuros(c.importe_total)}</td>
         <td>${badgeEstatPago(c.estado_pago)}</td>
-        <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
+        <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancellar</button>` : ''}</td>
       `;
       taulaCompras.appendChild(tr);
     });
