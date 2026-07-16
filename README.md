@@ -6,7 +6,7 @@ Portal standalone per a la venda d'entrades online als esdeveniments mensuals d'
 
 - El client compra una entrada (per persona) a l'esdeveniment actiu i paga amb Stripe Checkout (hosted).
 - L'aforament només es descompta quan el webhook `checkout.session.completed` confirma el pagament.
-- La sessió de checkout expira als 15 minuts (configurable); l'esdeveniment `checkout.session.expired` allibera la reserva temporal.
+- La sessió de checkout expira als 30 minuts (configurable, mínim imposat per Stripe); l'esdeveniment `checkout.session.expired` allibera la reserva temporal.
 - La compra es tanca automàticament un cop superada la `fecha_limite_compra` de l'esdeveniment, encara que quedin places.
 - Sense QR, sense comptes d'usuari, sense reemborsaments automatitzats (es gestionen manualment des del Dashboard de Stripe), sense integració amb CRM.
 

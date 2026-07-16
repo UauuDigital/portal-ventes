@@ -3,7 +3,9 @@ const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
-const EXPIRA_MINUTS = parseInt(process.env.CHECKOUT_EXPIRES_MINUTES || '15', 10);
+// Stripe exigeix que expires_at sigui com a mínim 30 minuts després de crear
+// la sessió de Checkout.
+const EXPIRA_MINUTS = Math.max(30, parseInt(process.env.CHECKOUT_EXPIRES_MINUTES || '30', 10));
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Telèfon: accepta prefix internacional opcional, espais, guions i parèntesis,
