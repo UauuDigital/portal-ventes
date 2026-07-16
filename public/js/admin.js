@@ -1,5 +1,28 @@
 // Funcions auxiliars i logica del panell d'administracio.
 
+// Pestanyes mòbil de la pàgina d'esdeveniments (Crear / Esdeveniments / Calendari):
+// en mòbil només es veu un panell alhora; en escriptori les tres columnes es
+// veuen sempre (el CSS ignora aquestes classes per sobre de 960px).
+const pestanyesMobil = document.querySelectorAll('.admin-mobile-tab');
+if (pestanyesMobil.length) {
+  const panells = document.querySelectorAll('.admin-columns .admin-col[data-panell]');
+
+  function activarPestanyaMobil(nom) {
+    pestanyesMobil.forEach((btn) => {
+      btn.classList.toggle('admin-mobile-tab--actiu', btn.dataset.tab === nom);
+    });
+    panells.forEach((panell) => {
+      panell.classList.toggle('admin-col--panell-actiu', panell.dataset.panell === nom);
+    });
+  }
+
+  pestanyesMobil.forEach((btn) => {
+    btn.addEventListener('click', () => activarPestanyaMobil(btn.dataset.tab));
+  });
+
+  activarPestanyaMobil('crear');
+}
+
 async function apiFetch(url, options = {}) {
   const res = await fetch(url, {
     ...options,
@@ -21,7 +44,7 @@ function traduirEstatEvento(estado) {
   return ESTATS_EVENTO[estado] || estado;
 }
 
-const ESTATS_PAGO = { pendiente: 'Pendent', pagado: 'Pagat', cancelado: 'Cancellat' };
+const ESTATS_PAGO = { pendiente: 'Pendent', pagado: 'Pagat', cancelado: 'Cancel·lat' };
 function badgeEstatPago(estado) {
   const etiqueta = ESTATS_PAGO[estado] || estado;
   return `<span class="badge-estat badge-estat--${escapeHtml(estado)}">${escapeHtml(etiqueta)}</span>`;
@@ -110,19 +133,49 @@ function mostrarTooltipCalendari(evt, eventosDia) {
   div.className = 'calendari-tooltip';
   div.innerHTML = eventosDia
     .map(
-      (ev) => `
-        <div>${escapeHtml(ev.nombre)}</div>
-        <div>Aforament: <strong>${ev.aforo_total}</strong></div>
-        <div>Entrades comprades: <strong>${ev.ocupadas || 0}</strong></div>
+      (ev, i) => `
+        <div>
+          <div>${escapeHtml(ev.nombre)}</div>
+          <div>Aforament: <strong>${ev.aforo_total}</strong></div>
+          <div>Entrades comprades: <strong>${ev.ocupadas || 0}</strong></div>
+          <button type="button" class="calendari-tooltip-link" data-evento-id="${ev.id}">Veure detall ›</button>
+        </div>
       `
     )
     .join('<hr style="border:none; border-top:1px solid rgba(242,239,238,0.2); margin:6px 0;">');
   document.body.appendChild(div);
-  const rect = evt.target.getBoundingClientRect();
-  div.style.left = `${rect.left + rect.width / 2}px`;
-  div.style.top = `${rect.top}px`;
+  div.addEventListener('click', (evtIntern) => evtIntern.stopPropagation());
+  div.querySelectorAll('.calendari-tooltip-link').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      window.location.href = `/admin/evento.html?id=${btn.dataset.eventoId}`;
+    });
+  });
+
+  // Posiciona la vinyeta sobre el marcador però sense sortir mai de la
+  // pantalla (imprescindible en mòbil, on hi ha poc marge): si no hi ha prou
+  // espai per sobre es mostra a sota, i es limita horitzontalment als marges
+  // del viewport perquè l'enllaç "Veure detall" sempre quedi tocable.
+  const MARGE = 8;
+  const rectMarcador = evt.target.getBoundingClientRect();
+  const rectTooltip = div.getBoundingClientRect();
+
+  let left = rectMarcador.left + rectMarcador.width / 2 - rectTooltip.width / 2;
+  left = Math.min(Math.max(left, MARGE), window.innerWidth - rectTooltip.width - MARGE);
+
+  let top = rectMarcador.top - rectTooltip.height - 10;
+  if (top < MARGE) {
+    top = rectMarcador.bottom + 10;
+  }
+
+  div.style.left = `${left}px`;
+  div.style.top = `${top}px`;
+  div.style.transform = 'none';
   calendariTooltipEl = div;
 }
+
+// Toca/clica a fora de la vinyeta per tancar-la (imprescindible al mòbil,
+// que no té "mouseleave").
+document.addEventListener('click', () => amagarTooltipCalendari());
 
 // Prioritat de color quan hi ha diversos esdeveniments el mateix dia.
 const PRIORITAT_COLOR = { vermell: 0, verd: 1, gris: 2 };
@@ -180,10 +233,19 @@ function renderCalendari(eventos) {
       marcador.className = `calendari-dia-numero calendari-event calendari-event--${colorPrincipal}`;
       marcador.textContent = dia;
       marcador.setAttribute('aria-label', eventosDia.map((ev) => ev.nombre).join(', '));
-      marcador.addEventListener('mouseenter', (evt) => mostrarTooltipCalendari(evt, eventosDia));
-      marcador.addEventListener('mouseleave', amagarTooltipCalendari);
-      marcador.addEventListener('click', () => {
-        window.location.href = `/admin/evento.html?id=${eventosDia[0].id}`;
+      // Nota: NO s'usa mouseenter/mouseleave (hover). Als navegadors mòbils,
+      // qualsevol listener de hover en un element fa que el primer toc només
+      // "simuli" el hover i calgui un segon toc perquè es disparì el click
+      // real — per això tot el comportament (obrir/tancar) es fa amb "click",
+      // que funciona igual amb ratolí (desktop) i amb tocs (mòbil).
+      marcador.addEventListener('click', (evt) => {
+        evt.stopPropagation();
+        if (calendariTooltipEl && calendariTooltipEl.dataset.marcadorId === String(dia)) {
+          amagarTooltipCalendari();
+          return;
+        }
+        mostrarTooltipCalendari(evt, eventosDia);
+        calendariTooltipEl.dataset.marcadorId = String(dia);
       });
       embolcall.appendChild(marcador);
 
@@ -206,10 +268,12 @@ const btnMesSeguent = document.getElementById('calendari-mes-seguent');
 let ultimsEventosCalendari = [];
 if (btnMesAnterior && btnMesSeguent) {
   btnMesAnterior.addEventListener('click', () => {
+    amagarTooltipCalendari();
     calendariMesVisible.setMonth(calendariMesVisible.getMonth() - 1);
     renderCalendari(ultimsEventosCalendari);
   });
   btnMesSeguent.addEventListener('click', () => {
+    amagarTooltipCalendari();
     calendariMesVisible.setMonth(calendariMesVisible.getMonth() + 1);
     renderCalendari(ultimsEventosCalendari);
   });
@@ -222,11 +286,18 @@ if (taulaEventos) {
     const res = await apiFetch('/api/admin/eventos');
     if (!res) return;
     const eventos = await res.json();
-    eventos.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    // Esdeveniments futurs primer (per data ascendent), els ja celebrats al final.
+    const ara = new Date();
+    eventos.sort((a, b) => {
+      const aPassat = new Date(a.fecha) < ara;
+      const bPassat = new Date(b.fecha) < ara;
+      if (aPassat !== bPassat) return aPassat ? 1 : -1;
+      return new Date(a.fecha) - new Date(b.fecha);
+    });
     taulaEventos.innerHTML = '';
     eventos.forEach((ev) => {
       const tr = document.createElement('tr');
-      tr.className = 'admin-table-row-link';
+      tr.className = `admin-table-row-link admin-table-row--${colorEstatEvento(ev)}`;
       tr.innerHTML = `
         <td><span>${escapeHtml(ev.nombre)}</span></td>
         <td><span>${formatData(ev.fecha)}</span></td>
@@ -391,7 +462,7 @@ if (formEventoEditar) {
         <td>${c.cantidad}</td>
         <td>${formatEuros(c.importe_total)}</td>
         <td>${badgeEstatPago(c.estado_pago)}</td>
-        <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancellar</button>` : ''}</td>
+        <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
       `;
       taulaCompras.appendChild(tr);
     });

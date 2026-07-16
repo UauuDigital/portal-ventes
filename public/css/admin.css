@@ -52,19 +52,72 @@
   margin: 0 0 12px;
 }
 
+.admin-mobile-tabs {
+  display: none;
+}
+
 @media (max-width: 960px) {
   .admin-columns {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-col {
+    width: 100%;
   }
 
   .admin-col--calendari {
     flex: 1 1 0;
+  }
+
+  .admin-mobile-tabs {
+    display: flex;
+    gap: 8px;
+    margin-top: 24px;
+  }
+
+  .admin-columns {
+    margin-top: 16px;
+  }
+
+  .admin-mobile-tab {
+    flex: 1 1 0;
+    background: var(--white);
+    border: 1px solid rgba(34, 31, 30, 0.15);
+    border-radius: var(--radius-pill);
+    padding: 10px 8px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    color: var(--dark-muted);
+    cursor: pointer;
+  }
+
+  .admin-mobile-tab--actiu {
+    background: var(--dark);
+    border-color: var(--dark);
+    color: var(--light);
+  }
+
+  .admin-columns .admin-col {
+    display: none;
+  }
+
+  .admin-columns .admin-col--panell-actiu {
+    display: block;
+  }
+
+  .admin-shell h1 {
+    font-size: 20px;
+    word-break: break-word;
   }
 }
 
 .admin-table-scroll {
   overflow-x: auto;
   border-radius: 16px;
+  margin: 0 auto;
 }
 
 .admin-table {
@@ -91,11 +144,26 @@
   color: var(--dark-muted);
 }
 
-.admin-table th:nth-child(1), .admin-table td:nth-child(1) { width: 26%; }
-.admin-table th:nth-child(2), .admin-table td:nth-child(2) { width: 24%; }
-.admin-table th:nth-child(3), .admin-table td:nth-child(3) { width: 17%; }
-.admin-table th:nth-child(4), .admin-table td:nth-child(4) { width: 17%; }
-.admin-table th:nth-child(5), .admin-table td:nth-child(5) { width: 16%; }
+.admin-table--eventos th:nth-child(1), .admin-table--eventos td:nth-child(1) { width: 26%; }
+.admin-table--eventos th:nth-child(2), .admin-table--eventos td:nth-child(2) { width: 24%; }
+.admin-table--eventos th:nth-child(3), .admin-table--eventos td:nth-child(3) { width: 17%; }
+.admin-table--eventos th:nth-child(4), .admin-table--eventos td:nth-child(4) { width: 17%; }
+.admin-table--eventos th:nth-child(5), .admin-table--eventos td:nth-child(5) { width: 16%; }
+
+/* La taula de compres es dimensiona segons el contingut (no percentatges
+   forçats): si no hi cap tot a l'amplada disponible, el requadre (mateixa
+   amplada que el formulari de dalt) mostra scroll horitzontal en lloc de
+   trencar o solapar columnes. */
+.admin-table--compras {
+  table-layout: auto;
+  width: auto;
+  min-width: 100%;
+}
+
+.admin-table--compras th,
+.admin-table--compras td {
+  white-space: nowrap;
+}
 
 .admin-table-row-link {
   cursor: pointer;
@@ -124,6 +192,22 @@
 
 .admin-table tbody tr:nth-child(even) {
   background: var(--light);
+}
+
+.admin-table tbody tr.admin-table-row--verd,
+.admin-table tbody tr.admin-table-row--vermell,
+.admin-table tbody tr.admin-table-row--gris {
+  background: var(--fila-color);
+}
+
+.admin-table tbody tr.admin-table-row--verd { --fila-color: #C7D9BE; }
+.admin-table tbody tr.admin-table-row--vermell { --fila-color: #F0C9C4; }
+.admin-table tbody tr.admin-table-row--gris { --fila-color: #DEDBD8; }
+
+.admin-table tbody tr.admin-table-row--verd:hover,
+.admin-table tbody tr.admin-table-row--vermell:hover,
+.admin-table tbody tr.admin-table-row--gris:hover {
+  filter: brightness(0.96);
 }
 
 .admin-form {
@@ -214,6 +298,37 @@
   background: rgba(179, 38, 30, 0.08);
 }
 
+.btn-cancelar-compra {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid rgba(179, 38, 30, 0.4);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--error);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.btn-cancelar-compra:hover {
+  background: rgba(179, 38, 30, 0.08);
+}
+
+.btn-primary--perillos {
+  margin-top: 12px;
+  background: var(--white);
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.btn-primary--perillos:hover {
+  background: rgba(179, 38, 30, 0.08);
+}
+
 /* Calendari d'esdeveniments (columna al costat de la taula) */
 .admin-calendari {
   background: var(--white);
@@ -271,6 +386,7 @@
   grid-template-columns: repeat(7, 1fr);
   grid-auto-rows: minmax(38px, auto);
   gap: 2px;
+  touch-action: manipulation;
 }
 
 .calendari-dia {
@@ -284,6 +400,7 @@
   font-size: 12px;
   color: var(--dark);
   border-radius: 8px;
+  touch-action: manipulation;
 }
 
 .calendari-dia--buit {
@@ -339,6 +456,10 @@
   color: var(--dark);
   font-weight: 600;
   text-decoration: none !important;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .calendari-event--verd { background: #C7D9BE; }
@@ -384,11 +505,31 @@
   padding: 8px 12px;
   border-radius: 10px;
   box-shadow: 0 12px 24px -8px rgba(34, 31, 30, 0.45);
-  pointer-events: none;
-  white-space: nowrap;
-  transform: translate(-50%, calc(-100% - 10px));
+  max-width: min(240px, calc(100vw - 16px));
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 .calendari-tooltip strong {
   font-weight: 600;
+}
+
+.calendari-tooltip-link {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 2px;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  color: var(--light);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  touch-action: manipulation;
 }

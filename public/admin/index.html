@@ -6,7 +6,7 @@
 <title>Esdeveniments — Administració Espai Econòmic</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css">
+<link rel="stylesheet" href="/css/admin.css?v=22">
 </head>
 <body>
 <div class="admin-shell">
@@ -14,8 +14,14 @@
     <button type="button" id="btn-logout" class="btn-secundari">Tanca sessió</button>
   </div>
 
+  <div class="admin-mobile-tabs">
+    <button type="button" class="admin-mobile-tab admin-mobile-tab--actiu" data-tab="crear">Crear esdeveniment</button>
+    <button type="button" class="admin-mobile-tab" data-tab="esdeveniments">Esdeveniments</button>
+    <button type="button" class="admin-mobile-tab" data-tab="calendari">Calendari</button>
+  </div>
+
   <div class="admin-columns">
-    <div class="admin-col">
+    <div class="admin-col" data-panell="crear">
       <h2 class="admin-col-title">Crear esdeveniment</h2>
       <form id="form-evento" class="admin-form">
         <label for="nombre">Nom</label>
@@ -41,10 +47,10 @@
       </form>
     </div>
 
-    <div class="admin-col">
+    <div class="admin-col" data-panell="esdeveniments">
       <h2 class="admin-col-title">Esdeveniments</h2>
       <div class="admin-table-scroll">
-        <table class="admin-table">
+        <table class="admin-table admin-table--eventos">
           <thead>
             <tr>
               <th>Nom</th>
@@ -59,7 +65,7 @@
       </div>
     </div>
 
-    <div class="admin-col admin-col--calendari">
+    <div class="admin-col admin-col--calendari" data-panell="calendari">
       <h2 class="admin-col-title">Calendari</h2>
       <div class="admin-calendari" id="calendari-eventos">
         <div class="admin-calendari-header">
@@ -80,6 +86,6 @@
     </div>
   </div>
 </div>
-<script src="/js/admin.js"></script>
+<script src="/js/admin.js?v=22"></script>
 </body>
 </html>
