@@ -71,7 +71,7 @@ async function crearCheckoutSession(req, res) {
       return res.status(400).json({ error: 'dades_invalides', detalls: errors });
     }
 
-    const evento = Evento.getActivo();
+    const evento = await Evento.getActivo();
     if (!evento) {
       return res.status(409).json({ error: 'no_hi_ha_event_actiu' });
     }
@@ -81,7 +81,7 @@ async function crearCheckoutSession(req, res) {
     }
 
     const cantidad = parseInt(req.body.cantidad, 10);
-    const ocupades = Compra.cantidadOcupada(evento.id);
+    const ocupades = await Compra.cantidadOcupada(evento.id);
     const disponibles = evento.aforo_total - ocupades;
     if (cantidad > disponibles) {
       return res.status(409).json({ error: 'aforament_insuficient', disponibles });
@@ -91,7 +91,7 @@ async function crearCheckoutSession(req, res) {
 
     const telefono = String(req.body.telefono || '').trim();
 
-    const compra = Compra.create({
+    const compra = await Compra.create({
       evento_id: evento.id,
       nombre_comprador: req.body.nombre_comprador.trim(),
       email: req.body.email.trim().toLowerCase(),
@@ -127,7 +127,7 @@ async function crearCheckoutSession(req, res) {
       cancel_url: `${baseUrl}/cancel.html`,
     });
 
-    Compra.setSessionId(compra.id, session.id);
+    await Compra.setSessionId(compra.id, session.id);
 
     return res.json({ url: session.url });
   } catch (err) {
@@ -155,18 +155,18 @@ async function webhook(req, res) {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;
-      const compra = Compra.findBySessionId(session.id);
+      const compra = await Compra.findBySessionId(session.id);
       if (compra && compra.estado_pago !== 'pagado') {
-        Compra.marcarPagado(compra.id);
+        await Compra.marcarPagado(compra.id);
         console.log(`Compra #${compra.id} marcada com a pagada.`);
       }
       break;
     }
     case 'checkout.session.expired': {
       const session = event.data.object;
-      const compra = Compra.findBySessionId(session.id);
+      const compra = await Compra.findBySessionId(session.id);
       if (compra && compra.estado_pago === 'pendiente') {
-        Compra.marcarCancelado(compra.id);
+        await Compra.marcarCancelado(compra.id);
         console.log(`Compra #${compra.id} cancel·lada per expiració de sessió.`);
       }
       break;

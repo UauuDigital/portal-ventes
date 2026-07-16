@@ -4,7 +4,7 @@ const db = require('../config/db');
 // (les pendents expirades es marquen 'cancelado' des del webhook checkout.session.expired)
 const ESTATS_OCUPEN_AFORO = ['pendiente', 'pagado'];
 
-function create(data) {
+async function create(data) {
   const stmt = db.prepare(
     `INSERT INTO compras (
        evento_id, nombre_comprador, email, telefono, cantidad, importe_total,
@@ -12,60 +12,60 @@ function create(data) {
      ) VALUES (
        @evento_id, @nombre_comprador, @email, @telefono, @cantidad, @importe_total,
        @quiere_factura, @nif, @nombre_fiscal, @direccion_fiscal, 'pendiente'
-     )`
+     ) RETURNING id`
   );
-  const info = stmt.run({
+  const info = await stmt.run({
     nif: null,
     nombre_fiscal: null,
     direccion_fiscal: null,
     telefono: null,
     ...data,
-    quiere_factura: data.quiere_factura ? 1 : 0,
+    quiere_factura: !!data.quiere_factura,
   });
   return getById(info.lastInsertRowid);
 }
 
-function getById(id) {
+async function getById(id) {
   return db.prepare('SELECT * FROM compras WHERE id = ?').get(id);
 }
 
-function findBySessionId(sessionId) {
+async function findBySessionId(sessionId) {
   return db.prepare('SELECT * FROM compras WHERE stripe_checkout_session_id = ?').get(sessionId);
 }
 
-function setSessionId(id, sessionId) {
-  db.prepare('UPDATE compras SET stripe_checkout_session_id = ? WHERE id = ?').run(sessionId, id);
+async function setSessionId(id, sessionId) {
+  await db.prepare('UPDATE compras SET stripe_checkout_session_id = ? WHERE id = ?').run(sessionId, id);
 }
 
-function marcarPagado(id) {
-  db.prepare("UPDATE compras SET estado_pago = 'pagado' WHERE id = ?").run(id);
+async function marcarPagado(id) {
+  await db.prepare("UPDATE compras SET estado_pago = 'pagado' WHERE id = ?").run(id);
 }
 
-function marcarCancelado(id) {
-  db.prepare("UPDATE compras SET estado_pago = 'cancelado' WHERE id = ?").run(id);
+async function marcarCancelado(id) {
+  await db.prepare("UPDATE compras SET estado_pago = 'cancelado' WHERE id = ?").run(id);
 }
 
 /** Places ja ocupades (pagades + pendents no expirades) per a un esdeveniment. */
-function cantidadOcupada(eventoId) {
+async function cantidadOcupada(eventoId) {
   const placeholders = ESTATS_OCUPEN_AFORO.map(() => '?').join(',');
-  const row = db
+  const row = await db
     .prepare(
       `SELECT COALESCE(SUM(cantidad), 0) AS total
        FROM compras
        WHERE evento_id = ? AND estado_pago IN (${placeholders})`
     )
     .get(eventoId, ...ESTATS_OCUPEN_AFORO);
-  return row.total;
+  return Number(row.total);
 }
 
-function listByEvento(eventoId) {
+async function listByEvento(eventoId) {
   return db
     .prepare('SELECT * FROM compras WHERE evento_id = ? ORDER BY created_at DESC')
     .all(eventoId);
 }
 
-function eliminarPerEvento(eventoId) {
-  db.prepare('DELETE FROM compras WHERE evento_id = ?').run(eventoId);
+async function eliminarPerEvento(eventoId) {
+  await db.prepare('DELETE FROM compras WHERE evento_id = ?').run(eventoId);
 }
 
 module.exports = {

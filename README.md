@@ -12,8 +12,8 @@ Portal standalone per a la venda d'entrades online als esdeveniments mensuals d'
 
 ## Stack
 
-- Backend: Node.js + Express (requereix Node ≥ 22.5, que és quan `node:sqlite` va arribar integrat)
-- Base de dades: SQLite via `node:sqlite`, el mòdul integrat a Node — volum baix i autocontingut, sense cap dependència nativa (no cal Python ni compilador C++, a diferència de `better-sqlite3`)
+- Backend: Node.js + Express (requereix Node ≥ 22.5)
+- Base de dades: PostgreSQL a Supabase, via `pg` (node-postgres)
 - Frontend: HTML/CSS/JS vanilla
 - Pagaments: Stripe Checkout (mode test)
 - Desplegament previst: Plesk / Servàtica (Git push → Pull → restart Node.js), mateix patró que altres eines internes
@@ -21,25 +21,26 @@ Portal standalone per a la venda d'entrades online als esdeveniments mensuals d'
 ## Estructura
 
 ```
-config/       Connexió a la BD (node:sqlite) i schema SQL
-models/       Evento i Compra (accés a dades)
+config/       Connexió a la BD (Supabase/Postgres via pg) i schema SQL
+models/       Evento i Compra (accés a dades, async/await)
 controllers/  Lògica de negoci: esdeveniment actiu, checkout, webhook, admin
 routes/       Rutes Express (públiques, webhook i admin)
 middleware/   Rate limiting i autenticació del panell d'admin
-utils/        Cookie de sessió signada i generació de CSV
+utils/        Cookie de sessió signada, generació de CSV i asyncHandler
 public/       Landing + checkout + panell d'admin (HTML/CSS/JS vanilla)
 scripts/      Script de seed per crear un esdeveniment de prova
-data/         Fitxer SQLite (es genera automàticament, no es versiona)
 ```
 
 ## Posada en marxa
 
 ```bash
 npm install
-cp .env.example .env      # omple les claus de Stripe (mode test) i credencials
+cp .env.example .env      # omple les claus de Stripe (mode test), DATABASE_URL de Supabase i credencials
 npm run seed               # crea un esdeveniment de prova per poder provar el flux
 npm run dev                 # arrenca amb autoreload (node --watch)
 ```
+
+`DATABASE_URL` és la connection string de Postgres del teu projecte Supabase (Dashboard → botó "Connect" → Connection string). El schema (`eventos`, `compras`) es crea automàticament en arrencar si no existeix.
 
 Per provar els webhooks en local amb l'Stripe CLI:
 
@@ -81,10 +82,6 @@ Per això el costat "de color" de la targeta és ara fons fosc pla (`#221F1E`) e
 **Tipografia Ogg**: és una llicència pròpia de UAUU, no es pot descarregar públicament. El CSS ja declara el `@font-face` apuntant a `public/fonts/Ogg-Medium.otf`/`.ttf` — copia aquests fitxers des del repositori `catalegs-web` (carpeta `fonts/OGG MEDIUM/`) a `public/fonts/` perquè es vegi la tipografia final. Sense els fitxers, cau automàticament a Georgia (serif) i tot segueix funcionant. `Inter` es carrega des de Google Fonts (és de codi obert, no cal llicència).
 
 **Decisió pendent #3 del briefing**: quin costat porta la info de l'esdeveniment i quin el formulari. Per defecte aquí: fosc = info de l'esdeveniment (esquerra), clar = formulari (dreta). Per intercanviar-ho, canvia l'atribut `data-layout="info-left"` a `"info-right"` a `<main class="card">` a `public/index.html` (i a `success.html`/`cancel.html` si es vol mantenir coherència visual). No cal tocar cap altre fitxer.
-
-## Base de dades sense dependències natives
-
-Inicialment el projecte feia servir `better-sqlite3`, però requereix compilar un mòdul natiu (calen Python i un compilador C++), cosa que dona problemes habituals a Windows sense eines de desenvolupament instal·lades. S'ha substituït per `node:sqlite`, el mòdul SQLite integrat directament a Node des de la versió 22.5 — `npm install` ja no necessita compilar res. Únic requisit: Node ≥ 22.5 (comprova amb `node --version`).
 
 ## Control de versions
 

@@ -1,67 +1,78 @@
-const path = require('path');
 const fs = require('fs');
-const { DatabaseSync } = require('node:sqlite');
+const path = require('path');
+const { Pool } = require('pg');
 
-const DB_PATH = process.env.DB_PATH
-  ? path.resolve(process.cwd(), process.env.DB_PATH)
-  : path.join(__dirname, '..', 'data', 'espai-economic.sqlite');
-
-// Assegura que la carpeta de destí existeix (ex: data/)
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-
-const raw = new DatabaseSync(DB_PATH);
-raw.exec('PRAGMA journal_mode = WAL');
-raw.exec('PRAGMA foreign_keys = ON');
-
-const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-raw.exec(schema);
-
-/**
- * Embolcall petit sobre node:sqlite (mòdul SQLite integrat a Node, sense
- * dependències natives — cap Python ni compilador C++ necessaris).
- * Permet que models/ segueixi fent servir paràmetres amb nom estil "@nom"
- * als INSERT/UPDATE (com abans amb better-sqlite3), convertint-los aquí a
- * la sintaxi ":nom" que espera node:sqlite.
- */
-function toNamedParams(sql, data) {
-  const params = {};
-  for (const [key, value] of Object.entries(data)) {
-    params[':' + key] = value;
-  }
-  return { sql: sql.replace(/@(\w+)/g, ':$1'), params };
+if (!process.env.DATABASE_URL) {
+  throw new Error('Falta DATABASE_URL a l\'entorn: cal la connection string de Supabase/Postgres.');
 }
 
-function isPlainObjectParam(value, restLength) {
-  return restLength === 0 && typeof value === 'object' && value !== null;
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false },
+});
+
+const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+
+// S'espera abans de qualsevol consulta perquè les taules existeixin
+// (equivalent al raw.exec(schema) síncron que abans feia node:sqlite).
+const ready = pool.query(schema).catch((err) => {
+  console.error('Error aplicant l\'esquema a la base de dades:', err);
+  throw err;
+});
+
+/**
+ * Converteix una sentència amb paràmetres amb nom estil "@nom" (com abans amb
+ * node:sqlite) a la sintaxi posicional "$1, $2..." que espera pg, agafant els
+ * valors de l'objecte de dades passat.
+ */
+function toNamedParams(sql, data) {
+  const values = [];
+  const text = sql.replace(/@(\w+)/g, (_, key) => {
+    values.push(data[key]);
+    return `$${values.length}`;
+  });
+  return { text, values };
+}
+
+/** Converteix placeholders posicionals "?" a "$1, $2..." per als args donats. */
+function toPositionalParams(sql, args) {
+  let i = 0;
+  const text = sql.replace(/\?/g, () => `$${++i}`);
+  return { text, values: args };
+}
+
+function build(sql, args) {
+  if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
+    return toNamedParams(sql, args[0]);
+  }
+  return toPositionalParams(sql, args);
+}
+
+async function execute(sql, args) {
+  await ready;
+  const { text, values } = build(sql, args);
+  return pool.query(text, values);
 }
 
 const db = {
-  exec: (sql) => raw.exec(sql),
+  ready,
+  pool,
   prepare(sql) {
     return {
-      get(...args) {
-        const [first, ...rest] = args;
-        if (isPlainObjectParam(first, rest.length)) {
-          const { sql: convertedSql, params } = toNamedParams(sql, first);
-          return raw.prepare(convertedSql).get(params);
-        }
-        return raw.prepare(sql).get(...args);
+      async get(...args) {
+        const res = await execute(sql, args);
+        return res.rows[0];
       },
-      all(...args) {
-        const [first, ...rest] = args;
-        if (isPlainObjectParam(first, rest.length)) {
-          const { sql: convertedSql, params } = toNamedParams(sql, first);
-          return raw.prepare(convertedSql).all(params);
-        }
-        return raw.prepare(sql).all(...args);
+      async all(...args) {
+        const res = await execute(sql, args);
+        return res.rows;
       },
-      run(...args) {
-        const [first, ...rest] = args;
-        if (isPlainObjectParam(first, rest.length)) {
-          const { sql: convertedSql, params } = toNamedParams(sql, first);
-          return raw.prepare(convertedSql).run(params);
-        }
-        return raw.prepare(sql).run(...args);
+      async run(...args) {
+        const res = await execute(sql, args);
+        return {
+          changes: res.rowCount,
+          lastInsertRowid: res.rows[0] ? res.rows[0].id : undefined,
+        };
       },
     };
   },
