@@ -49,6 +49,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--dark-muted);
+  text-align: center;
   margin: 0 0 12px;
 }
 
@@ -122,6 +123,72 @@
   overflow-x: auto;
   border-radius: 16px;
   margin: 0 auto;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  /* Marge perquè la barra de desplaçament no quedi enganxada a l'última
+     fila (evita clicar-la per error en intentar arrossegar la barra). */
+  padding-bottom: 10px;
+}
+
+/* Agafador de la barra de desplaçament ben visible i gruixut (Chrome/Edge/
+   Safari), perquè sempre es vegi clarament on i com arrossegar-la. */
+.admin-table-scroll::-webkit-scrollbar {
+  height: 12px;
+}
+
+.admin-table-scroll::-webkit-scrollbar-track {
+  background: rgba(34, 31, 30, 0.08);
+  border-radius: var(--radius-pill);
+}
+
+.admin-table-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--dark);
+  border-radius: var(--radius-pill);
+  border: 3px solid var(--light);
+}
+
+/* Botons de fletxa per desplaçar la taula: alternativa fiable a la barra
+   nativa (que en alguns navegadors/SO no es veu ni s'agafa bé). Només es
+   mostren quan la taula realment no hi cap sencera. */
+.admin-table-scroll-embolcall {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-table-scroll-embolcall .admin-table-scroll {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.btn-scroll-taula {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--white);
+  border: 1px solid rgba(34, 31, 30, 0.2);
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--dark);
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.admin-table-scroll-embolcall.amb-overflow .btn-scroll-taula {
+  display: flex;
+}
+
+.btn-scroll-taula:hover:not(:disabled) {
+  background: rgba(34, 31, 30, 0.06);
+}
+
+.btn-scroll-taula:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .admin-table {
@@ -167,6 +234,22 @@
 .admin-table--compras th,
 .admin-table--compras td {
   white-space: nowrap;
+}
+
+/* Alçada màxima amb scroll vertical propi: si no fos així, amb moltes
+   compres la barra de desplaçament horitzontal quedaria molt avall (calia
+   baixar per tota la llista abans de poder-la fer servir). Capçalera fixa
+   perquè segueixi visible en desplaçar-se verticalment. */
+.admin-table-scroll--compras {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.admin-table--compras thead th {
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  z-index: 1;
 }
 
 .admin-table-row-link {

@@ -1,5 +1,80 @@
 // Funcions auxiliars i logica del panell d'administracio.
 
+// Botons de fletxa per desplaçar horitzontalment les taules amb scroll
+// (en lloc de dependre de la barra nativa del navegador, que en alguns
+// entorns no es veu bé ni es pot agafar amb precisió). Es mostren només
+// quan la taula realment no hi cap sencera, i es refan si canvia la mida
+// de la finestra o el contingut.
+function inicialitzarBotonsScrollTaules() {
+  document.querySelectorAll('.admin-table-scroll').forEach((contenidor) => {
+    if (contenidor.dataset.botonsScrollLlestos) {
+      actualitzarBotonsScrollTaula(contenidor);
+      return;
+    }
+    contenidor.dataset.botonsScrollLlestos = '1';
+    contenidor.classList.add('amb-botons-scroll');
+
+    const btnEsquerra = document.createElement('button');
+    btnEsquerra.type = 'button';
+    btnEsquerra.className = 'btn-scroll-taula btn-scroll-taula--esquerra';
+    btnEsquerra.setAttribute('aria-label', 'Desplaça la taula cap a l\'esquerra');
+    btnEsquerra.textContent = '‹';
+
+    const btnDreta = document.createElement('button');
+    btnDreta.type = 'button';
+    btnDreta.className = 'btn-scroll-taula btn-scroll-taula--dreta';
+    btnDreta.setAttribute('aria-label', 'Desplaça la taula cap a la dreta');
+    btnDreta.textContent = '›';
+
+    btnEsquerra.addEventListener('click', () => {
+      contenidor.scrollLeft -= 160;
+    });
+    btnDreta.addEventListener('click', () => {
+      contenidor.scrollLeft += 160;
+    });
+
+    contenidor.insertAdjacentElement('beforebegin', btnEsquerra);
+    contenidor.insertAdjacentElement('afterend', btnDreta);
+
+    // Embolcallem contenidor + botons perquè es puguin posicionar junts.
+    const embolcall = document.createElement('div');
+    embolcall.className = 'admin-table-scroll-embolcall';
+    contenidor.parentNode.insertBefore(embolcall, btnEsquerra);
+    embolcall.appendChild(btnEsquerra);
+    embolcall.appendChild(contenidor);
+    embolcall.appendChild(btnDreta);
+
+    contenidor.addEventListener('scroll', () => actualitzarBotonsScrollTaula(contenidor));
+    actualitzarBotonsScrollTaula(contenidor);
+  });
+}
+
+function actualitzarBotonsScrollTaula(contenidor) {
+  const embolcall = contenidor.parentElement;
+  const btnEsquerra = embolcall.querySelector('.btn-scroll-taula--esquerra');
+  const btnDreta = embolcall.querySelector('.btn-scroll-taula--dreta');
+  if (!btnEsquerra || !btnDreta) return;
+
+  const hiHaOverflow = contenidor.scrollWidth > contenidor.clientWidth + 1;
+  embolcall.classList.toggle('amb-overflow', hiHaOverflow);
+  btnEsquerra.disabled = contenidor.scrollLeft <= 0;
+  btnDreta.disabled = contenidor.scrollLeft + contenidor.clientWidth >= contenidor.scrollWidth - 1;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  inicialitzarBotonsScrollTaules();
+  window.addEventListener('resize', inicialitzarBotonsScrollTaules);
+});
+
+// Es torna a comprovar quan es carreguen dades noves a les taules (per
+// exemple en canviar de mida les columnes un cop hi ha files reals).
+const observadorTaules = new MutationObserver(() => inicialitzarBotonsScrollTaules());
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.admin-table-scroll tbody').forEach((tbody) => {
+    observadorTaules.observe(tbody, { childList: true });
+  });
+});
+
 // Pestanyes mòbil de la pàgina d'esdeveniments (Crear / Esdeveniments / Calendari):
 // en mòbil només es veu un panell alhora; en escriptori les tres columnes es
 // veuen sempre (el CSS ignora aquestes classes per sobre de 960px).
