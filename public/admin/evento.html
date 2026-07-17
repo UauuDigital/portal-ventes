@@ -6,7 +6,7 @@
 <title>Detall d'esdeveniment — Administració Espai Econòmic</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css">
+<link rel="stylesheet" href="/css/admin.css?v=22">
 </head>
 <body>
 <div class="admin-shell">
@@ -14,9 +14,8 @@
     <a href="/admin/index.html" class="admin-link-back">← Tots els esdeveniments</a>
   </div>
 
-  <div class="admin-topbar">
+  <div class="admin-topbar admin-topbar--evento">
     <h1 id="titol-evento">Carregant…</h1>
-    <button type="button" id="btn-eliminar-evento" class="btn-perillos">Eliminar esdeveniment</button>
   </div>
 
   <form id="form-evento-editar" class="admin-form">
@@ -45,6 +44,7 @@
     </select>
 
     <button type="submit" class="btn-primary">Desar canvis</button>
+    <button type="button" id="btn-eliminar-evento" class="btn-primary btn-primary--perillos">Eliminar esdeveniment</button>
     <p id="error-evento-editar" class="form-error"></p>
   </form>
 
@@ -53,20 +53,22 @@
     <a id="link-export-csv" class="btn-secundari" href="#">Exportar CSV</a>
   </div>
 
-  <table class="admin-table">
-    <thead>
-      <tr>
-        <th>Comprador</th>
-        <th>Email</th>
-        <th>Quantitat</th>
-        <th>Import</th>
-        <th>Estat</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody id="taula-compras"></tbody>
-  </table>
+  <div class="admin-table-scroll admin-table-scroll--compras">
+    <table class="admin-table admin-table--compras">
+      <thead>
+        <tr>
+          <th>Comprador</th>
+          <th>Email</th>
+          <th>Quantitat</th>
+          <th>Import</th>
+          <th>Estat</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="taula-compras"></tbody>
+    </table>
+  </div>
 </div>
-<script src="/js/admin.js"></script>
+<script src="/js/admin.js?v=22"></script>
 </body>
 </html>

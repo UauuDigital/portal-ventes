@@ -36,7 +36,11 @@ function validarEvento(body, { parcial } = {}) {
 }
 
 async function llistarEventos(req, res) {
-  res.json(await Evento.listAll());
+  const eventos = await Evento.listAll();
+  const ambOcupacio = await Promise.all(
+    eventos.map(async (ev) => ({ ...ev, ocupadas: await Compra.cantidadOcupada(ev.id) }))
+  );
+  res.json(ambOcupacio);
 }
 
 async function obtenirEvento(req, res) {

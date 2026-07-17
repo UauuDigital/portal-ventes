@@ -1,5 +1,28 @@
 // Funcions auxiliars i logica del panell d'administracio.
 
+// Pestanyes mòbil de la pàgina d'esdeveniments (Crear / Esdeveniments / Calendari):
+// en mòbil només es veu un panell alhora; en escriptori les tres columnes es
+// veuen sempre (el CSS ignora aquestes classes per sobre de 960px).
+const pestanyesMobil = document.querySelectorAll('.admin-mobile-tab');
+if (pestanyesMobil.length) {
+  const panells = document.querySelectorAll('.admin-columns .admin-col[data-panell]');
+
+  function activarPestanyaMobil(nom) {
+    pestanyesMobil.forEach((btn) => {
+      btn.classList.toggle('admin-mobile-tab--actiu', btn.dataset.tab === nom);
+    });
+    panells.forEach((panell) => {
+      panell.classList.toggle('admin-col--panell-actiu', panell.dataset.panell === nom);
+    });
+  }
+
+  pestanyesMobil.forEach((btn) => {
+    btn.addEventListener('click', () => activarPestanyaMobil(btn.dataset.tab));
+  });
+
+  activarPestanyaMobil('crear');
+}
+
 async function apiFetch(url, options = {}) {
   const res = await fetch(url, {
     ...options,
@@ -75,6 +98,187 @@ if (btnLogout) {
   });
 }
 
+// Calendari d'esdeveniments (columna al costat de la taula)
+const calendariGraella = document.getElementById('calendari-graella');
+let calendariMesVisible = null; // Date (dia 1 del mes mostrat)
+let calendariTooltipEl = null;
+
+function clauData(data) {
+  // Clau local (no UTC) per agrupar esdeveniments pel dia de calendari.
+  const y = data.getFullYear();
+  const m = String(data.getMonth() + 1).padStart(2, '0');
+  const d = String(data.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function colorEstatEvento(ev) {
+  const ara = new Date();
+  if (new Date(ev.fecha) < ara) return 'gris';
+  const terminiSuperat = new Date(ev.fecha_limite_compra) <= ara;
+  const exhaurit = (ev.ocupadas || 0) >= ev.aforo_total;
+  if (terminiSuperat || exhaurit) return 'vermell';
+  return 'verd';
+}
+
+function amagarTooltipCalendari() {
+  if (calendariTooltipEl) {
+    calendariTooltipEl.remove();
+    calendariTooltipEl = null;
+  }
+}
+
+function mostrarTooltipCalendari(evt, eventosDia) {
+  amagarTooltipCalendari();
+  const div = document.createElement('div');
+  div.className = 'calendari-tooltip';
+  div.innerHTML = eventosDia
+    .map(
+      (ev, i) => `
+        <div>
+          <div>${escapeHtml(ev.nombre)}</div>
+          <div>Aforament: <strong>${ev.aforo_total}</strong></div>
+          <div>Entrades comprades: <strong>${ev.ocupadas || 0}</strong></div>
+          <button type="button" class="calendari-tooltip-link" data-evento-id="${ev.id}">Veure detall ›</button>
+        </div>
+      `
+    )
+    .join('<hr style="border:none; border-top:1px solid rgba(242,239,238,0.2); margin:6px 0;">');
+  document.body.appendChild(div);
+  div.addEventListener('click', (evtIntern) => evtIntern.stopPropagation());
+  div.querySelectorAll('.calendari-tooltip-link').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      window.location.href = `/admin/evento.html?id=${btn.dataset.eventoId}`;
+    });
+  });
+
+  // Posiciona la vinyeta sobre el marcador però sense sortir mai de la
+  // pantalla (imprescindible en mòbil, on hi ha poc marge): si no hi ha prou
+  // espai per sobre es mostra a sota, i es limita horitzontalment als marges
+  // del viewport perquè l'enllaç "Veure detall" sempre quedi tocable.
+  const MARGE = 8;
+  const rectMarcador = evt.target.getBoundingClientRect();
+  const rectTooltip = div.getBoundingClientRect();
+
+  let left = rectMarcador.left + rectMarcador.width / 2 - rectTooltip.width / 2;
+  left = Math.min(Math.max(left, MARGE), window.innerWidth - rectTooltip.width - MARGE);
+
+  let top = rectMarcador.top - rectTooltip.height - 10;
+  if (top < MARGE) {
+    top = rectMarcador.bottom + 10;
+  }
+
+  div.style.left = `${left}px`;
+  div.style.top = `${top}px`;
+  div.style.transform = 'none';
+  calendariTooltipEl = div;
+}
+
+// Toca/clica a fora de la vinyeta per tancar-la (imprescindible al mòbil,
+// que no té "mouseleave").
+document.addEventListener('click', () => amagarTooltipCalendari());
+
+// Prioritat de color quan hi ha diversos esdeveniments el mateix dia.
+const PRIORITAT_COLOR = { vermell: 0, verd: 1, gris: 2 };
+
+function renderCalendari(eventos) {
+  if (!calendariGraella || !calendariMesVisible) return;
+
+  const eventosPerDia = new Map();
+  eventos.forEach((ev) => {
+    const clau = clauData(new Date(ev.fecha));
+    if (!eventosPerDia.has(clau)) eventosPerDia.set(clau, []);
+    eventosPerDia.get(clau).push(ev);
+  });
+
+  const any = calendariMesVisible.getFullYear();
+  const mes = calendariMesVisible.getMonth();
+
+  document.getElementById('calendari-mes-actual').textContent = calendariMesVisible.toLocaleDateString('ca-ES', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const primerDiaMes = new Date(any, mes, 1);
+  // getDay(): 0=diumenge..6=dissabte -> convertim a índex on 0=dilluns
+  const offsetInicial = (primerDiaMes.getDay() + 6) % 7;
+  const diesAlMes = new Date(any, mes + 1, 0).getDate();
+  const avui = clauData(new Date());
+
+  calendariGraella.innerHTML = '';
+
+  for (let i = 0; i < offsetInicial; i++) {
+    const buit = document.createElement('div');
+    buit.className = 'calendari-dia calendari-dia--buit';
+    calendariGraella.appendChild(buit);
+  }
+
+  for (let dia = 1; dia <= diesAlMes; dia++) {
+    const clauDia = clauData(new Date(any, mes, dia));
+    const cella = document.createElement('div');
+    cella.className = 'calendari-dia' + (clauDia === avui ? ' calendari-dia--avui' : '');
+
+    const eventosDia = eventosPerDia.get(clauDia) || [];
+
+    if (eventosDia.length === 0) {
+      cella.innerHTML = `<span class="calendari-dia-numero">${dia}</span>`;
+    } else {
+      const colors = eventosDia.map(colorEstatEvento);
+      const colorPrincipal = colors.sort((a, b) => PRIORITAT_COLOR[a] - PRIORITAT_COLOR[b])[0];
+
+      const embolcall = document.createElement('div');
+      embolcall.className = 'calendari-event-embolcall';
+
+      const marcador = document.createElement('button');
+      marcador.type = 'button';
+      marcador.className = `calendari-dia-numero calendari-event calendari-event--${colorPrincipal}`;
+      marcador.textContent = dia;
+      marcador.setAttribute('aria-label', eventosDia.map((ev) => ev.nombre).join(', '));
+      // Nota: NO s'usa mouseenter/mouseleave (hover). Als navegadors mòbils,
+      // qualsevol listener de hover en un element fa que el primer toc només
+      // "simuli" el hover i calgui un segon toc perquè es disparì el click
+      // real — per això tot el comportament (obrir/tancar) es fa amb "click",
+      // que funciona igual amb ratolí (desktop) i amb tocs (mòbil).
+      marcador.addEventListener('click', (evt) => {
+        evt.stopPropagation();
+        if (calendariTooltipEl && calendariTooltipEl.dataset.marcadorId === String(dia)) {
+          amagarTooltipCalendari();
+          return;
+        }
+        mostrarTooltipCalendari(evt, eventosDia);
+        calendariTooltipEl.dataset.marcadorId = String(dia);
+      });
+      embolcall.appendChild(marcador);
+
+      if (eventosDia.length > 1) {
+        const comptador = document.createElement('span');
+        comptador.className = 'calendari-event-comptador';
+        comptador.textContent = eventosDia.length;
+        embolcall.appendChild(comptador);
+      }
+
+      cella.appendChild(embolcall);
+    }
+
+    calendariGraella.appendChild(cella);
+  }
+}
+
+const btnMesAnterior = document.getElementById('calendari-mes-anterior');
+const btnMesSeguent = document.getElementById('calendari-mes-seguent');
+let ultimsEventosCalendari = [];
+if (btnMesAnterior && btnMesSeguent) {
+  btnMesAnterior.addEventListener('click', () => {
+    amagarTooltipCalendari();
+    calendariMesVisible.setMonth(calendariMesVisible.getMonth() - 1);
+    renderCalendari(ultimsEventosCalendari);
+  });
+  btnMesSeguent.addEventListener('click', () => {
+    amagarTooltipCalendari();
+    calendariMesVisible.setMonth(calendariMesVisible.getMonth() + 1);
+    renderCalendari(ultimsEventosCalendari);
+  });
+}
+
 // Llistat i creacio d'esdeveniments
 const taulaEventos = document.getElementById('taula-eventos');
 if (taulaEventos) {
@@ -82,11 +286,18 @@ if (taulaEventos) {
     const res = await apiFetch('/api/admin/eventos');
     if (!res) return;
     const eventos = await res.json();
-    eventos.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    // Esdeveniments futurs primer (per data ascendent), els ja celebrats al final.
+    const ara = new Date();
+    eventos.sort((a, b) => {
+      const aPassat = new Date(a.fecha) < ara;
+      const bPassat = new Date(b.fecha) < ara;
+      if (aPassat !== bPassat) return aPassat ? 1 : -1;
+      return new Date(a.fecha) - new Date(b.fecha);
+    });
     taulaEventos.innerHTML = '';
     eventos.forEach((ev) => {
       const tr = document.createElement('tr');
-      tr.className = 'admin-table-row-link';
+      tr.className = `admin-table-row-link admin-table-row--${colorEstatEvento(ev)}`;
       tr.innerHTML = `
         <td><span>${escapeHtml(ev.nombre)}</span></td>
         <td><span>${formatData(ev.fecha)}</span></td>
@@ -99,6 +310,16 @@ if (taulaEventos) {
       });
       taulaEventos.appendChild(tr);
     });
+
+    if (calendariGraella) {
+      ultimsEventosCalendari = eventos;
+      if (!calendariMesVisible) {
+        const primerEventFutur = eventos.find((ev) => new Date(ev.fecha) >= new Date());
+        const dataBase = primerEventFutur ? new Date(primerEventFutur.fecha) : new Date();
+        calendariMesVisible = new Date(dataBase.getFullYear(), dataBase.getMonth(), 1);
+      }
+      renderCalendari(eventos);
+    }
   }
 
   const formEvento = document.getElementById('form-evento');

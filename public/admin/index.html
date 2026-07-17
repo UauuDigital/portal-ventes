@@ -6,17 +6,22 @@
 <title>Esdeveniments — Administració Espai Econòmic</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css">
+<link rel="stylesheet" href="/css/admin.css?v=22">
 </head>
 <body>
 <div class="admin-shell">
-  <div class="admin-topbar">
-    <h1>Esdeveniments</h1>
+  <div class="admin-topbar" style="justify-content:flex-end;">
     <button type="button" id="btn-logout" class="btn-secundari">Tanca sessió</button>
   </div>
 
+  <div class="admin-mobile-tabs">
+    <button type="button" class="admin-mobile-tab admin-mobile-tab--actiu" data-tab="crear">Crear esdeveniment</button>
+    <button type="button" class="admin-mobile-tab" data-tab="esdeveniments">Esdeveniments</button>
+    <button type="button" class="admin-mobile-tab" data-tab="calendari">Calendari</button>
+  </div>
+
   <div class="admin-columns">
-    <div class="admin-col">
+    <div class="admin-col" data-panell="crear">
       <h2 class="admin-col-title">Crear esdeveniment</h2>
       <form id="form-evento" class="admin-form">
         <label for="nombre">Nom</label>
@@ -42,10 +47,10 @@
       </form>
     </div>
 
-    <div class="admin-col">
+    <div class="admin-col" data-panell="esdeveniments">
       <h2 class="admin-col-title">Esdeveniments</h2>
       <div class="admin-table-scroll">
-        <table class="admin-table">
+        <table class="admin-table admin-table--eventos">
           <thead>
             <tr>
               <th>Nom</th>
@@ -59,8 +64,28 @@
         </table>
       </div>
     </div>
+
+    <div class="admin-col admin-col--calendari" data-panell="calendari">
+      <h2 class="admin-col-title">Calendari</h2>
+      <div class="admin-calendari" id="calendari-eventos">
+        <div class="admin-calendari-header">
+          <button type="button" class="btn-calendari-nav" id="calendari-mes-anterior" aria-label="Mes anterior">‹</button>
+          <span class="admin-calendari-mes" id="calendari-mes-actual"></span>
+          <button type="button" class="btn-calendari-nav" id="calendari-mes-seguent" aria-label="Mes següent">›</button>
+        </div>
+        <div class="admin-calendari-diesetmana">
+          <span>DL</span><span>DM</span><span>DC</span><span>DJ</span><span>DV</span><span>DS</span><span>DG</span>
+        </div>
+        <div class="admin-calendari-graella" id="calendari-graella"></div>
+        <div class="admin-calendari-llegenda">
+          <span><i class="calendari-punt calendari-punt--verd"></i> Compra oberta</span>
+          <span><i class="calendari-punt calendari-punt--vermell"></i> Tancat (esgotat / termini)</span>
+          <span><i class="calendari-punt calendari-punt--gris"></i> Ja celebrat</span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
-<script src="/js/admin.js"></script>
+<script src="/js/admin.js?v=22"></script>
 </body>
 </html>
