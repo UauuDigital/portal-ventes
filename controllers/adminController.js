@@ -23,6 +23,14 @@ function validarEvento(body, { parcial } = {}) {
   if (cal('fecha_limite_compra') && Number.isNaN(new Date(body.fecha_limite_compra).getTime())) {
     errors.push('fecha_limite_compra invàlida');
   }
+  if (
+    !parcial &&
+    cal('fecha_limite_compra') &&
+    !Number.isNaN(new Date(body.fecha_limite_compra).getTime()) &&
+    new Date(body.fecha_limite_compra) < new Date()
+  ) {
+    errors.push('fecha_limite_compra no pot ser una data ja passada');
+  }
   if (body.fecha && body.fecha_limite_compra) {
     if (new Date(body.fecha_limite_compra) > new Date(body.fecha)) {
       errors.push('fecha_limite_compra ha de ser anterior o igual a fecha');

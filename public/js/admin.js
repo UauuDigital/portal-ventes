@@ -328,13 +328,21 @@ if (taulaEventos) {
     const errorEl = document.getElementById('error-evento');
     errorEl.textContent = '';
 
+    const fechaEventoInput = document.getElementById('fecha');
+    const fechaLimiteInput = document.getElementById('fecha_limite_compra');
+    const fechaLimite = new Date(fechaLimiteInput.dataset.valor || fechaLimiteInput.value);
+    if (fechaLimite < new Date()) {
+      errorEl.textContent = 'La data límit de compra no pot ser una data ja passada.';
+      return;
+    }
+
     const body = {
       nombre: document.getElementById('nombre').value,
-      fecha: new Date(document.getElementById('fecha').value).toISOString(),
+      fecha: new Date(fechaEventoInput.dataset.valor || fechaEventoInput.value).toISOString(),
       descripcion: document.getElementById('descripcion').value,
       precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
       aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
-      fecha_limite_compra: new Date(document.getElementById('fecha_limite_compra').value).toISOString(),
+      fecha_limite_compra: fechaLimite.toISOString(),
     };
 
     const res = await apiFetch('/api/admin/eventos', {
@@ -345,7 +353,10 @@ if (taulaEventos) {
 
     if (res.ok) {
       formEvento.reset();
+      delete fechaEventoInput.dataset.valor;
+      delete fechaLimiteInput.dataset.valor;
       carregarEventos();
+      renderCalendariLimit();
     } else {
       const data = await res.json();
       errorEl.textContent = (data.detalls || [data.error]).join(', ');
@@ -353,6 +364,197 @@ if (taulaEventos) {
   });
 
   carregarEventos();
+}
+
+// Mini-calendari compartit pels camps "Data de l'esdeveniment" i "Data
+// límit de compra" (només al formulari de creació): en clicar el primer
+// camp s'obre en mode "esdeveniment" (qualsevol dia futur); un cop triat,
+// canvia sol a mode "límit" (marca el dia de l'esdeveniment i pinta més
+// clar els dies vàlids entremig, deshabilitant la resta) perquè triïs de
+// seguida el termini de compra, sense haver d'obrir un segon calendari.
+const limitGraella = document.getElementById('limit-graella');
+if (limitGraella) {
+  let calMesVisible = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  let modeCalendari = 'esdeveniment'; // 'esdeveniment' | 'limit'
+  const inputFecha = document.getElementById('fecha');
+  const inputLimit = document.getElementById('fecha_limite_compra');
+  const titolCalendari = document.getElementById('mini-calendari-titol');
+  const miniCalendari = document.getElementById('mini-calendari-limit');
+  const campAmbMinicalendari = document.querySelector('.camp-amb-minicalendari');
+
+  function inicioDia(data) {
+    return new Date(data.getFullYear(), data.getMonth(), data.getDate());
+  }
+
+  // El valor "de veritat" (format YYYY-MM-DDTHH:mm, com abans el datetime-local)
+  // es guarda a data-valor; el que es veu al camp és un text llegible, ja
+  // que ara és un input de només lectura sense el selector natiu del
+  // navegador (tot es tria amb el nostre calendari + selector d'hora).
+  function valorInput(input) {
+    const cru = input.dataset.valor;
+    const raw = cru ? new Date(cru) : null;
+    return raw && !Number.isNaN(raw.getTime()) ? raw : null;
+  }
+
+  function formatVisual(any, mes, dia, hora) {
+    const dataText = new Date(any, mes, dia).toLocaleDateString('ca-ES', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    return `${dataText}, ${hora}`;
+  }
+
+  const inputHora = document.getElementById('mini-calendari-hora-input');
+
+  function omplirCampData(input, any, mes, dia, horaPerDefecte) {
+    const horaActual = inputHora.value || horaPerDefecte;
+    const pad = (n) => String(n).padStart(2, '0');
+    input.dataset.valor = `${any}-${pad(mes + 1)}-${pad(dia)}T${horaActual}`;
+    input.value = formatVisual(any, mes, dia, horaActual);
+    inputHora.value = horaActual;
+  }
+
+  // Canviar l'hora actualitza a l'instant el camp actiu (si ja té data
+  // triada), sense necessitat de tornar a clicar cap dia del calendari.
+  inputHora.addEventListener('input', () => {
+    const inputActiu = modeCalendari === 'esdeveniment' ? inputFecha : inputLimit;
+    const cru = inputActiu.dataset.valor;
+    if (cru && cru.includes('T') && inputHora.value) {
+      const [any, mes, dia] = cru.split('T')[0].split('-').map(Number);
+      inputActiu.dataset.valor = `${cru.split('T')[0]}T${inputHora.value}`;
+      inputActiu.value = formatVisual(any, mes - 1, dia, inputHora.value);
+    }
+  });
+
+  function renderCalendariLimit() {
+    const dataEventoRaw = valorInput(inputFecha);
+    const dataEvento = dataEventoRaw ? inicioDia(dataEventoRaw) : null;
+    const avui = inicioDia(new Date());
+    const inputActiu = modeCalendari === 'esdeveniment' ? inputFecha : inputLimit;
+    const seleccionatRaw = valorInput(inputActiu);
+    const seleccionat = seleccionatRaw ? clauData(seleccionatRaw) : null;
+
+    inputHora.value = inputActiu.dataset.valor
+      ? inputActiu.dataset.valor.split('T')[1]
+      : modeCalendari === 'esdeveniment' ? '20:00' : '23:59';
+
+    titolCalendari.textContent =
+      modeCalendari === 'esdeveniment' ? "Tria la data de l'esdeveniment" : 'Tria el límit de compra';
+
+    // El botó "Següent" només té sentit en mode "esdeveniment" i un cop ja
+    // s'ha triat un dia (perquè abans encara no hi ha res a confirmar).
+    document
+      .getElementById('mini-calendari-seguent')
+      .classList.toggle('hidden', !(modeCalendari === 'esdeveniment' && inputFecha.dataset.valor));
+
+    const any = calMesVisible.getFullYear();
+    const mes = calMesVisible.getMonth();
+    document.getElementById('limit-mes-actual').textContent = calMesVisible.toLocaleDateString('ca-ES', {
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const primerDiaMes = new Date(any, mes, 1);
+    const offsetInicial = (primerDiaMes.getDay() + 6) % 7;
+    const diesAlMes = new Date(any, mes + 1, 0).getDate();
+
+    limitGraella.innerHTML = '';
+
+    for (let i = 0; i < offsetInicial; i++) {
+      const buit = document.createElement('div');
+      buit.className = 'calendari-dia calendari-dia--buit';
+      limitGraella.appendChild(buit);
+    }
+
+    for (let dia = 1; dia <= diesAlMes; dia++) {
+      const data = new Date(any, mes, dia);
+      const clau = clauData(data);
+
+      // En mode "esdeveniment" només cal que el dia no hagi passat. En mode
+      // "límit" el dia ha d'estar entre avui i el dia de l'esdeveniment.
+      const foraDeRang =
+        modeCalendari === 'esdeveniment' ? data < avui : data < avui || (dataEvento && data > dataEvento);
+      const esMarcat = modeCalendari === 'limit' && dataEvento && data.getTime() === dataEvento.getTime();
+      const esInterval = modeCalendari === 'limit' && !esMarcat && !foraDeRang && dataEvento;
+
+      const classes = ['calendari-dia'];
+      if (esMarcat) classes.push('calendari-dia--marcat');
+      if (esInterval) classes.push('calendari-dia--interval');
+      if (foraDeRang) classes.push('calendari-dia--fora-rang');
+      if (clau === seleccionat) classes.push('calendari-dia--seleccionat');
+
+      const cella = document.createElement('div');
+      cella.className = classes.join(' ');
+
+      if (foraDeRang) {
+        cella.innerHTML = `<span class="calendari-dia-numero">${dia}</span>`;
+      } else {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'calendari-dia-numero';
+        btn.textContent = dia;
+        btn.addEventListener('click', () => {
+          if (modeCalendari === 'esdeveniment') {
+            // Es queda en mode "esdeveniment" perquè l'admin pugui ajustar
+            // l'hora abans de passar al límit de compra (amb el botó "Següent").
+            omplirCampData(inputFecha, any, mes, dia, '20:00');
+            renderCalendariLimit();
+          } else {
+            omplirCampData(inputLimit, any, mes, dia, '23:59');
+            renderCalendariLimit();
+            amagarMiniCalendariLimit();
+          }
+        });
+        cella.appendChild(btn);
+      }
+
+      limitGraella.appendChild(cella);
+    }
+  }
+
+  document.getElementById('limit-mes-anterior').addEventListener('click', () => {
+    calMesVisible.setMonth(calMesVisible.getMonth() - 1);
+    renderCalendariLimit();
+  });
+  document.getElementById('limit-mes-seguent').addEventListener('click', () => {
+    calMesVisible.setMonth(calMesVisible.getMonth() + 1);
+    renderCalendariLimit();
+  });
+
+  document.getElementById('mini-calendari-seguent').addEventListener('click', () => {
+    const dataEvento = valorInput(inputFecha);
+    modeCalendari = 'limit';
+    if (dataEvento) calMesVisible = new Date(dataEvento.getFullYear(), dataEvento.getMonth(), 1);
+    renderCalendariLimit();
+    inputLimit.focus();
+  });
+
+  function obrirCalendari(mode) {
+    modeCalendari = mode;
+    const referencia = mode === 'esdeveniment' ? valorInput(inputFecha) : valorInput(inputLimit) || valorInput(inputFecha);
+    calMesVisible = referencia ? new Date(referencia.getFullYear(), referencia.getMonth(), 1) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    renderCalendariLimit();
+    miniCalendari.classList.remove('hidden');
+  }
+
+  function amagarMiniCalendariLimit() {
+    miniCalendari.classList.add('hidden');
+  }
+
+  inputFecha.addEventListener('focus', () => obrirCalendari('esdeveniment'));
+  inputFecha.addEventListener('click', () => obrirCalendari('esdeveniment'));
+  inputLimit.addEventListener('focus', () => obrirCalendari('limit'));
+  inputLimit.addEventListener('click', () => obrirCalendari('limit'));
+  miniCalendari.addEventListener('click', (evt) => evt.stopPropagation());
+  document.addEventListener('click', (evt) => {
+    if (!campAmbMinicalendari.contains(evt.target)) {
+      amagarMiniCalendariLimit();
+    }
+  });
+  document.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Escape') amagarMiniCalendariLimit();
+  });
 }
 
 // Detall, edicio i gestio de compres d'un esdeveniment

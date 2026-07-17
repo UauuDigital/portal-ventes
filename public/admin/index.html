@@ -6,7 +6,7 @@
 <title>Esdeveniments — Administració Espai Econòmic</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css?v=22">
+<link rel="stylesheet" href="/css/admin.css?v=28">
 </head>
 <body>
 <div class="admin-shell">
@@ -27,8 +27,38 @@
         <label for="nombre">Nom</label>
         <input type="text" id="nombre" name="nombre" required>
 
-        <label for="fecha">Data de l'esdeveniment</label>
-        <input type="datetime-local" id="fecha" name="fecha" required>
+        <div class="camp-amb-minicalendari camps-dates-parella">
+          <div class="camp-data">
+            <label for="fecha">Data de l'esdeveniment</label>
+            <input type="text" id="fecha" name="fecha" placeholder="Tria un dia al calendari" readonly required autocomplete="off">
+          </div>
+          <div class="camp-data">
+            <label for="fecha_limite_compra">Data límit de compra</label>
+            <input type="text" id="fecha_limite_compra" name="fecha_limite_compra" placeholder="Tria un dia al calendari" readonly required autocomplete="off">
+          </div>
+
+          <div class="mini-calendari hidden" id="mini-calendari-limit">
+            <p class="mini-calendari-titol" id="mini-calendari-titol">Tria la data de l'esdeveniment</p>
+            <div class="admin-calendari-header">
+              <button type="button" class="btn-calendari-nav" id="limit-mes-anterior" aria-label="Mes anterior">‹</button>
+              <span class="admin-calendari-mes" id="limit-mes-actual"></span>
+              <button type="button" class="btn-calendari-nav" id="limit-mes-seguent" aria-label="Mes següent">›</button>
+            </div>
+            <div class="admin-calendari-diesetmana">
+              <span>DL</span><span>DM</span><span>DC</span><span>DJ</span><span>DV</span><span>DS</span><span>DG</span>
+            </div>
+            <div class="admin-calendari-graella" id="limit-graella"></div>
+            <div class="mini-calendari-hora">
+              <label for="mini-calendari-hora-input">Hora</label>
+              <input type="time" id="mini-calendari-hora-input">
+            </div>
+            <button type="button" class="btn-secundari mini-calendari-seguent hidden" id="mini-calendari-seguent">Següent: tria el límit ›</button>
+            <div class="mini-calendari-llegenda">
+              <span><i class="calendari-punt calendari-punt--marcat"></i> Dia de l'esdeveniment</span>
+              <span><i class="calendari-punt calendari-punt--interval"></i> Dies vàlids per al termini</span>
+            </div>
+          </div>
+        </div>
 
         <label for="descripcion">Descripció</label>
         <input type="text" id="descripcion" name="descripcion">
@@ -38,9 +68,6 @@
 
         <label for="aforo_total">Aforament total</label>
         <input type="number" id="aforo_total" name="aforo_total" min="1" step="1" required>
-
-        <label for="fecha_limite_compra">Data límit de compra</label>
-        <input type="datetime-local" id="fecha_limite_compra" name="fecha_limite_compra" required>
 
         <button type="submit" class="btn-primary">Crear esdeveniment</button>
         <p id="error-evento" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-sans);"></p>
@@ -86,6 +113,6 @@
     </div>
   </div>
 </div>
-<script src="/js/admin.js?v=22"></script>
+<script src="/js/admin.js?v=28"></script>
 </body>
 </html>
