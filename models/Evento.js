@@ -33,6 +33,24 @@ async function getActivo() {
     .get(now);
 }
 
+/**
+ * Retorna tots els esdeveniments actius (oberts i amb termini de compra
+ * encara vigent), ordenats pel termini més proper primer. A diferència de
+ * getActivo(), no es queda només amb un: serveix per saber si cal mostrar
+ * un selector quan n'hi ha més d'un obert alhora.
+ */
+async function listActivos() {
+  await tancarExpirats();
+  const now = new Date().toISOString();
+  return db
+    .prepare(
+      `SELECT * FROM eventos
+       WHERE estado = 'abierto' AND fecha_limite_compra > ?
+       ORDER BY fecha_limite_compra ASC`
+    )
+    .all(now);
+}
+
 async function getById(id) {
   await tancarExpirats();
   return db.prepare('SELECT * FROM eventos WHERE id = ?').get(id);
@@ -74,4 +92,4 @@ async function remove(id) {
   await db.prepare('DELETE FROM eventos WHERE id = ?').run(id);
 }
 
-module.exports = { getActivo, getById, create, update, listAll, remove };
+module.exports = { getActivo, listActivos, getById, create, update, listAll, remove };

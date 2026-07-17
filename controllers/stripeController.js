@@ -73,8 +73,13 @@ async function crearCheckoutSession(req, res) {
       return res.status(400).json({ error: 'dades_invalides', detalls: errors });
     }
 
-    const evento = await Evento.getActivo();
-    if (!evento) {
+    // Si la landing mostra un selector (diversos esdeveniments actius alhora),
+    // el formulari indica sobre quin es fa la compra; si no, s'agafa el més
+    // urgent com sempre (comportament vàlid quan només n'hi ha un d'obert).
+    const evento = req.body.evento_id
+      ? await Evento.getById(parseInt(req.body.evento_id, 10))
+      : await Evento.getActivo();
+    if (!evento || evento.estado !== 'abierto') {
       return res.status(409).json({ error: 'no_hi_ha_event_actiu' });
     }
 
