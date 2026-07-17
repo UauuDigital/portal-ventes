@@ -37,6 +37,9 @@ async function carregarEvento(eventoId) {
     if (data.evento) {
       document.getElementById('evento-nombre').textContent = data.evento.nombre;
       document.getElementById('evento-descripcio').textContent = data.evento.descripcion || '';
+    } else {
+      document.getElementById('evento-nombre').textContent = 'Espai Econòmic';
+      document.getElementById('evento-descripcio').textContent = 'Torna aviat per veure el proper esdeveniment.';
     }
     return null;
   }
