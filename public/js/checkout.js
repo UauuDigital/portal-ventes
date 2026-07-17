@@ -93,19 +93,31 @@ function mostrarFormulariEvento(eventoId, desSelector) {
   carregarEvento(eventoId);
 }
 
+function netejarAnimacioSeleccio() {
+  const grid = document.getElementById('selector-grid');
+  grid.querySelectorAll('.selector-btn--seleccionant').forEach((b) => b.classList.remove('selector-btn--seleccionant'));
+}
+
 function tornarAlSelector() {
   document.getElementById('main-card').classList.add('hidden');
   document.getElementById('selector-esdeveniments').classList.remove('hidden');
+  netejarAnimacioSeleccio();
 }
 
+let ultimsEventosSelector = [];
+const DURADA_ANIM_CLIC = 400; // ms — cobreix l'animació Ripple
+
 function renderSelectorEsdeveniments(eventos) {
+  ultimsEventosSelector = eventos;
   const grid = document.getElementById('selector-grid');
+  netejarAnimacioSeleccio();
   grid.innerHTML = '';
-  eventos.forEach((ev) => {
+  eventos.forEach((ev, i) => {
     const { percentOcupat, classe } = calcularAforo(ev.aforo_disponible, ev.aforo_total);
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'selector-btn';
+    btn.style.setProperty('--i', i);
     btn.innerHTML = `
       <span class="selector-btn-nom">${escapeHtml(ev.nombre)}</span>
       <span class="selector-btn-data">📅 ${escapeHtml(new Date(ev.fecha).toLocaleString('ca-ES'))}</span>
@@ -114,7 +126,16 @@ function renderSelectorEsdeveniments(eventos) {
       </div>
       <span class="selector-btn-aforo">🎟️ ${ev.aforo_disponible} places disponibles</span>
     `;
-    btn.addEventListener('click', () => mostrarFormulariEvento(ev.id, true));
+
+    btn.addEventListener('click', (evt) => {
+      const rect = btn.getBoundingClientRect();
+      btn.style.setProperty('--click-x', `${evt.clientX - rect.left}px`);
+      btn.style.setProperty('--click-y', `${evt.clientY - rect.top}px`);
+      btn.classList.add('selector-btn--seleccionant');
+      const reduitMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.setTimeout(() => mostrarFormulariEvento(ev.id, true), reduitMotion ? 0 : DURADA_ANIM_CLIC);
+    });
+
     grid.appendChild(btn);
   });
   document.getElementById('selector-esdeveniments').classList.remove('hidden');

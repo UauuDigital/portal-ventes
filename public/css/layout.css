@@ -260,3 +260,82 @@
     justify-self: stretch;
   }
 }
+
+/* ============================================================
+   Animació definitiva dels botons del selector: "Lift & Glow".
+   Entrada amb ascens suau i esglaonat; en hover puja i guanya una
+   ombra profunda; en clicar es prem lleugerament.
+   ============================================================ */
+
+.selector-btn {
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  will-change: transform;
+}
+
+@keyframes selBtnEntrada {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.selector-btn {
+  opacity: 0;
+  animation: selBtnEntrada 450ms var(--ease-out-quart) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+  transition: transform 200ms var(--ease-out-quart), box-shadow 200ms var(--ease-out-quart), background 200ms var(--ease-out-quart);
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+}
+.selector-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 28px -12px rgba(0, 0, 0, 0.45);
+}
+.selector-btn:active {
+  transform: translateY(-1px) scale(0.99);
+  transition-duration: 100ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selector-btn {
+    animation: none !important;
+    opacity: 1 !important;
+    transition: background 150ms linear !important;
+    transform: none !important;
+  }
+}
+
+/* ============================================================
+   Animació de SELECCIÓ (en clicar una targeta, abans de passar a la
+   pantalla de reserva): "Ripple" — un cercle es propaga des del punt
+   exacte del clic (--click-x/--click-y, fixats per checkout.js).
+   ============================================================ */
+
+.selector-btn--seleccionant::before {
+  content: '';
+  position: absolute;
+  left: var(--click-x, 50%);
+  top: var(--click-y, 50%);
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(242, 239, 238, 0.9), rgba(242, 239, 238, 0.35) 60%, transparent 75%);
+  animation: clickRipple2 500ms var(--ease-out-expo);
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes clickRipple2 {
+  from { transform: scale(0); opacity: 1; }
+  to { transform: scale(26); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selector-btn--seleccionant {
+    opacity: 0.6 !important;
+  }
+  .selector-btn--seleccionant::before {
+    display: none !important;
+  }
+}
+
