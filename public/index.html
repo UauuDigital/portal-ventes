@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Espai Econòmic — Reserva la teva entrada</title>
+<title data-i18n="titol_index">Espai Econòmic — Reserva la teva entrada</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Inter via Google Fonts (Ogg és una tipografia amb llicència pròpia de UAUU:
@@ -25,21 +25,21 @@
     <span class="logo-icon" aria-hidden="true"></span>
     <span>Espai Econòmic</span>
   </div>
-  <h1>Tria l'esdeveniment</h1>
-  <p class="subtitle">Ara mateix hi ha diverses reserves obertes. Tria a quina vols apuntar-te.</p>
+  <h1 data-i18n="selector_titol">Tria l'esdeveniment</h1>
+  <p class="subtitle" data-i18n="selector_subtitol">Ara mateix hi ha diverses reserves obertes. Tria a quina vols apuntar-te.</p>
   <div class="selector-grid" id="selector-grid"></div>
 </section>
 
 <main class="card hidden" data-layout="info-left" id="main-card">
 
   <section class="panel panel-color evento-info">
-    <button type="button" class="breadcrumb-tornar hidden" id="btn-tornar-selector">‹ Tots els esdeveniments</button>
+    <button type="button" class="breadcrumb-tornar hidden" id="btn-tornar-selector" data-i18n="breadcrumb_tornar">‹ Tots els esdeveniments</button>
     <div class="logo">
       <span class="logo-icon" aria-hidden="true"></span>
       <span>Espai Econòmic</span>
     </div>
     <div>
-      <span class="eyebrow">Esdeveniment del mes</span>
+      <span class="eyebrow" data-i18n="eyebrow_mes">Esdeveniment del mes</span>
       <h1 id="evento-nombre">Carregant l'esdeveniment…</h1>
       <p id="evento-descripcio"></p>
     </div>
@@ -54,51 +54,50 @@
   </section>
 
   <section class="panel panel-white form-side">
-    <h1>Reserva la teva plaça</h1>
-    <p class="subtitle">Paga de forma segura amb targeta.</p>
+    <h1 data-i18n="form_titol">Reserva la teva plaça</h1>
+    <p class="subtitle" data-i18n="form_subtitol">Paga de forma segura amb targeta.</p>
 
     <div id="estat-no-disponible" class="estat-missatge hidden" role="status" aria-live="polite"></div>
 
     <form id="form-compra">
-      <label for="cantidad">Nombre d'entrades</label>
+      <label for="cantidad" data-i18n="label_cantidad">Nombre d'entrades</label>
       <input type="number" id="cantidad" name="cantidad" min="1" value="1" required>
 
-      <label for="nombre_comprador">Nom i cognoms</label>
+      <label for="nombre_comprador" data-i18n="label_nom">Nom i cognoms</label>
       <input type="text" id="nombre_comprador" name="nombre_comprador" required>
 
-      <label for="email">Email</label>
+      <label for="email" data-i18n="label_email">Email</label>
       <input type="email" id="email" name="email" required>
 
-      <label for="telefono">Telèfon</label>
+      <label for="telefono" data-i18n="label_telefon">Telèfon</label>
       <input type="tel" id="telefono" name="telefono">
 
       <div class="checkbox-row">
         <input type="checkbox" id="quiere_factura" name="quiere_factura">
-        <label for="quiere_factura">Vull factura amb dades fiscals</label>
+        <label for="quiere_factura" data-i18n="checkbox_factura">Vull factura amb dades fiscals</label>
       </div>
 
       <div id="camps-fiscals" class="fiscal-fields hidden">
-        <label for="nif">NIF / CIF</label>
+        <label for="nif" data-i18n="label_nif">NIF / CIF</label>
         <input type="text" id="nif" name="nif">
-        <label for="nombre_fiscal">Nom fiscal</label>
+        <label for="nombre_fiscal" data-i18n="label_nom_fiscal">Nom fiscal</label>
         <input type="text" id="nombre_fiscal" name="nombre_fiscal">
-        <label for="direccion_fiscal">Adreça fiscal</label>
+        <label for="direccion_fiscal" data-i18n="label_direccio_fiscal">Adreça fiscal</label>
         <input type="text" id="direccion_fiscal" name="direccion_fiscal">
       </div>
 
       <div class="checkbox-row">
         <input type="checkbox" id="accepta_condicions" name="accepta_condicions" required>
         <label for="accepta_condicions">
-          Accepto les <a href="/condicions.html" data-legal="condicions">condicions de venda</a>
-          i la <a href="/privacitat.html" data-legal="privacitat">política de privacitat</a>.
+          <span data-i18n="accepta_pre">Accepto les </span><a href="/condicions.html" data-legal="condicions" data-i18n="accepta_condicions">condicions de venda</a><span data-i18n="accepta_i"> i la </span><a href="/privacitat.html" data-legal="privacitat" data-i18n="accepta_privacitat">política de privacitat</a>.
         </label>
       </div>
 
-      <button type="submit" class="btn-primary" id="btn-comprar">Pagar i reservar entrada</button>
+      <button type="submit" class="btn-primary" id="btn-comprar" data-i18n="btn_comprar">Pagar i reservar entrada</button>
       <p id="error-missatge" class="form-error" role="alert" aria-live="polite"></p>
     </form>
 
-    <div class="divider">mètodes de pagament acceptats</div>
+    <div class="divider" data-i18n="pagament_divider">mètodes de pagament acceptats</div>
     <div class="payment-icons">
       <span>VISA</span><span>Mastercard</span>
     </div>
@@ -107,21 +106,22 @@
 </main>
 
 <footer style="max-width:920px; width:100%; margin:16px auto 0; text-align:center; font-family:var(--font-sans); font-size:11px; color:rgba(34,31,30,0.4); display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
-  <a href="/avis-legal.html" data-legal="avis-legal" style="color:inherit;">Avís legal</a>
-  <a href="/privacitat.html" data-legal="privacitat" style="color:inherit;">Privacitat</a>
-  <a href="/cookies.html" data-legal="cookies" style="color:inherit;">Cookies</a>
-  <a href="/condicions.html" data-legal="condicions" style="color:inherit;">Condicions de venda</a>
+  <a href="/avis-legal.html" data-legal="avis-legal" style="color:inherit;" data-i18n="footer_avis">Avís legal</a>
+  <a href="/privacitat.html" data-legal="privacitat" style="color:inherit;" data-i18n="footer_privacitat">Privacitat</a>
+  <a href="/cookies.html" data-legal="cookies" style="color:inherit;" data-i18n="footer_cookies">Cookies</a>
+  <a href="/condicions.html" data-legal="condicions" style="color:inherit;" data-i18n="footer_condicions">Condicions de venda</a>
   <a href="/admin/login.html" style="color:inherit;">·</a>
 </footer>
 
 <div class="legal-modal-overlay" id="legal-modal-overlay">
   <div class="legal-modal" id="legal-modal" role="dialog" aria-modal="true">
-    <button type="button" class="legal-modal-close" id="legal-modal-close" aria-label="Tanca">✕</button>
+    <button type="button" class="legal-modal-close" id="legal-modal-close" aria-label="Tanca" data-i18n-aria="modal_tanca">✕</button>
     <div id="legal-modal-body">Carregant…</div>
   </div>
 </div>
 
-<script src="/js/checkout.js?v=12"></script>
-<script src="/js/legal-modal.js"></script>
+<script src="/js/i18n.js?v=1"></script>
+<script src="/js/checkout.js?v=13"></script>
+<script src="/js/legal-modal.js?v=2"></script>
 </body>
 </html>
