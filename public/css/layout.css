@@ -160,12 +160,13 @@
    la landing mostra aquesta quadrícula abans del formulari de compra. */
 .selector-esdeveniments {
   width: 100%;
-  max-width: 720px;
+  max-width: min(94vw, calc(var(--selector-cols, 3) * 320px + 80px));
   background: var(--light);
   border-radius: var(--radius-card);
   box-shadow: 0 30px 60px -20px rgba(34, 31, 30, 0.35);
   padding: 40px;
   text-align: center;
+  transition: max-width 0.25s ease;
 }
 
 .selector-esdeveniments .logo {
@@ -189,19 +190,20 @@
   margin: 0 0 28px;
 }
 
+/* Nombre de columnes calculat en JS (vegeu calcularColumnesSelector a
+   checkout.js): comença amb 3 i n'afegeix una de nova cada cop que
+   superaria les 5 files, fins a omplir l'amplada disponible. Flexbox
+   (en lloc de grid) perquè la darrera fila incompleta quedi centrada
+   en lloc d'alinear-se a l'esquerra. */
 .selector-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 16px;
 }
 
-/* Si el nombre d'esdeveniments és senar, l'últim ocupa les dues columnes i
-   es manté a l'amplada d'una sola targeta, centrat, en lloc de quedar
-   penjat a l'esquerra tot sol. */
-.selector-grid > .selector-btn:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-  max-width: calc(50% - 8px);
-  justify-self: center;
+.selector-grid > .selector-btn {
+  flex: 0 0 calc((100% - (var(--selector-cols, 3) - 1) * 16px) / var(--selector-cols, 3));
 }
 
 .selector-btn {
@@ -247,17 +249,12 @@
 
 @media (max-width: 720px) {
   .selector-esdeveniments {
+    max-width: 100%;
     padding: 28px 20px;
   }
 
-  .selector-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .selector-grid > .selector-btn:last-child:nth-child(odd) {
-    grid-column: auto;
-    max-width: none;
-    justify-self: stretch;
+  .selector-grid > .selector-btn {
+    flex-basis: 100%;
   }
 }
 

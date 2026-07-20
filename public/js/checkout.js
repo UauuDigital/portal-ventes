@@ -115,9 +115,23 @@ function tornarAlSelector() {
 let ultimsEventosSelector = [];
 const DURADA_ANIM_CLIC = 400; // ms — cobreix l'animació Ripple
 
+/* Comença amb 3 columnes; si amb aquestes hi hauria més de 5 files,
+   n'afegeix una de nova i torna a comprovar, fins que hi càpiguen en
+   5 files o menys (o fins que hi hagi tantes columnes com esdeveniments). */
+function calcularColumnesSelector(numEventos) {
+  const MAX_FILES = 5;
+  let cols = 3;
+  while (Math.ceil(numEventos / cols) > MAX_FILES && cols < numEventos) {
+    cols += 1;
+  }
+  return Math.max(1, Math.min(cols, numEventos));
+}
+
 function renderSelectorEsdeveniments(eventos) {
   ultimsEventosSelector = eventos;
   const grid = document.getElementById('selector-grid');
+  const contenidor = document.getElementById('selector-esdeveniments');
+  contenidor.style.setProperty('--selector-cols', calcularColumnesSelector(eventos.length));
   netejarAnimacioSeleccio();
   grid.innerHTML = '';
   eventos.forEach((ev, i) => {
