@@ -6,6 +6,14 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function t(clau) {
+  return window.i18n ? window.i18n.t(clau) : clau;
+}
+
+function localeActual() {
+  return window.i18n ? window.i18n.localeActual() : 'ca-ES';
+}
+
 async function carregarEvento(eventoId) {
   const url = eventoId ? `/api/evento/actual?id=${eventoId}` : '/api/evento/actual';
   const res = await fetch(url);
@@ -20,15 +28,15 @@ async function carregarEvento(eventoId) {
     form.classList.add('hidden');
     avis.classList.remove('hidden');
     const motius = {
-      no_hi_ha_event_actiu: "Ara mateix no hi ha cap esdeveniment obert per a la venda d'entrades.",
-      data_limit_superada: 'El termini de compra per a aquest esdeveniment ha finalitzat.',
-      aforament_exhaurit: "Les entrades per a aquest esdeveniment s'han esgotat.",
+      no_hi_ha_event_actiu: t('motiu_no_event'),
+      data_limit_superada: t('motiu_data_limit'),
+      aforament_exhaurit: t('motiu_aforament'),
     };
-    avis.textContent = motius[data.motiu] || 'La compra no està disponible ara mateix.';
+    avis.textContent = motius[data.motiu] || t('motiu_default');
     document.getElementById('evento-data').textContent = '';
     document.getElementById('evento-preu').textContent = '';
     if (data.motiu === 'aforament_exhaurit') {
-      document.getElementById('evento-aforo').textContent = '🎟️ Sense places disponibles';
+      document.getElementById('evento-aforo').textContent = '🎟️ ' + t('sense_places');
       actualitzarBarraAforo(0, 1);
     } else {
       document.getElementById('evento-aforo').textContent = '';
@@ -39,7 +47,7 @@ async function carregarEvento(eventoId) {
       document.getElementById('evento-descripcio').textContent = data.evento.descripcion || '';
     } else {
       document.getElementById('evento-nombre').textContent = 'Espai Econòmic';
-      document.getElementById('evento-descripcio').textContent = 'Torna aviat per veure el proper esdeveniment.';
+      document.getElementById('evento-descripcio').textContent = t('evento_default_desc');
     }
     return null;
   }
@@ -48,9 +56,9 @@ async function carregarEvento(eventoId) {
   eventoSeleccionatId = ev.id;
   document.getElementById('evento-nombre').textContent = ev.nombre;
   document.getElementById('evento-descripcio').textContent = ev.descripcion || '';
-  document.getElementById('evento-data').textContent = '📅 ' + new Date(ev.fecha).toLocaleString('ca-ES');
-  document.getElementById('evento-preu').textContent = '💶 ' + (ev.precio / 100).toFixed(2) + ' € / entrada';
-  document.getElementById('evento-aforo').textContent = '🎟️ ' + ev.aforo_disponible + ' places disponibles';
+  document.getElementById('evento-data').textContent = '📅 ' + new Date(ev.fecha).toLocaleString(localeActual());
+  document.getElementById('evento-preu').textContent = '💶 ' + (ev.precio / 100).toFixed(2) + ' €' + t('suffix_entrada');
+  document.getElementById('evento-aforo').textContent = '🎟️ ' + ev.aforo_disponible + ' ' + t('places_disponibles');
   actualitzarBarraAforo(ev.aforo_disponible, ev.aforo_total);
 
   return ev;
@@ -120,11 +128,11 @@ function renderSelectorEsdeveniments(eventos) {
     btn.style.setProperty('--i', i);
     btn.innerHTML = `
       <span class="selector-btn-nom">${escapeHtml(ev.nombre)}</span>
-      <span class="selector-btn-data">📅 ${escapeHtml(new Date(ev.fecha).toLocaleString('ca-ES'))}</span>
+      <span class="selector-btn-data">📅 ${escapeHtml(new Date(ev.fecha).toLocaleString(localeActual()))}</span>
       <div class="aforo-bar aforo-bar--selector">
         <div class="aforo-bar-fill ${classe}" style="width:${percentOcupat}%"></div>
       </div>
-      <span class="selector-btn-aforo">🎟️ ${ev.aforo_disponible} places disponibles</span>
+      <span class="selector-btn-aforo">🎟️ ${ev.aforo_disponible} ${escapeHtml(t('places_disponibles'))}</span>
     `;
 
     btn.addEventListener('click', (evt) => {
@@ -179,7 +187,7 @@ async function enviarFormulari(evt) {
   const errorEl = document.getElementById('error-missatge');
   errorEl.textContent = '';
   btn.disabled = true;
-  btn.textContent = 'Processant…';
+  btn.textContent = t('btn_comprar_processant');
 
   const body = {
     evento_id: eventoSeleccionatId,
@@ -203,17 +211,17 @@ async function enviarFormulari(evt) {
     const data = await res.json();
 
     if (!res.ok) {
-      errorEl.textContent = data.detalls ? data.detalls.join(', ') : (data.error || 'Error inesperat.');
+      errorEl.textContent = data.detalls ? data.detalls.join(', ') : (data.error || t('error_inesperat'));
       btn.disabled = false;
-      btn.textContent = 'Pagar i reservar entrada';
+      btn.textContent = t('btn_comprar');
       return;
     }
 
     window.location.href = data.url;
   } catch (err) {
-    errorEl.textContent = "No s'ha pogut connectar amb el servidor. Torna-ho a provar.";
+    errorEl.textContent = t('error_connexio');
     btn.disabled = false;
-    btn.textContent = 'Pagar i reservar entrada';
+    btn.textContent = t('btn_comprar');
   }
 }
 
@@ -223,4 +231,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-comprar').addEventListener('click', comprovarAccesAdmin, true);
   document.getElementById('form-compra').addEventListener('submit', enviarFormulari);
   document.getElementById('btn-tornar-selector').addEventListener('click', tornarAlSelector);
+});
+
+document.addEventListener('idiomaCanviat', () => {
+  if (!document.getElementById('selector-esdeveniments').classList.contains('hidden')) {
+    renderSelectorEsdeveniments(ultimsEventosSelector);
+  } else if (!document.getElementById('main-card').classList.contains('hidden')) {
+    carregarEvento(eventoSeleccionatId || undefined);
+  }
 });

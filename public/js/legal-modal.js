@@ -29,12 +29,13 @@
   document.querySelectorAll('a[data-legal]').forEach((link) => {
     link.addEventListener('click', async (e) => {
       e.preventDefault();
-      body.textContent = 'Carregant…';
+      body.textContent = window.i18n ? window.i18n.t('modal_carregant') : 'Carregant…';
       openModal();
       try {
         body.innerHTML = await loadLegalPage(link.getAttribute('href'));
+        if (window.i18n) window.i18n.aplicar(body);
       } catch (err) {
-        body.textContent = 'No s\'ha pogut carregar el contingut.';
+        body.textContent = window.i18n ? window.i18n.t('modal_error') : "No s'ha pogut carregar el contingut.";
       }
     });
   });
