@@ -95,7 +95,38 @@ if (pestanyesMobil.length) {
     btn.addEventListener('click', () => activarPestanyaMobil(btn.dataset.tab));
   });
 
-  activarPestanyaMobil('crear');
+  activarPestanyaMobil('esdeveniments');
+}
+
+// Modal de creacio d'esdeveniment: amagat per defecte, s'obre amb el boto
+// del costat del titol "Esdeveniments".
+const modalCrearEvento = document.getElementById('modal-crear-evento');
+const btnObrirCrear = document.getElementById('btn-obrir-crear');
+const btnTancarCrear = document.getElementById('btn-tancar-crear');
+const admincolEventos = document.querySelector('.admin-col--eventos');
+if (modalCrearEvento && btnObrirCrear && btnTancarCrear) {
+  function obrirModalCrear() {
+    modalCrearEvento.classList.remove('hidden');
+    // Bloqueja la taula de sota mentre el modal és obert perquè cap clic ni
+    // hover (per exemple en tancar el modal amb el ratolí quedant just a
+    // sobre d'una fila) hi arribi per error.
+    if (admincolEventos) admincolEventos.style.pointerEvents = 'none';
+  }
+  function tancarModalCrear() {
+    modalCrearEvento.classList.add('hidden');
+    if (admincolEventos) admincolEventos.style.pointerEvents = '';
+  }
+  btnObrirCrear.addEventListener('click', obrirModalCrear);
+  btnTancarCrear.addEventListener('click', (evt) => {
+    evt.stopPropagation();
+    tancarModalCrear();
+  });
+  modalCrearEvento.addEventListener('click', (evt) => {
+    if (evt.target === modalCrearEvento) tancarModalCrear();
+  });
+  document.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Escape') tancarModalCrear();
+  });
 }
 
 async function apiFetch(url, options = {}) {
@@ -114,15 +145,28 @@ function formatEuros(centims) {
   return (centims / 100).toFixed(2) + ' €';
 }
 
-const ESTATS_EVENTO = { abierto: 'Obert', cerrado: 'Tancat' };
-function traduirEstatEvento(estado) {
-  return ESTATS_EVENTO[estado] || estado;
-}
-
 const ESTATS_PAGO = { pendiente: 'Pendent', pagado: 'Pagat', cancelado: 'Cancel·lat' };
 function badgeEstatPago(estado) {
   const etiqueta = ESTATS_PAGO[estado] || estado;
   return `<span class="badge-estat badge-estat--${escapeHtml(estado)}">${escapeHtml(etiqueta)}</span>`;
+}
+
+function badgeEntradesRestants(ev) {
+  const total = ev.aforo_total || 0;
+  const ocupades = ev.ocupadas || 0;
+  const restants = total - ocupades;
+  const percentOcupat = total > 0 ? Math.min(100, Math.max(0, (ocupades / total) * 100)) : 0;
+
+  let modificador = 'normal';
+  if (restants <= 0) modificador = 'esgotades';
+  else if (restants <= total * 0.1) modificador = 'baixes';
+
+  return `
+    <div class="entrades-restants entrades-restants--${modificador}">
+      <span class="entrades-restants-numero">${restants}</span>
+      <span class="entrades-restants-barra"><span class="entrades-restants-barra-fill" style="width:${percentOcupat}%"></span></span>
+    </div>
+  `;
 }
 
 function formatData(isoString) {
@@ -252,6 +296,20 @@ function mostrarTooltipCalendari(evt, eventosDia) {
 // que no té "mouseleave").
 document.addEventListener('click', () => amagarTooltipCalendari());
 
+// En passar el cursor per la taula o pel calendari, ressalta l'altra
+// representació del mateix esdeveniment perquè quedi clar que són el mateix.
+function marcarEventoVinculat(id, actiu) {
+  document.querySelectorAll(`tr[data-evento-id="${id}"]`).forEach((tr) => {
+    tr.classList.toggle('admin-table-row--vinculat', actiu);
+  });
+  document.querySelectorAll('.calendari-event').forEach((marcador) => {
+    const ids = (marcador.dataset.eventosIds || '').split(',');
+    if (ids.includes(String(id))) {
+      marcador.classList.toggle('calendari-event--vinculat', actiu);
+    }
+  });
+}
+
 // Prioritat de color quan hi ha diversos esdeveniments el mateix dia.
 const PRIORITAT_COLOR = { vermell: 0, verd: 1, gris: 2 };
 
@@ -305,9 +363,12 @@ function renderCalendari(eventos) {
 
       const marcador = document.createElement('button');
       marcador.type = 'button';
-      marcador.className = `calendari-dia-numero calendari-event calendari-event--${colorPrincipal}`;
+      marcador.className = `calendari-dia-numero calendari-event calendari-event--${colorPrincipal}` + (clauDia === avui ? ' calendari-event--avui' : '');
       marcador.textContent = dia;
+      marcador.dataset.eventosIds = eventosDia.map((ev) => ev.id).join(',');
       marcador.setAttribute('aria-label', eventosDia.map((ev) => ev.nombre).join(', '));
+      marcador.addEventListener('mouseenter', () => eventosDia.forEach((ev) => marcarEventoVinculat(ev.id, true)));
+      marcador.addEventListener('mouseleave', () => eventosDia.forEach((ev) => marcarEventoVinculat(ev.id, false)));
       // Nota: NO s'usa mouseenter/mouseleave (hover). Als navegadors mòbils,
       // qualsevol listener de hover en un element fa que el primer toc només
       // "simuli" el hover i calgui un segon toc perquè es disparì el click
@@ -354,6 +415,16 @@ if (btnMesAnterior && btnMesSeguent) {
   });
 }
 
+const btnCalendariAvui = document.getElementById('calendari-avui');
+if (btnCalendariAvui) {
+  btnCalendariAvui.addEventListener('click', () => {
+    amagarTooltipCalendari();
+    const avui = new Date();
+    calendariMesVisible = new Date(avui.getFullYear(), avui.getMonth(), 1);
+    renderCalendari(ultimsEventosCalendari);
+  });
+}
+
 // Llistat i creacio d'esdeveniments
 const taulaEventos = document.getElementById('taula-eventos');
 if (taulaEventos) {
@@ -373,16 +444,28 @@ if (taulaEventos) {
     eventos.forEach((ev) => {
       const tr = document.createElement('tr');
       tr.className = `admin-table-row-link admin-table-row--${colorEstatEvento(ev)}`;
+      tr.dataset.eventoId = ev.id;
       tr.innerHTML = `
         <td><span>${escapeHtml(ev.nombre)}</span></td>
         <td><span>${formatData(ev.fecha)}</span></td>
-        <td>${formatEuros(ev.precio)}</td>
-        <td>${ev.aforo_total}</td>
-        <td>${escapeHtml(traduirEstatEvento(ev.estado))}</td>
+        <td><span>${formatEuros(ev.precio)}</span></td>
+        <td><span>${ev.aforo_total}</span></td>
+        <td>${badgeEntradesRestants(ev)}</td>
       `;
       tr.addEventListener('click', () => {
         window.location.href = `/admin/evento.html?id=${ev.id}`;
       });
+      tr.addEventListener('mouseenter', () => {
+        if (calendariGraella && calendariMesVisible) {
+          const dataEvento = new Date(ev.fecha);
+          if (dataEvento.getFullYear() !== calendariMesVisible.getFullYear() || dataEvento.getMonth() !== calendariMesVisible.getMonth()) {
+            calendariMesVisible = new Date(dataEvento.getFullYear(), dataEvento.getMonth(), 1);
+            renderCalendari(ultimsEventosCalendari);
+          }
+        }
+        marcarEventoVinculat(ev.id, true);
+      });
+      tr.addEventListener('mouseleave', () => marcarEventoVinculat(ev.id, false));
       taulaEventos.appendChild(tr);
     });
 
@@ -432,6 +515,10 @@ if (taulaEventos) {
       delete fechaLimiteInput.dataset.valor;
       carregarEventos();
       renderCalendariLimit();
+      if (modalCrearEvento) {
+        modalCrearEvento.classList.add('hidden');
+        if (admincolEventos) admincolEventos.style.pointerEvents = '';
+      }
     } else {
       const data = await res.json();
       errorEl.textContent = (data.detalls || [data.error]).join(', ');

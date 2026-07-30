@@ -41,6 +41,9 @@
 
 .admin-col--calendari {
   flex: 0 0 400px;
+  position: sticky;
+  top: 24px;
+  align-self: flex-start;
 }
 
 .admin-col-title {
@@ -51,6 +54,87 @@
   color: var(--dark-muted);
   text-align: center;
   margin: 0 0 12px;
+}
+
+.admin-col-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.admin-col-title-row .admin-col-title {
+  margin: 0;
+}
+
+.btn-crear-evento {
+  width: 26px;
+  height: 26px;
+  /* Marge vertical negatiu: el botó (26px) és més alt que la línia del
+     títol (~16.7px, com "CALENDARI"); sense això, la fila del títol
+     "Esdeveniments" seria uns 9px més alta que la del calendari i la
+     taula començaria més avall que el requadre del calendari. El marge
+     negatiu compensa la diferència perquè la fila ocupi el mateix espai
+     que un títol sol, sense canviar la mida visual del botó. */
+  margin: -4.66px 0;
+  line-height: 1;
+  border-radius: 50%;
+  border: 1px solid rgba(34, 31, 30, 0.3);
+  background: var(--white);
+  color: var(--dark);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-crear-evento:hover {
+  background: var(--dark);
+  border-color: var(--dark);
+  color: var(--light);
+}
+
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(34, 31, 30, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.admin-modal-overlay.hidden {
+  display: none;
+}
+
+.admin-modal {
+  background: var(--light);
+  border-radius: var(--radius-card);
+  box-shadow: 0 30px 60px -20px rgba(34, 31, 30, 0.35);
+  padding: 32px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.btn-tancar-modal {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(34, 31, 30, 0.3);
+  background: var(--white);
+  color: var(--dark);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .admin-mobile-tabs {
@@ -69,6 +153,7 @@
 
   .admin-col--calendari {
     flex: 1 1 0;
+    position: static;
   }
 
   .admin-mobile-tabs {
@@ -129,6 +214,22 @@
      fila (evita clicar-la per error en intentar arrossegar la barra). */
   padding-bottom: 10px;
 }
+
+/* A partir del breakpoint on el calendari ja és sticky (vegeu
+   .admin-col--calendari), la taula també hi cap sense necessitat de scroll
+   horitzontal. Traiem l'overflow-x aquí perquè, si es mantingués, el
+   navegador el converteix automàticament en overflow-y:auto, i això fa que
+   la capçalera sticky de la taula quedi enganxada només dins d'aquest
+   requadre (que mai fa scroll intern) en lloc de seguir la pàgina com el
+   calendari. Per sota del breakpoint (mòbil) el calendari tampoc és
+   sticky, així que no cal aquest comportament i es manté el scroll
+   horitzontal habitual. */
+@media (min-width: 961px) {
+  .admin-table-scroll {
+    overflow-x: visible;
+  }
+}
+
 
 /* Agafador de la barra de desplaçament ben visible i gruixut (Chrome/Edge/
    Safari), perquè sempre es vegi clarament on i com arrossegar-la. */
@@ -194,8 +295,21 @@
 .admin-table {
   width: 100%;
   min-width: 640px;
-  border-collapse: collapse;
-  background: var(--white);
+  /* "separate" (en lloc de "collapse") perquè la ratlla de sota de cada
+     fila es dibuixa amb box-shadow (no amb border-bottom): amb
+     border-collapse:collapse i una capçalera sticky, Chrome pot pintar
+     les vores de les files que passen per sota per damunt de la
+     capçalera fixa (es veuen "a través"). Amb border-spacing:0 el canvi
+     no deixa cap escletxa visible entre files. */
+  border-collapse: separate;
+  border-spacing: 0;
+  /* Gris del fons de la pàgina, no blanc: amb border-radius directament a
+     cel·les concretes (i no al <table>, que no es pot arrodonir de manera
+     fiable), a les cantonades arrodonides es pot arribar a veure aquest
+     fons "de darrere" del propi element table. Si fos blanc, hi apareixia
+     un rectangle blanc estrany als vorals; en gris, es camufla amb la
+     pàgina. */
+  background: #e4e2e0;
   margin: 0;
   font-size: 13px;
   table-layout: fixed;
@@ -205,7 +319,8 @@
 .admin-table td {
   text-align: left;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(34, 31, 30, 0.08);
+  box-shadow: inset 0 -1px 0 0 rgba(34, 31, 30, 0.08);
+  line-height: 1.4;
 }
 
 .admin-table th {
@@ -213,6 +328,76 @@
   font-size: 11px;
   letter-spacing: 0.05em;
   color: var(--dark-muted);
+}
+
+.admin-table--eventos thead th {
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  z-index: 2;
+  box-shadow: inset 0 -1px 0 0 rgba(34, 31, 30, 0.08);
+}
+
+/* Les cel·les de les cantonades de la capçalera són arrodonides, però com
+   que la capçalera és sticky (flota per sobre de les files quan la pàgina
+   fa scroll), l'engruna que talla l'arc deixava veure el color de la fila
+   que passa per sota just en aquell punt. Solució: la cel·la en si queda
+   sempre grisa (quadrada, com el fons de la pàgina, sense border-radius),
+   i el blanc arrodonit és un pseudo-element per sobre seu que no arriba a
+   les cantonades. Així la cantonada mai deixa veure res de sota, sigui
+   quin sigui l'estat de scroll. */
+.admin-table--eventos thead tr:first-child th:first-child,
+.admin-table--eventos thead tr:first-child th:last-child {
+  position: sticky;
+  background: #e4e2e0;
+  border-radius: 0;
+}
+
+.admin-table--eventos thead tr:first-child th:first-child::before,
+.admin-table--eventos thead tr:first-child th:last-child::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--white);
+  z-index: -1;
+}
+
+.admin-table--eventos thead tr:first-child th:first-child::before {
+  border-top-left-radius: 16px;
+}
+
+.admin-table--eventos thead tr:first-child th:last-child::before {
+  border-top-right-radius: 16px;
+}
+
+/* Cantonades arrodonides com el calendari (taula de compres, que no és
+   sticky i per tant no té el problema anterior). */
+.admin-table--compras thead tr:first-child th:first-child {
+  border-top-left-radius: 16px;
+}
+
+.admin-table--compras thead tr:first-child th:last-child {
+  border-top-right-radius: 16px;
+}
+
+/* El color de fila (estat, ratlla clara/fosca) es defineix al <tr>, però
+   el <td> és transparent i només el mostra "a través": el border-radius
+   d'un td de cantonada no arrodoneix el fons real, que és el del tr (i
+   overflow:hidden a nivell de <tr> no es pot fer servir de manera fiable,
+   els navegadors no el respecten sempre en elements amb display:table-row
+   — deixava una costura blanca als vorals). Solució: el <td> de l'última
+   fila agafa directament el fons calculat del seu <tr> (herència forçada),
+   així el seu propi border-radius sí que el retalla correctament.*/
+.admin-table tbody tr:last-child td {
+  background: inherit;
+}
+
+.admin-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 16px;
+}
+
+.admin-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 16px;
 }
 
 .admin-table--eventos th:nth-child(1), .admin-table--eventos td:nth-child(1) { width: 26%; }
@@ -254,6 +439,7 @@
 
 .admin-table-row-link {
   cursor: pointer;
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
 }
 
 .admin-table tbody tr.admin-table-row-link:hover {
@@ -269,12 +455,20 @@
   line-height: 1.4;
 }
 
-.admin-table td:nth-child(3),
-.admin-table td:nth-child(4),
-.admin-table td:nth-child(5) {
-  white-space: nowrap;
+.admin-table td:nth-child(3) span,
+.admin-table td:nth-child(4) span {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+
+/* Files sense color d'estat propi (p. ex. la taula de compres): les
+   parelles amb un gris molt suau i les senars explícitament blanques (ara
+   que el <table> ja no és blanc per defecte, vegeu .admin-table). */
+.admin-table tbody tr:nth-child(odd) {
+  background: var(--white);
 }
 
 .admin-table tbody tr:nth-child(even) {
@@ -294,7 +488,11 @@
 .admin-table tbody tr.admin-table-row--verd:hover,
 .admin-table tbody tr.admin-table-row--vermell:hover,
 .admin-table tbody tr.admin-table-row--gris:hover {
-  filter: brightness(0.96);
+  filter: brightness(0.98);
+}
+
+.admin-table tbody tr.admin-table-row--vinculat {
+  box-shadow: inset 0 0 0 1px rgba(34, 31, 30, 0.3);
 }
 
 .admin-form {
@@ -343,6 +541,45 @@
   color: var(--error);
 }
 
+.entrades-restants {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.entrades-restants-numero {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: right;
+}
+
+.entrades-restants-barra {
+  flex: 1 1 auto;
+  min-width: 40px;
+  max-width: 70px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(34, 31, 30, 0.08);
+  overflow: hidden;
+}
+
+.entrades-restants-barra-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+}
+
+.entrades-restants--normal .entrades-restants-numero { color: var(--dark-muted); }
+.entrades-restants--normal .entrades-restants-barra-fill { background: #8fae86; }
+
+.entrades-restants--baixes .entrades-restants-numero { color: #6b5a1f; }
+.entrades-restants--baixes .entrades-restants-barra-fill { background: #e0b23f; }
+
+.entrades-restants--esgotades .entrades-restants-numero { color: var(--error); }
+.entrades-restants--esgotades .entrades-restants-barra-fill { background: var(--error); }
+
 .btn-secundari {
   display: inline-block;
   background: transparent;
@@ -362,6 +599,18 @@
 
 .btn-secundari:hover {
   background: rgba(34, 31, 30, 0.06);
+}
+
+/* "Tancar sessió" ha de destacar més que un botó secundari normal (és
+   l'única acció de la barra superior), per això porta una vora més
+   gruixuda i fosca, sense fons de color. */
+#btn-logout {
+  border-width: 1.5px;
+  border-color: var(--dark);
+}
+
+#btn-logout:hover {
+  background: rgba(34, 31, 30, 0.08);
 }
 
 .btn-perillos {
@@ -454,6 +703,26 @@
   background: rgba(34, 31, 30, 0.06);
 }
 
+.btn-calendari-avui {
+  display: block;
+  margin: -8px auto 14px;
+  background: transparent;
+  border: 1.5px solid var(--dark);
+  border-radius: var(--radius-pill);
+  padding: 4px 14px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--dark);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-calendari-avui:hover {
+  background: rgba(34, 31, 30, 0.08);
+}
+
 .admin-calendari-diesetmana {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -507,8 +776,15 @@
 
 .calendari-dia--avui .calendari-dia-numero {
   font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  border-radius: 50%;
+}
+
+.calendari-dia--avui .calendari-dia-numero:not(.calendari-event) {
+  background: #C9DBEF;
+}
+
+.calendari-event--avui {
+  box-shadow: 0 0 0 2px #C9DBEF;
 }
 
 .calendari-event-embolcall {
@@ -547,11 +823,16 @@
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  transition: box-shadow 0.15s ease;
 }
 
 .calendari-event--verd { background: #C7D9BE; }
 .calendari-event--vermell { background: #F0C9C4; }
 .calendari-event--gris { background: #DEDBD8; }
+
+.calendari-event--vinculat {
+  box-shadow: 0 0 0 1px rgba(34, 31, 30, 0.3);
+}
 
 .admin-calendari-llegenda {
   display: flex;
