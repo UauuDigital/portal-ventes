@@ -15,7 +15,9 @@ function localeActual() {
 }
 
 async function carregarEvento(eventoId) {
-  const url = eventoId ? `/api/evento/actual?id=${eventoId}` : '/api/evento/actual';
+  const url = eventoId
+    ? `/api/evento/actual?id=${eventoId}&lang=${localeActual().slice(0, 2)}`
+    : `/api/evento/actual?lang=${localeActual().slice(0, 2)}`;
   const res = await fetch(url);
   const data = await res.json();
 
@@ -165,7 +167,7 @@ function renderSelectorEsdeveniments(eventos) {
 }
 
 async function iniciar() {
-  const res = await fetch('/api/evento/actius');
+  const res = await fetch(`/api/evento/actius?lang=${localeActual().slice(0, 2)}`);
   const eventos = await res.json();
 
   if (eventos.length > 1) {
@@ -247,9 +249,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-tornar-selector').addEventListener('click', tornarAlSelector);
 });
 
-document.addEventListener('idiomaCanviat', () => {
+document.addEventListener('idiomaCanviat', async () => {
   if (!document.getElementById('selector-esdeveniments').classList.contains('hidden')) {
-    renderSelectorEsdeveniments(ultimsEventosSelector);
+    // Es torna a demanar la llista (no només re-renderitzar la memòria
+    // cau) perquè el nom de cada esdeveniment arribi ja traduït al nou
+    // idioma.
+    const res = await fetch(`/api/evento/actius?lang=${localeActual().slice(0, 2)}`);
+    renderSelectorEsdeveniments(await res.json());
   } else if (!document.getElementById('main-card').classList.contains('hidden')) {
     carregarEvento(eventoSeleccionatId || undefined);
   }

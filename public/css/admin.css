@@ -968,6 +968,30 @@
   background: var(--white);
 }
 
+/* Els 3 idiomes del Nom/Descripció en columnes, no un sota l'altre. Amb
+   textarea (en lloc d'input) el text llarg salta de línia dins del propi
+   camp en comptes de desbordar-lo horitzontalment. */
+.camps-traduccio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.camp-traduccio {
+  min-width: 0;
+}
+
+.camps-traduccio textarea {
+  resize: vertical;
+  min-height: 62px;
+}
+
+@media (max-width: 640px) {
+  .camps-traduccio {
+    grid-template-columns: 1fr;
+  }
+}
+
 .mini-calendari-titol {
   font-family: var(--font-sans);
   font-size: 11px;

@@ -13,6 +13,7 @@ const {
   llistarCompresEvento,
   cancelarCompra,
   exportarComprasCsv,
+  traduirNom,
 } = require('../controllers/adminController');
 
 router.post('/admin/login', login);
@@ -21,6 +22,7 @@ router.post('/admin/logout', logout);
 router.get('/api/admin/eventos', requireAuth, asyncHandler(llistarEventos));
 router.get('/api/admin/eventos/:id', requireAuth, asyncHandler(obtenirEvento));
 router.post('/api/admin/eventos', requireAuth, asyncHandler(crearEvento));
+router.post('/api/admin/traduir-nom', requireAuth, asyncHandler(traduirNom));
 router.put('/api/admin/eventos/:id', requireAuth, asyncHandler(actualitzarEvento));
 router.delete('/api/admin/eventos/:id', requireAuth, asyncHandler(eliminarEvento));
 

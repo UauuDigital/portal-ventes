@@ -8,16 +8,34 @@
 <style>
   body { font-family: 'Inter', sans-serif; max-width: 640px; margin: 60px auto; padding: 0 24px; color: #221F1E; background: #F2EFEE; }
   .avis { background: #fff; border: 1px solid rgba(34,31,30,0.15); border-radius: 16px; padding: 20px; font-size: 14px; font-weight: 300; line-height: 1.6; }
+  .avis h2 { font-size: 15px; font-weight: 600; margin: 20px 0 6px; }
+  .avis h2:first-of-type { margin-top: 0; }
+  .avis p { margin: 0 0 12px; }
 </style>
 </head>
 <body>
   <h1 style="font-weight:600;" data-i18n="h1_avis_legal">Avís legal</h1>
   <div class="avis">
-    <strong data-i18n="cos_pendent_titol">Contingut pendent.</strong> <span data-i18n="cos_avis_legal">La redacció final d'aquest text (identificació del titular segons la
-    LSSICE: raó social, NIF, domicili, dades de contacte i inscripció registral si aplica) està pendent de
-    validació amb l'assessoria legal — decisió pendent #1 del briefing. Aquesta pàgina és un placeholder
-    perquè no quedi cap enllaç legal trencat.</span>
+    <p data-i18n="avis_legal_intro"></p>
+
+    <h2 data-i18n="avis_legal_titular_titol"></h2>
+    <p data-i18n="avis_legal_titular_p"></p>
+
+    <h2 data-i18n="avis_legal_objecte_titol"></h2>
+    <p data-i18n="avis_legal_objecte_p"></p>
+
+    <h2 data-i18n="avis_legal_condicions_titol"></h2>
+    <p data-i18n="avis_legal_condicions_p"></p>
+
+    <h2 data-i18n="avis_legal_pi_titol"></h2>
+    <p data-i18n="avis_legal_pi_p"></p>
+
+    <h2 data-i18n="avis_legal_responsabilitat_titol"></h2>
+    <p data-i18n="avis_legal_responsabilitat_p"></p>
+
+    <h2 data-i18n="avis_legal_llei_titol"></h2>
+    <p data-i18n="avis_legal_llei_p"></p>
   </div>
-  <script src="/js/i18n.js?v=1"></script>
+  <script src="/js/i18n.js?v=2"></script>
 </body>
 </html>

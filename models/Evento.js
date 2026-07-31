@@ -58,28 +58,43 @@ async function getById(id) {
 
 async function create(data) {
   const stmt = db.prepare(
-    `INSERT INTO eventos (nombre, fecha, descripcion, precio, aforo_total, fecha_limite_compra, estado)
-     VALUES (@nombre, @fecha, @descripcion, @precio, @aforo_total, @fecha_limite_compra, @estado)
+    `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado)
+     VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado)
      RETURNING id`
   );
-  const info = await stmt.run({ estado: 'abierto', descripcion: null, ...data });
+  const info = await stmt.run({
+    estado: 'abierto',
+    descripcion: null,
+    descripcion_es: null,
+    descripcion_en: null,
+    nombre_es: null,
+    nombre_en: null,
+    ...data,
+  });
   return getById(info.lastInsertRowid);
 }
 
 async function update(id, data) {
   const actual = await getById(id);
   if (!actual) return null;
-  const { nombre, fecha, descripcion, precio, aforo_total, fecha_limite_compra, estado } = {
-    ...actual,
-    ...data,
-  };
+  const {
+    nombre, nombre_es, nombre_en, fecha,
+    descripcion, descripcion_es, descripcion_en,
+    precio, aforo_total, fecha_limite_compra, estado,
+  } = { ...actual, ...data };
   await db
     .prepare(
-      `UPDATE eventos SET nombre=@nombre, fecha=@fecha, descripcion=@descripcion, precio=@precio,
-         aforo_total=@aforo_total, fecha_limite_compra=@fecha_limite_compra, estado=@estado
+      `UPDATE eventos SET nombre=@nombre, nombre_es=@nombre_es, nombre_en=@nombre_en, fecha=@fecha,
+         descripcion=@descripcion, descripcion_es=@descripcion_es, descripcion_en=@descripcion_en,
+         precio=@precio, aforo_total=@aforo_total,
+         fecha_limite_compra=@fecha_limite_compra, estado=@estado
        WHERE id=@id`
     )
-    .run({ nombre, fecha, descripcion, precio, aforo_total, fecha_limite_compra, estado, id });
+    .run({
+      nombre, nombre_es, nombre_en, fecha,
+      descripcion, descripcion_es, descripcion_en,
+      precio, aforo_total, fecha_limite_compra, estado, id,
+    });
   return getById(id);
 }
 

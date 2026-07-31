@@ -163,6 +163,31 @@ async function apiFetch(url, options = {}) {
   return res;
 }
 
+// Traducció en viu del "Nom" de l'esdeveniment: es pot escriure en
+// qualsevol dels 3 idiomes i, en sortir del camp, es completen sols els
+// altres dos (que després es poden editar sense problema, com qualsevol
+// altre camp de text).
+function configurarTraduccioNom(camps) {
+  Object.entries(camps).forEach(([idioma, input]) => {
+    if (!input) return;
+    input.addEventListener('blur', async () => {
+      const text = input.value.trim();
+      if (!text) return;
+      const res = await apiFetch('/api/admin/traduir-nom', {
+        method: 'POST',
+        body: JSON.stringify({ nombre: text, idioma }),
+      });
+      if (!res || !res.ok) return;
+      const traduccions = await res.json();
+      Object.entries(camps).forEach(([altreIdioma, altreInput]) => {
+        if (altreIdioma !== idioma && altreInput && traduccions[altreIdioma]) {
+          altreInput.value = traduccions[altreIdioma];
+        }
+      });
+    });
+  });
+}
+
 function formatEuros(centims) {
   return (centims / 100).toFixed(2) + ' €';
 }
@@ -514,6 +539,16 @@ if (taulaEventos) {
   }
 
   const formEvento = document.getElementById('form-evento');
+  configurarTraduccioNom({
+    ca: document.getElementById('nombre'),
+    es: document.getElementById('nombre_es'),
+    en: document.getElementById('nombre_en'),
+  });
+  configurarTraduccioNom({
+    ca: document.getElementById('descripcion'),
+    es: document.getElementById('descripcion_es'),
+    en: document.getElementById('descripcion_en'),
+  });
   formEvento.addEventListener('submit', async (e) => {
     e.preventDefault();
     const errorEl = document.getElementById('error-evento');
@@ -529,8 +564,12 @@ if (taulaEventos) {
 
     const body = {
       nombre: document.getElementById('nombre').value,
+      nombre_es: document.getElementById('nombre_es').value,
+      nombre_en: document.getElementById('nombre_en').value,
       fecha: new Date(fechaEventoInput.dataset.valor || fechaEventoInput.value).toISOString(),
       descripcion: document.getElementById('descripcion').value,
+      descripcion_es: document.getElementById('descripcion_es').value,
+      descripcion_en: document.getElementById('descripcion_en').value,
       precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
       aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
       fecha_limite_compra: fechaLimite.toISOString(),
@@ -763,6 +802,17 @@ if (formEventoEditar) {
 
   document.getElementById('link-export-csv').href = `/api/admin/eventos/${eventoId}/compras/export.csv`;
 
+  configurarTraduccioNom({
+    ca: document.getElementById('nombre'),
+    es: document.getElementById('nombre_es'),
+    en: document.getElementById('nombre_en'),
+  });
+  configurarTraduccioNom({
+    ca: document.getElementById('descripcion'),
+    es: document.getElementById('descripcion_es'),
+    en: document.getElementById('descripcion_en'),
+  });
+
   const btnEliminar = document.getElementById('btn-eliminar-evento');
   btnEliminar.addEventListener('click', async () => {
     const errorEl = document.getElementById('error-evento-editar');
@@ -803,8 +853,12 @@ if (formEventoEditar) {
     const evento = await res.json();
     document.getElementById('titol-evento').textContent = evento.nombre;
     document.getElementById('nombre').value = evento.nombre;
+    document.getElementById('nombre_es').value = evento.nombre_es || '';
+    document.getElementById('nombre_en').value = evento.nombre_en || '';
     document.getElementById('fecha').value = aInputDatetimeLocal(evento.fecha);
     document.getElementById('descripcion').value = evento.descripcion || '';
+    document.getElementById('descripcion_es').value = evento.descripcion_es || '';
+    document.getElementById('descripcion_en').value = evento.descripcion_en || '';
     document.getElementById('precio').value = (evento.precio / 100).toFixed(2);
     document.getElementById('aforo_total').value = evento.aforo_total;
     document.getElementById('fecha_limite_compra').value = aInputDatetimeLocal(evento.fecha_limite_compra);
@@ -818,8 +872,12 @@ if (formEventoEditar) {
 
     const body = {
       nombre: document.getElementById('nombre').value,
+      nombre_es: document.getElementById('nombre_es').value,
+      nombre_en: document.getElementById('nombre_en').value,
       fecha: new Date(document.getElementById('fecha').value).toISOString(),
       descripcion: document.getElementById('descripcion').value,
+      descripcion_es: document.getElementById('descripcion_es').value,
+      descripcion_en: document.getElementById('descripcion_en').value,
       precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
       aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
       fecha_limite_compra: new Date(document.getElementById('fecha_limite_compra').value).toISOString(),

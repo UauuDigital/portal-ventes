@@ -1,6 +1,25 @@
 const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
 const { toCsv } = require('../utils/csv');
+const { traduirNomEsdeveniment, traduirATotsIdiomes } = require('../utils/traduccio');
+
+const IDIOMES_NOM = ['ca', 'es', 'en'];
+
+/**
+ * POST /api/admin/traduir-nom
+ * Tradueix en temps real el "Nom" de l'esdeveniment mentre s'escriu al
+ * formulari: es pot escriure en qualsevol dels 3 idiomes i es completen
+ * sols els altres dos (que després es poden editar sense problema).
+ */
+async function traduirNom(req, res) {
+  const text = String(req.body.nombre || '').trim();
+  const idioma = String(req.body.idioma || '').toLowerCase();
+  if (!text || !IDIOMES_NOM.includes(idioma)) {
+    return res.status(400).json({ error: 'dades_invalides' });
+  }
+  const traduccions = await traduirATotsIdiomes(text, idioma);
+  res.json(traduccions);
+}
 
 function validarEvento(body, { parcial } = {}) {
   const errors = [];
@@ -57,14 +76,52 @@ async function obtenirEvento(req, res) {
   res.json(evento);
 }
 
+/**
+ * Xarxa de seguretat de traducció: el formulari ja tradueix en temps real
+ * mentre s'escriu (vegeu traduirNom / configurarTraduccioNom al client),
+ * així que això només actua si, per la raó que sigui, arriben buits (JS
+ * desactivat, error de xarxa puntual...). Si el text original és buit
+ * (p. ex. una descripció opcional no emplenada), no tradueix res.
+ */
+async function resoldreTraduccions(text, esBody, enBody) {
+  let es = esBody;
+  let en = enBody;
+  if (text && (!es || !en)) {
+    const traduit = await traduirNomEsdeveniment(text);
+    if (!es) es = traduit.nombre_es;
+    if (!en) en = traduit.nombre_en;
+  }
+  return { es, en };
+}
+
 async function crearEvento(req, res) {
   const errors = validarEvento(req.body);
   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
 
+  const nombre = String(req.body.nombre).trim();
+  const descripcion = req.body.descripcion ? String(req.body.descripcion).trim() : '';
+
+  const [nomTraduit, descTraduit] = await Promise.all([
+    resoldreTraduccions(
+      nombre,
+      req.body.nombre_es ? String(req.body.nombre_es).trim() : '',
+      req.body.nombre_en ? String(req.body.nombre_en).trim() : ''
+    ),
+    resoldreTraduccions(
+      descripcion,
+      req.body.descripcion_es ? String(req.body.descripcion_es).trim() : '',
+      req.body.descripcion_en ? String(req.body.descripcion_en).trim() : ''
+    ),
+  ]);
+
   const evento = await Evento.create({
-    nombre: String(req.body.nombre).trim(),
+    nombre,
+    nombre_es: nomTraduit.es,
+    nombre_en: nomTraduit.en,
     fecha: new Date(req.body.fecha).toISOString(),
-    descripcion: req.body.descripcion ? String(req.body.descripcion).trim() : null,
+    descripcion: descripcion || null,
+    descripcion_es: descTraduit.es || null,
+    descripcion_en: descTraduit.en || null,
     precio: parseInt(req.body.precio, 10),
     aforo_total: parseInt(req.body.aforo_total, 10),
     fecha_limite_compra: new Date(req.body.fecha_limite_compra).toISOString(),
@@ -82,9 +139,28 @@ async function actualitzarEvento(req, res) {
   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
 
   const canvis = {};
-  ['nombre', 'descripcion', 'estado'].forEach((camp) => {
-    if (req.body[camp] !== undefined) canvis[camp] = req.body[camp];
+  ['nombre', 'nombre_es', 'nombre_en', 'descripcion', 'descripcion_es', 'descripcion_en', 'estado'].forEach((camp) => {
+    if (req.body[camp] !== undefined) canvis[camp] = String(req.body[camp]).trim();
   });
+  // El formulari ja envia les 3 traduccions (fetes en temps real mentre
+  // s'escrivia). Només retraduïm com a xarxa de seguretat si el text
+  // (català) ha canviat però no ha arribat cap traducció amb la petició.
+  if (canvis.nombre !== undefined && canvis.nombre !== actual.nombre && !canvis.nombre_es && !canvis.nombre_en) {
+    const { nombre_es, nombre_en } = await traduirNomEsdeveniment(canvis.nombre);
+    canvis.nombre_es = nombre_es;
+    canvis.nombre_en = nombre_en;
+  }
+  if (
+    canvis.descripcion !== undefined &&
+    canvis.descripcion &&
+    canvis.descripcion !== actual.descripcion &&
+    !canvis.descripcion_es &&
+    !canvis.descripcion_en
+  ) {
+    const { nombre_es, nombre_en } = await traduirNomEsdeveniment(canvis.descripcion);
+    canvis.descripcion_es = nombre_es;
+    canvis.descripcion_en = nombre_en;
+  }
   if (req.body.precio !== undefined) canvis.precio = parseInt(req.body.precio, 10);
   if (req.body.aforo_total !== undefined) canvis.aforo_total = parseInt(req.body.aforo_total, 10);
   if (req.body.fecha !== undefined) canvis.fecha = new Date(req.body.fecha).toISOString();
@@ -176,4 +252,5 @@ module.exports = {
   llistarCompresEvento,
   cancelarCompra,
   exportarComprasCsv,
+  traduirNom,
 };

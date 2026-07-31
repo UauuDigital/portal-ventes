@@ -10,6 +10,14 @@ CREATE TABLE IF NOT EXISTS eventos (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Traducció automàtica del títol (vegeu utils/traduccio.js): "nombre" es
+-- manté sempre en català (idioma en què el crea el personal), i aquestes
+-- dues es generen soles en crear/editar l'esdeveniment.
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS nombre_es TEXT;
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS nombre_en TEXT;
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion_es TEXT;
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion_en TEXT;
+
 CREATE TABLE IF NOT EXISTS compras (
   id SERIAL PRIMARY KEY,
   evento_id INTEGER NOT NULL REFERENCES eventos(id),
