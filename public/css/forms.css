@@ -25,6 +25,23 @@ label {
   margin-bottom: 6px;
 }
 
+/* Marca amb un asterisc qualsevol camp obligatori (l'atribut "required" de
+   l'input/select/textarea), sense haver-ho d'escriure a mà a cada label i
+   sense poder-ho oblidar en afegir camps nous. Cobreix els dos ordres
+   habituals: label abans del camp (la majoria) i camp abans del label
+   (files de checkbox, on el checkbox va primer).
+   El segon cas es limita a .checkbox-row: si no, "input[required] + label"
+   també coincidiria amb l'etiqueta del camp SEGÜENT quan aquest ve just
+   després d'un input obligatori anterior (p. ex. "Telèfon" marcant-se
+   perquè just abans hi ha el camp "Email", obligatori). */
+label:has(+ input[required])::after,
+label:has(+ select[required])::after,
+label:has(+ textarea[required])::after,
+.checkbox-row input[required] + label::after {
+  content: ' *';
+  color: var(--error);
+}
+
 input[type="text"],
 input[type="email"],
 input[type="tel"],
@@ -71,6 +88,121 @@ textarea:focus {
 input[type="checkbox"]:focus-visible {
   outline: 2px solid rgba(34, 31, 30, 0.6);
   outline-offset: 2px;
+}
+
+/* Prefix de país + número de telèfon com un sol camp visual. El prefix és
+   un desplegable personalitzat (bandera + país + codi) en lloc d'un
+   <select> natiu, perquè el navegador no permet estilitzar la llista
+   d'aquest últim. */
+.camp-telefon {
+  display: flex;
+  margin-bottom: 16px;
+}
+
+.camp-telefon input {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
+  border-radius: 0 var(--radius-input) var(--radius-input) 0;
+}
+
+.prefix-telefon {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.prefix-telefon-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  background: var(--white);
+  border: 1px solid rgba(34, 31, 30, 0.1);
+  border-right: none;
+  border-radius: var(--radius-input) 0 0 var(--radius-input);
+  padding: 12px 10px 12px 14px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--dark);
+  cursor: pointer;
+}
+
+.prefix-telefon-btn svg {
+  color: var(--dark-muted);
+  flex-shrink: 0;
+}
+
+.prefix-telefon-btn:focus,
+.prefix-telefon-btn[aria-expanded="true"] {
+  outline: none;
+  position: relative;
+  z-index: 1;
+  border-color: rgba(34, 31, 30, 0.4);
+  box-shadow: 0 0 0 3px rgba(34, 31, 30, 0.16);
+}
+
+.prefix-telefon-llista {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  width: 220px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--white);
+  border: 1px solid rgba(34, 31, 30, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 20px 40px -14px rgba(34, 31, 30, 0.35);
+}
+
+.prefix-telefon-llista li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--dark);
+  cursor: pointer;
+}
+
+.prefix-telefon-llista li:hover {
+  background: rgba(34, 31, 30, 0.06);
+}
+
+.prefix-telefon-opcio-bandera {
+  flex-shrink: 0;
+}
+
+#prefix-telefon-bandera svg,
+.prefix-telefon-opcio-bandera svg {
+  display: block;
+  width: 20px;
+  height: auto;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(34, 31, 30, 0.12);
+}
+
+#prefix-telefon-bandera {
+  display: flex;
+}
+
+.prefix-telefon-opcio-nom {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prefix-telefon-opcio-codi {
+  flex-shrink: 0;
+  color: var(--dark-muted);
+  font-weight: 500;
 }
 
 .checkbox-row {

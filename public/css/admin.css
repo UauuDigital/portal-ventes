@@ -465,10 +465,6 @@
   transition: filter 0.15s ease, box-shadow 0.15s ease;
 }
 
-.admin-table tbody tr.admin-table-row-link:hover {
-  background: rgba(34, 31, 30, 0.06);
-}
-
 .admin-table td:nth-child(1) span,
 .admin-table td:nth-child(2) span {
   display: -webkit-box;
@@ -508,26 +504,10 @@
 .admin-table tbody tr.admin-table-row--vermell { --fila-color: #F0C9C4; }
 .admin-table tbody tr.admin-table-row--gris { --fila-color: #DEDBD8; }
 
-/* Indicador d'estat no cromàtic (icona amb forma pròpia) al costat del
-   nom: el color de la fila per si sol no és accessible per a usuaris amb
-   daltonisme (WCAG 1.4.1). */
-.estat-icona {
-  display: inline-block;
-  width: 1em;
-  margin-right: 4px;
-  font-size: 10px;
-  font-weight: 700;
-  text-align: center;
-}
-
-.estat-icona--verd { color: #3c6b34; }
-.estat-icona--vermell { color: var(--error); }
-.estat-icona--gris { color: var(--dark-faint); }
-
 .admin-table tbody tr.admin-table-row--verd:hover,
 .admin-table tbody tr.admin-table-row--vermell:hover,
 .admin-table tbody tr.admin-table-row--gris:hover {
-  filter: brightness(0.98);
+  filter: brightness(0.92) saturate(1.15);
 }
 
 .admin-table tbody tr.admin-table-row--vinculat {

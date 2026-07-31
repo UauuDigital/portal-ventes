@@ -64,7 +64,7 @@ async function getEventoActual(req, res) {
       id: evento.id,
       nombre: nomSegonsIdioma(evento, lang),
       fecha: evento.fecha,
-      descripcion: evento.descripcion,
+      descripcion: descripcioSegonsIdioma(evento, lang),
       precio: evento.precio,
       fecha_limite_compra: evento.fecha_limite_compra,
       aforo_disponible: disponibles,

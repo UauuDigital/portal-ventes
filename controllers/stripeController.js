@@ -114,25 +114,35 @@ async function crearCheckoutSession(req, res) {
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     const expiresAt = Math.floor(Date.now() / 1000) + EXPIRA_MINUTS * 60;
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card'],
-      customer_email: compra.email,
-      expires_at: expiresAt,
-      line_items: [
-        {
-          price_data: {
-            currency: 'eur',
-            product_data: { name: `Entrada — ${evento.nombre}` },
-            unit_amount: evento.precio,
+    // La Compra ja s'ha creat en estat "pendiente" (ocupa aforament). Si la
+    // trucada a Stripe falla a partir d'aquí, cal cancel·lar-la explícitament
+    // perquè no quedi ocupant una plaça per sempre sense cap sessió de
+    // pagament associada (mai arribaria cap webhook que la desbloqués).
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        customer_email: compra.email,
+        expires_at: expiresAt,
+        line_items: [
+          {
+            price_data: {
+              currency: 'eur',
+              product_data: { name: `Entrada — ${evento.nombre}` },
+              unit_amount: evento.precio,
+            },
+            quantity: cantidad,
           },
-          quantity: cantidad,
-        },
-      ],
-      metadata: { compra_id: String(compra.id), evento_id: String(evento.id) },
-      success_url: `${baseUrl}/success.html?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/cancel.html`,
-    });
+        ],
+        metadata: { compra_id: String(compra.id), evento_id: String(evento.id) },
+        success_url: `${baseUrl}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/cancel.html`,
+      });
+    } catch (errStripe) {
+      await Compra.marcarCancelado(compra.id);
+      throw errStripe;
+    }
 
     await Compra.setSessionId(compra.id, session.id);
 

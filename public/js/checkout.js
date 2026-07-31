@@ -14,6 +14,122 @@ function localeActual() {
   return window.i18n ? window.i18n.localeActual() : 'ca-ES';
 }
 
+/** Uneix el prefix de país triat amb el número, en un sol camp de text
+ * (p. ex. "+34 612345678"), tal com espera el backend. Si no s'ha escrit
+ * cap número, no s'envia prefix sol. */
+function combinarTelefonAmbPrefix() {
+  const numero = document.getElementById('telefono').value.trim();
+  if (!numero) return '';
+  const prefix = document.getElementById('prefix_telefono').value;
+  return `${prefix} ${numero}`;
+}
+
+// Desplegable personalitzat de prefix telefònic (bandera + país + codi),
+// més visual que un <select> natiu (que el navegador pinta sense poder-lo
+// personalitzar). Les banderes són SVG inline (no emojis): un emoji de
+// bandera depèn d'una font de color instal·lada al sistema operatiu i en
+// molts Windows es veu com a text (codi de país) en lloc de la bandera.
+function svgH(...colors) {
+  const h = 2 / colors.length;
+  const rects = colors.map((c, i) => `<rect y="${i * h}" width="3" height="${h + 0.02}" fill="${c}"/>`).join('');
+  return `<svg viewBox="0 0 3 2" xmlns="http://www.w3.org/2000/svg">${rects}</svg>`;
+}
+function svgV(...colors) {
+  const w = 3 / colors.length;
+  const rects = colors.map((c, i) => `<rect x="${i * w}" width="${w + 0.02}" height="2" fill="${c}"/>`).join('');
+  return `<svg viewBox="0 0 3 2" xmlns="http://www.w3.org/2000/svg">${rects}</svg>`;
+}
+
+const BANDERES = {
+  ES: '<svg viewBox="0 0 3 2" xmlns="http://www.w3.org/2000/svg"><rect width="3" height="2" fill="#AA151B"/><rect y="0.5" width="3" height="1" fill="#F1BF00"/></svg>',
+  AD: svgV('#0018A8', '#FEDF00', '#D50032'),
+  FR: svgV('#0055A4', '#FFFFFF', '#EF4135'),
+  PT: '<svg viewBox="0 0 3 2" xmlns="http://www.w3.org/2000/svg"><rect width="1.2" height="2" fill="#046A38"/><rect x="1.2" width="1.8" height="2" fill="#DA291C"/></svg>',
+  IT: svgV('#009246', '#FFFFFF', '#CE2B37'),
+  DE: svgH('#000000', '#DD0000', '#FFCE00'),
+  GB: '<svg viewBox="0 0 3 2" xmlns="http://www.w3.org/2000/svg"><rect width="3" height="2" fill="#00247D"/><rect x="1.25" width="0.5" height="2" fill="#FFFFFF"/><rect y="0.75" width="3" height="0.5" fill="#FFFFFF"/><rect x="1.4" width="0.2" height="2" fill="#CF142B"/><rect y="0.9" width="3" height="0.2" fill="#CF142B"/></svg>',
+  NL: svgH('#AE1C28', '#FFFFFF', '#21468B'),
+  BE: svgV('#000000', '#FAE042', '#ED2939'),
+  CH: '<svg viewBox="0 0 3 2" xmlns="http://www.w3.org/2000/svg"><rect width="3" height="2" fill="#D52B1E"/><rect x="1.25" y="0.4" width="0.5" height="1.2" fill="#FFFFFF"/><rect x="0.9" y="0.75" width="1.2" height="0.5" fill="#FFFFFF"/></svg>',
+  IE: svgV('#169B62', '#FFFFFF', '#FF883E'),
+  US: `<svg viewBox="0 0 3 2" xmlns="http://www.w3.org/2000/svg">${[0, 1, 2, 3, 4]
+    .map((i) => `<rect y="${i * 0.4}" width="3" height="0.42" fill="${i % 2 === 0 ? '#B31942' : '#FFFFFF'}"/>`)
+    .join('')}<rect width="1.3" height="1.2" fill="#0A3161"/></svg>`,
+  MX: svgV('#006847', '#FFFFFF', '#CE1126'),
+  AR: svgH('#74ACDF', '#FFFFFF', '#74ACDF'),
+  BR: '<svg viewBox="0 0 3 2" xmlns="http://www.w3.org/2000/svg"><rect width="3" height="2" fill="#009739"/><polygon points="1.5,0.2 2.7,1 1.5,1.8 0.3,1" fill="#FEDD00"/></svg>',
+};
+
+const PAISOS_PREFIX = [
+  { iso: 'ES', nom: 'Espanya', codi: '+34' },
+  { iso: 'AD', nom: 'Andorra', codi: '+376' },
+  { iso: 'FR', nom: 'França', codi: '+33' },
+  { iso: 'PT', nom: 'Portugal', codi: '+351' },
+  { iso: 'IT', nom: 'Itàlia', codi: '+39' },
+  { iso: 'DE', nom: 'Alemanya', codi: '+49' },
+  { iso: 'GB', nom: 'Regne Unit', codi: '+44' },
+  { iso: 'NL', nom: 'Països Baixos', codi: '+31' },
+  { iso: 'BE', nom: 'Bèlgica', codi: '+32' },
+  { iso: 'CH', nom: 'Suïssa', codi: '+41' },
+  { iso: 'IE', nom: 'Irlanda', codi: '+353' },
+  { iso: 'US', nom: 'Estats Units', codi: '+1' },
+  { iso: 'MX', nom: 'Mèxic', codi: '+52' },
+  { iso: 'AR', nom: 'Argentina', codi: '+54' },
+  { iso: 'BR', nom: 'Brasil', codi: '+55' },
+];
+
+function inicialitzarPrefixTelefon() {
+  const contenidor = document.getElementById('prefix-telefon');
+  if (!contenidor) return;
+
+  const btn = document.getElementById('prefix-telefon-btn');
+  const llista = document.getElementById('prefix-telefon-llista');
+  const inputAmagat = document.getElementById('prefix_telefono');
+  const spanBandera = document.getElementById('prefix-telefon-bandera');
+  const spanCodi = document.getElementById('prefix-telefon-codi');
+
+  llista.innerHTML = PAISOS_PREFIX.map(
+    (p, i) => `
+      <li role="option" data-iso="${p.iso}" data-codi="${p.codi}" data-index="${i}" tabindex="-1">
+        <span class="prefix-telefon-opcio-bandera">${BANDERES[p.iso]}</span>
+        <span class="prefix-telefon-opcio-nom">${p.nom}</span>
+        <span class="prefix-telefon-opcio-codi">${p.codi}</span>
+      </li>
+    `
+  ).join('');
+  spanBandera.innerHTML = BANDERES.ES;
+
+  function obrir() {
+    llista.classList.remove('hidden');
+    btn.setAttribute('aria-expanded', 'true');
+  }
+  function tancar() {
+    llista.classList.add('hidden');
+    btn.setAttribute('aria-expanded', 'false');
+  }
+  function triar(opcioEl) {
+    spanBandera.innerHTML = BANDERES[opcioEl.dataset.iso];
+    spanCodi.textContent = opcioEl.dataset.codi;
+    inputAmagat.value = opcioEl.dataset.codi;
+    tancar();
+  }
+
+  btn.addEventListener('click', (evt) => {
+    evt.stopPropagation();
+    llista.classList.contains('hidden') ? obrir() : tancar();
+  });
+  llista.addEventListener('click', (evt) => {
+    const opcio = evt.target.closest('li');
+    if (opcio) triar(opcio);
+  });
+  document.addEventListener('click', (evt) => {
+    if (!contenidor.contains(evt.target)) tancar();
+  });
+  document.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Escape') tancar();
+  });
+}
+
 async function carregarEvento(eventoId) {
   const url = eventoId
     ? `/api/evento/actual?id=${eventoId}&lang=${localeActual().slice(0, 2)}`
@@ -210,7 +326,7 @@ async function enviarFormulari(evt) {
     cantidad: document.getElementById('cantidad').value,
     nombre_comprador: document.getElementById('nombre_comprador').value,
     email: document.getElementById('email').value,
-    telefono: document.getElementById('telefono').value,
+    telefono: combinarTelefonAmbPrefix(),
     quiere_factura: document.getElementById('quiere_factura').checked,
     nif: document.getElementById('nif').value,
     nombre_fiscal: document.getElementById('nombre_fiscal').value,
@@ -243,6 +359,7 @@ async function enviarFormulari(evt) {
 
 document.addEventListener('DOMContentLoaded', () => {
   iniciar();
+  inicialitzarPrefixTelefon();
   document.getElementById('quiere_factura').addEventListener('change', toggleCampsFiscals);
   document.getElementById('btn-comprar').addEventListener('click', comprovarAccesAdmin, true);
   document.getElementById('form-compra').addEventListener('submit', enviarFormulari);

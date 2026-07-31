@@ -277,17 +277,6 @@ function clauData(data) {
   return `${y}-${m}-${d}`;
 }
 
-// Icona i etiqueta d'estat que acompanyen el color de la fila (mai només
-// color, vegeu WCAG 1.4.1): forma diferent per a cada estat perquè
-// també es distingeixin sense percebre el color, i el text queda
-// disponible per a lectors de pantalla.
-const ICONA_ESTAT = { verd: '●', vermell: '✕', gris: '–' };
-const ETIQUETA_ESTAT = { verd: 'Obert', vermell: 'Tancat / esgotat', gris: 'Ja celebrat' };
-function indicadorEstatEvento(ev) {
-  const estat = colorEstatEvento(ev);
-  return `<span class="estat-icona estat-icona--${estat}" aria-hidden="true">${ICONA_ESTAT[estat]}</span><span class="sr-only">${ETIQUETA_ESTAT[estat]}: </span>`;
-}
-
 function colorEstatEvento(ev) {
   const ara = new Date();
   if (new Date(ev.fecha) < ara) return 'gris';
@@ -504,7 +493,7 @@ if (taulaEventos) {
       tr.className = `admin-table-row-link admin-table-row--${colorEstatEvento(ev)}`;
       tr.dataset.eventoId = ev.id;
       tr.innerHTML = `
-        <td><span>${indicadorEstatEvento(ev)}${escapeHtml(ev.nombre)}</span></td>
+        <td><span>${escapeHtml(ev.nombre)}</span></td>
         <td><span>${formatData(ev.fecha)}</span></td>
         <td><span>${formatEuros(ev.precio)}</span></td>
         <td><span>${ev.aforo_total}</span></td>
