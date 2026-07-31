@@ -6,10 +6,11 @@
 <title>Esdeveniments — Administració Espai Econòmic</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css?v=74">
+<link rel="stylesheet" href="/css/admin.css?v=76">
 </head>
 <body>
 <div class="admin-shell">
+  <h1 class="sr-only">Administració — Espai Econòmic</h1>
   <div class="admin-topbar" style="justify-content:flex-end;">
     <button type="button" id="btn-logout" class="btn-secundari">Tancar sessió</button>
   </div>
@@ -23,7 +24,7 @@
     <div class="admin-col admin-col--eventos" data-panell="esdeveniments">
       <div class="admin-col-title-row">
         <h2 class="admin-col-title">Esdeveniments</h2>
-        <button type="button" id="btn-obrir-crear" class="btn-crear-evento" aria-label="Crear esdeveniment" title="Crear esdeveniment">+</button>
+        <button type="button" id="btn-obrir-crear" class="btn-crear-evento objectiu-tactil" aria-label="Crear esdeveniment" title="Crear esdeveniment">+</button>
       </div>
       <div class="admin-table-scroll">
         <table class="admin-table admin-table--eventos">
@@ -45,9 +46,9 @@
       <h2 class="admin-col-title">Calendari</h2>
       <div class="admin-calendari" id="calendari-eventos">
         <div class="admin-calendari-header">
-          <button type="button" class="btn-calendari-nav" id="calendari-mes-anterior" aria-label="Mes anterior">‹</button>
+          <button type="button" class="btn-calendari-nav objectiu-tactil" id="calendari-mes-anterior" aria-label="Mes anterior">‹</button>
           <span class="admin-calendari-mes" id="calendari-mes-actual"></span>
-          <button type="button" class="btn-calendari-nav" id="calendari-mes-seguent" aria-label="Mes següent">›</button>
+          <button type="button" class="btn-calendari-nav objectiu-tactil" id="calendari-mes-seguent" aria-label="Mes següent">›</button>
         </div>
         <button type="button" class="btn-calendari-avui" id="calendari-avui">Avui</button>
         <div class="admin-calendari-diesetmana">
@@ -63,11 +64,11 @@
     </div>
   </div>
 
-  <div class="admin-modal-overlay hidden" id="modal-crear-evento">
+  <div class="admin-modal-overlay hidden" id="modal-crear-evento" role="dialog" aria-modal="true" aria-labelledby="titol-modal-crear">
     <div class="admin-modal">
       <div class="admin-col-title-row">
-        <h2 class="admin-col-title">Crear esdeveniment</h2>
-        <button type="button" id="btn-tancar-crear" class="btn-tancar-modal" aria-label="Tanca">×</button>
+        <h2 class="admin-col-title" id="titol-modal-crear">Crear esdeveniment</h2>
+        <button type="button" id="btn-tancar-crear" class="btn-tancar-modal objectiu-tactil" aria-label="Tanca">×</button>
       </div>
       <form id="form-evento" class="admin-form">
         <label for="nombre">Nom</label>
@@ -86,9 +87,9 @@
           <div class="mini-calendari hidden" id="mini-calendari-limit">
             <p class="mini-calendari-titol" id="mini-calendari-titol">Tria la data de l'esdeveniment</p>
             <div class="admin-calendari-header">
-              <button type="button" class="btn-calendari-nav" id="limit-mes-anterior" aria-label="Mes anterior">‹</button>
+              <button type="button" class="btn-calendari-nav objectiu-tactil" id="limit-mes-anterior" aria-label="Mes anterior">‹</button>
               <span class="admin-calendari-mes" id="limit-mes-actual"></span>
-              <button type="button" class="btn-calendari-nav" id="limit-mes-seguent" aria-label="Mes següent">›</button>
+              <button type="button" class="btn-calendari-nav objectiu-tactil" id="limit-mes-seguent" aria-label="Mes següent">›</button>
             </div>
             <div class="admin-calendari-diesetmana">
               <span>DL</span><span>DM</span><span>DC</span><span>DJ</span><span>DV</span><span>DS</span><span>DG</span>
@@ -121,6 +122,6 @@
     </div>
   </div>
 </div>
-<script src="/js/admin.js?v=52"></script>
+<script src="/js/admin.js?v=53"></script>
 </body>
 </html>

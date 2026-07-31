@@ -111,10 +111,15 @@ if (modalCrearEvento && btnObrirCrear && btnTancarCrear) {
     // hover (per exemple en tancar el modal amb el ratolí quedant just a
     // sobre d'una fila) hi arribi per error.
     if (admincolEventos) admincolEventos.style.pointerEvents = 'none';
+    // Mou el focus dins el modal (usuaris de teclat/lector de pantalla no
+    // haurien de quedar-se "fora" amb el focus a la pàgina de sota).
+    document.getElementById('nombre').focus();
   }
   function tancarModalCrear() {
     modalCrearEvento.classList.add('hidden');
     if (admincolEventos) admincolEventos.style.pointerEvents = '';
+    // Retorna el focus al botó que l'ha obert, en lloc de deixar-lo perdut.
+    btnObrirCrear.focus();
   }
   btnObrirCrear.addEventListener('click', obrirModalCrear);
   btnTancarCrear.addEventListener('click', (evt) => {
@@ -125,7 +130,24 @@ if (modalCrearEvento && btnObrirCrear && btnTancarCrear) {
     if (evt.target === modalCrearEvento) tancarModalCrear();
   });
   document.addEventListener('keydown', (evt) => {
-    if (evt.key === 'Escape') tancarModalCrear();
+    if (evt.key === 'Escape' && !modalCrearEvento.classList.contains('hidden')) tancarModalCrear();
+  });
+  modalCrearEvento.addEventListener('keydown', (evt) => {
+    // Trampa de focus senzilla: Tab/Shift+Tab es queden dins el modal.
+    if (evt.key !== 'Tab') return;
+    const focusables = modalCrearEvento.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+    );
+    if (!focusables.length) return;
+    const primer = focusables[0];
+    const ultim = focusables[focusables.length - 1];
+    if (evt.shiftKey && document.activeElement === primer) {
+      evt.preventDefault();
+      ultim.focus();
+    } else if (!evt.shiftKey && document.activeElement === ultim) {
+      evt.preventDefault();
+      primer.focus();
+    }
   });
 }
 
@@ -228,6 +250,17 @@ function clauData(data) {
   const m = String(data.getMonth() + 1).padStart(2, '0');
   const d = String(data.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+// Icona i etiqueta d'estat que acompanyen el color de la fila (mai només
+// color, vegeu WCAG 1.4.1): forma diferent per a cada estat perquè
+// també es distingeixin sense percebre el color, i el text queda
+// disponible per a lectors de pantalla.
+const ICONA_ESTAT = { verd: '●', vermell: '✕', gris: '–' };
+const ETIQUETA_ESTAT = { verd: 'Obert', vermell: 'Tancat / esgotat', gris: 'Ja celebrat' };
+function indicadorEstatEvento(ev) {
+  const estat = colorEstatEvento(ev);
+  return `<span class="estat-icona estat-icona--${estat}" aria-hidden="true">${ICONA_ESTAT[estat]}</span><span class="sr-only">${ETIQUETA_ESTAT[estat]}: </span>`;
 }
 
 function colorEstatEvento(ev) {
@@ -363,7 +396,7 @@ function renderCalendari(eventos) {
 
       const marcador = document.createElement('button');
       marcador.type = 'button';
-      marcador.className = `calendari-dia-numero calendari-event calendari-event--${colorPrincipal}` + (clauDia === avui ? ' calendari-event--avui' : '');
+      marcador.className = `calendari-dia-numero calendari-event objectiu-tactil calendari-event--${colorPrincipal}` + (clauDia === avui ? ' calendari-event--avui' : '');
       marcador.textContent = dia;
       marcador.dataset.eventosIds = eventosDia.map((ev) => ev.id).join(',');
       marcador.setAttribute('aria-label', eventosDia.map((ev) => ev.nombre).join(', '));
@@ -446,7 +479,7 @@ if (taulaEventos) {
       tr.className = `admin-table-row-link admin-table-row--${colorEstatEvento(ev)}`;
       tr.dataset.eventoId = ev.id;
       tr.innerHTML = `
-        <td><span>${escapeHtml(ev.nombre)}</span></td>
+        <td><span>${indicadorEstatEvento(ev)}${escapeHtml(ev.nombre)}</span></td>
         <td><span>${formatData(ev.fecha)}</span></td>
         <td><span>${formatEuros(ev.precio)}</span></td>
         <td><span>${ev.aforo_total}</span></td>
@@ -515,10 +548,7 @@ if (taulaEventos) {
       delete fechaLimiteInput.dataset.valor;
       carregarEventos();
       renderCalendariLimit();
-      if (modalCrearEvento) {
-        modalCrearEvento.classList.add('hidden');
-        if (admincolEventos) admincolEventos.style.pointerEvents = '';
-      }
+      if (modalCrearEvento) tancarModalCrear();
     } else {
       const data = await res.json();
       errorEl.textContent = (data.detalls || [data.error]).join(', ');

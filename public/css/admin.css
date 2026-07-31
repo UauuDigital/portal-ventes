@@ -1,3 +1,26 @@
+:root {
+  /* Variant més fosca de --dark-muted, només per a text dins l'admin:
+     --dark-muted (0.6) sobre blanc queda per sota del 4.5:1 que exigeix
+     WCAG AA per a text normal (~4.3:1). No es toca --dark-muted en si
+     (és global i l'usen també pàgines públiques) per no alterar-ne
+     l'aspecte fora d'aquí. */
+  --admin-muted-text: rgba(34, 31, 30, 0.7);
+}
+
+/* Amplia l'àrea clicable/tàctil dels botons circulars petits (26-28px)
+   fins als ~44px que recomana WCAG 2.5.5, sense canviar-ne la mida
+   visual: un pseudo-element invisible més gran que el propi botó
+   n'absorbeix els clics/tocs del voltant. */
+.objectiu-tactil {
+  position: relative;
+}
+
+.objectiu-tactil::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+}
+
 .admin-login-card {
   max-width: 360px;
   width: 100%;
@@ -51,7 +74,7 @@
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--dark-muted);
+  color: var(--admin-muted-text);
   text-align: center;
   margin: 0 0 12px;
 }
@@ -176,7 +199,7 @@
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.03em;
-    color: var(--dark-muted);
+    color: var(--admin-muted-text);
     cursor: pointer;
   }
 
@@ -327,7 +350,7 @@
   text-transform: uppercase;
   font-size: 11px;
   letter-spacing: 0.05em;
-  color: var(--dark-muted);
+  color: var(--admin-muted-text);
 }
 
 .admin-table--eventos thead th {
@@ -385,7 +408,7 @@
    d'un td de cantonada no arrodoneix el fons real, que és el del tr (i
    overflow:hidden a nivell de <tr> no es pot fer servir de manera fiable,
    els navegadors no el respecten sempre en elements amb display:table-row
-   — deixava una costura blanca als vorals). Solució: el <td> de l'última
+   �?" deixava una costura blanca als vorals). Solució: el <td> de l'última
    fila agafa directament el fons calculat del seu <tr> (herència forçada),
    així el seu propi border-radius sí que el retalla correctament.*/
 .admin-table tbody tr:last-child td {
@@ -485,6 +508,22 @@
 .admin-table tbody tr.admin-table-row--vermell { --fila-color: #F0C9C4; }
 .admin-table tbody tr.admin-table-row--gris { --fila-color: #DEDBD8; }
 
+/* Indicador d'estat no cromàtic (icona amb forma pròpia) al costat del
+   nom: el color de la fila per si sol no és accessible per a usuaris amb
+   daltonisme (WCAG 1.4.1). */
+.estat-icona {
+  display: inline-block;
+  width: 1em;
+  margin-right: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.estat-icona--verd { color: #3c6b34; }
+.estat-icona--vermell { color: var(--error); }
+.estat-icona--gris { color: var(--dark-faint); }
+
 .admin-table tbody tr.admin-table-row--verd:hover,
 .admin-table tbody tr.admin-table-row--vermell:hover,
 .admin-table tbody tr.admin-table-row--gris:hover {
@@ -528,7 +567,7 @@
 
 .badge-estat--pendiente {
   background: rgba(34, 31, 30, 0.08);
-  color: var(--dark-muted);
+  color: var(--admin-muted-text);
 }
 
 .badge-estat--pagado {
@@ -571,7 +610,7 @@
   border-radius: var(--radius-pill);
 }
 
-.entrades-restants--normal .entrades-restants-numero { color: var(--dark-muted); }
+.entrades-restants--normal .entrades-restants-numero { color: var(--admin-muted-text); }
 .entrades-restants--normal .entrades-restants-barra-fill { background: #8fae86; }
 
 .entrades-restants--baixes .entrades-restants-numero { color: #6b5a1f; }
@@ -734,7 +773,7 @@
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.05em;
-  color: var(--dark-muted);
+  color: var(--admin-muted-text);
 }
 
 .admin-calendari-graella {
@@ -840,7 +879,7 @@
   gap: 4px;
   margin-top: 14px;
   font-size: 11px;
-  color: var(--dark-muted);
+  color: var(--admin-muted-text);
 }
 
 .admin-calendari-llegenda span {
@@ -933,7 +972,7 @@
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 500;
-  color: var(--dark-muted);
+  color: var(--admin-muted-text);
   margin: 0 0 8px;
   text-align: center;
 }
@@ -951,7 +990,7 @@
 .mini-calendari-hora label {
   margin: 0;
   font-size: 11px;
-  color: var(--dark-muted);
+  color: var(--admin-muted-text);
 }
 
 .mini-calendari-hora input[type="time"] {
@@ -1013,7 +1052,7 @@
   gap: 4px;
   margin-top: 10px;
   font-size: 10px;
-  color: var(--dark-muted);
+  color: var(--admin-muted-text);
 }
 
 .mini-calendari-llegenda span {
