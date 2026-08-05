@@ -192,11 +192,6 @@ function formatEuros(centims) {
   return (centims / 100).toFixed(2) + ' €';
 }
 
-const ESTATS_PAGO = { pendiente: 'Pendent', pagado: 'Pagat', cancelado: 'Cancel·lat' };
-function badgeEstatPago(estado) {
-  const etiqueta = ESTATS_PAGO[estado] || estado;
-  return `<span class="badge-estat badge-estat--${escapeHtml(estado)}">${escapeHtml(etiqueta)}</span>`;
-}
 
 function badgeEntradesRestants(ev) {
   const total = ev.aforo_total || 0;
@@ -900,9 +895,14 @@ if (formEventoEditar) {
       tr.innerHTML = `
         <td>${escapeHtml(c.nombre_comprador)}</td>
         <td>${escapeHtml(c.email)}</td>
+        <td>${escapeHtml(c.telefono || '—')}</td>
         <td>${c.cantidad}</td>
         <td>${formatEuros(c.importe_total)}</td>
-        <td>${badgeEstatPago(c.estado_pago)}</td>
+        <td>${c.quiere_factura ? 'Sí' : 'No'}</td>
+        <td>${escapeHtml(c.nif || '—')}</td>
+        <td>${escapeHtml(c.nombre_fiscal || '—')}</td>
+        <td>${escapeHtml(c.direccion_fiscal || '—')}</td>
+        <td>${formatData(c.created_at)}</td>
         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
       `;
       taulaCompras.appendChild(tr);

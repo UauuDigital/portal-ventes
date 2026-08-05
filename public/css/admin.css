@@ -332,7 +332,7 @@
      fons "de darrere" del propi element table. Si fos blanc, hi apareixia
      un rectangle blanc estrany als vorals; en gris, es camufla amb la
      pàgina. */
-  background: #e4e2e0;
+  background: var(--light);
   margin: 0;
   font-size: 13px;
   table-layout: fixed;
@@ -372,7 +372,7 @@
 .admin-table--eventos thead tr:first-child th:first-child,
 .admin-table--eventos thead tr:first-child th:last-child {
   position: sticky;
-  background: #e4e2e0;
+  background: var(--light);
   border-radius: 0;
 }
 
@@ -533,31 +533,6 @@
   display: block;
   margin-top: 16px;
   text-align: center;
-}
-
-.badge-estat {
-  display: inline-block;
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-}
-
-.badge-estat--pendiente {
-  background: rgba(34, 31, 30, 0.08);
-  color: var(--admin-muted-text);
-}
-
-.badge-estat--pagado {
-  background: #C7D9BE;
-  color: #3c4d34;
-}
-
-.badge-estat--cancelado {
-  background: rgba(179, 38, 30, 0.1);
-  color: var(--error);
 }
 
 .entrades-restants {

@@ -62,7 +62,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #e4e2e0;
+  background: var(--light);
   font-family: var(--font-sans);
   color: var(--dark);
   padding: 24px;

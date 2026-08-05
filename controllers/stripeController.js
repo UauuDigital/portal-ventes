@@ -137,7 +137,7 @@ async function crearCheckoutSession(req, res) {
         ],
         metadata: { compra_id: String(compra.id), evento_id: String(evento.id) },
         success_url: `${baseUrl}/success.html?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/cancel.html`,
+        cancel_url: `${baseUrl}/cancel.html?session_id={CHECKOUT_SESSION_ID}`,
       });
     } catch (errStripe) {
       await Compra.marcarCancelado(compra.id);
@@ -151,6 +151,27 @@ async function crearCheckoutSession(req, res) {
     console.error('Error creant Checkout Session:', err);
     return res.status(500).json({ error: 'error_intern' });
   }
+}
+
+/**
+ * POST /api/checkout/cancelar
+ * L'usuari ha arribat a la pantalla de cancel·lació de Stripe (ha sortit del
+ * Checkout sense pagar). Allibera l'aforament reservat immediatament, en
+ * lloc d'esperar que la sessió expiri (fins a EXPIRA_MINUTS).
+ */
+async function cancelarCheckoutSession(req, res) {
+  const sessionId = req.body.session_id;
+  if (!sessionId) {
+    return res.status(400).json({ error: 'dades_invalides' });
+  }
+
+  const compra = await Compra.findBySessionId(sessionId);
+  if (compra && compra.estado_pago === 'pendiente') {
+    await Compra.marcarCancelado(compra.id);
+    console.log(`Compra #${compra.id} cancel·lada per l'usuari des de cancel_url.`);
+  }
+
+  res.json({ ok: true });
 }
 
 /**
@@ -195,4 +216,4 @@ async function webhook(req, res) {
   res.json({ received: true });
 }
 
-module.exports = { crearCheckoutSession, webhook };
+module.exports = { crearCheckoutSession, cancelarCheckoutSession, webhook };
