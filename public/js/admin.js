@@ -163,11 +163,47 @@ async function apiFetch(url, options = {}) {
   return res;
 }
 
+const ICONA_CADENAT_TANCAT =
+  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+const ICONA_CADENAT_OBERT =
+  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.75-3.5"/></svg>';
+
+// Cadenats de bloqueig de traducció: quan un camp ES/CA/EN es marca com a
+// bloquejat, la traducció automàtica del blur d'un altre idioma ja no el
+// pot sobreescriure, però l'admin el pot continuar editant a mà sense
+// problema.
+function inicialitzarBloquejosTraduccio() {
+  document.querySelectorAll('.btn-bloqueig-traduccio').forEach((btn) => {
+    if (btn.dataset.bloquejInicialitzat) return;
+    btn.dataset.bloquejInicialitzat = '1';
+    btn.innerHTML = ICONA_CADENAT_OBERT;
+    btn.addEventListener('click', () => {
+      const bloquejat = btn.getAttribute('aria-pressed') === 'true';
+      btn.setAttribute('aria-pressed', String(!bloquejat));
+      btn.innerHTML = bloquejat ? ICONA_CADENAT_OBERT : ICONA_CADENAT_TANCAT;
+      btn.setAttribute(
+        'aria-label',
+        bloquejat
+          ? 'Bloqueja aquesta traducció perquè no es sobreescrigui automàticament'
+          : 'Desbloqueja aquesta traducció'
+      );
+    });
+  });
+}
+
+function campTraduccioBloquejat(input) {
+  const camp = input.closest('.camp-traduccio');
+  const btn = camp && camp.querySelector('.btn-bloqueig-traduccio');
+  return !!btn && btn.getAttribute('aria-pressed') === 'true';
+}
+
 // Traducció en viu del "Nom" de l'esdeveniment: es pot escriure en
 // qualsevol dels 3 idiomes i, en sortir del camp, es completen sols els
 // altres dos (que després es poden editar sense problema, com qualsevol
-// altre camp de text).
+// altre camp de text, o bloquejar amb el cadenat perquè no es tornin a
+// sobreescriure).
 function configurarTraduccioNom(camps) {
+  inicialitzarBloquejosTraduccio();
   Object.entries(camps).forEach(([idioma, input]) => {
     if (!input) return;
     input.addEventListener('blur', async () => {
@@ -180,7 +216,12 @@ function configurarTraduccioNom(camps) {
       if (!res || !res.ok) return;
       const traduccions = await res.json();
       Object.entries(camps).forEach(([altreIdioma, altreInput]) => {
-        if (altreIdioma !== idioma && altreInput && traduccions[altreIdioma]) {
+        if (
+          altreIdioma !== idioma &&
+          altreInput &&
+          traduccions[altreIdioma] &&
+          !campTraduccioBloquejat(altreInput)
+        ) {
           altreInput.value = traduccions[altreIdioma];
         }
       });
@@ -762,6 +803,7 @@ if (limitGraella) {
   inputLimit.addEventListener('focus', () => obrirCalendari('limit'));
   inputLimit.addEventListener('click', () => obrirCalendari('limit'));
   miniCalendari.addEventListener('click', (evt) => evt.stopPropagation());
+  document.getElementById('btn-tancar-mini-calendari').addEventListener('click', amagarMiniCalendariLimit);
   document.addEventListener('click', (evt) => {
     if (!campAmbMinicalendari.contains(evt.target)) {
       amagarMiniCalendariLimit();

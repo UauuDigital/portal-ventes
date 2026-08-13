@@ -74,14 +74,17 @@
       <form id="form-evento" class="admin-form">
         <div class="camps-traduccio">
           <div class="camp-traduccio">
+            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
             <label for="nombre">Nom (català)</label>
             <textarea id="nombre" name="nombre" rows="2" required></textarea>
           </div>
           <div class="camp-traduccio">
+            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
             <label for="nombre_es">Nom (castellà)</label>
             <textarea id="nombre_es" name="nombre_es" rows="2"></textarea>
           </div>
           <div class="camp-traduccio">
+            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
             <label for="nombre_en">Nom (anglès)</label>
             <textarea id="nombre_en" name="nombre_en" rows="2"></textarea>
           </div>
@@ -98,7 +101,10 @@
           </div>
 
           <div class="mini-calendari hidden" id="mini-calendari-limit">
-            <p class="mini-calendari-titol" id="mini-calendari-titol">Tria la data de l'esdeveniment</p>
+            <div class="mini-calendari-header">
+              <p class="mini-calendari-titol" id="mini-calendari-titol">Tria la data de l'esdeveniment</p>
+              <button type="button" id="btn-tancar-mini-calendari" class="btn-tancar-modal objectiu-tactil" aria-label="Tanca">×</button>
+            </div>
             <div class="admin-calendari-header">
               <button type="button" class="btn-calendari-nav objectiu-tactil" id="limit-mes-anterior" aria-label="Mes anterior">‹</button>
               <span class="admin-calendari-mes" id="limit-mes-actual"></span>
@@ -122,14 +128,17 @@
 
         <div class="camps-traduccio">
           <div class="camp-traduccio">
+            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
             <label for="descripcion">Descripció (català)</label>
             <textarea id="descripcion" name="descripcion" rows="2"></textarea>
           </div>
           <div class="camp-traduccio">
+            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
             <label for="descripcion_es">Descripció (castellà)</label>
             <textarea id="descripcion_es" name="descripcion_es" rows="2"></textarea>
           </div>
           <div class="camp-traduccio">
+            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
             <label for="descripcion_en">Descripció (anglès)</label>
             <textarea id="descripcion_en" name="descripcion_en" rows="2"></textarea>
           </div>
