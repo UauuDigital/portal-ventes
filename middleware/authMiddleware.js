@@ -21,4 +21,8 @@ function requireAuthPage(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireAuthPage };
+function teSessioValida(req) {
+  return !!llegirSessio(req);
+}
+
+module.exports = { requireAuth, requireAuthPage, teSessioValida };

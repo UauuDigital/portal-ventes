@@ -546,6 +546,16 @@
   text-align: center;
 }
 
+/* Dins d'un .admin-topbar amb un altre element al costat (p. ex. el
+   botó "Tancar sessió"), el link ja queda alineat per justify-content:
+   space-between + align-items:center del propi topbar, així que el
+   margin-top i el text-align:center pensats per quan va sol
+   desalinearien verticalment els dos elements. */
+.admin-topbar .admin-link-back {
+  margin-top: 0;
+  text-align: left;
+}
+
 .entrades-restants {
   display: flex;
   align-items: center;

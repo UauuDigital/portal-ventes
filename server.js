@@ -6,7 +6,7 @@ const express = require('express');
 const webhookRoutes = require('./routes/webhookRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const { requireAuthPage } = require('./middleware/authMiddleware');
+const { requireAuthPage, teSessioValida } = require('./middleware/authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,7 +20,11 @@ app.use(adminRoutes);
 
 // La pàgina de login queda fora de protecció: es registra abans del
 // middleware requireAuthPage, així Express la serveix sense demanar sessió.
+// Si ja hi ha una sessió vàlida (p. ex. l'admin hi arriba des de l'enllaç
+// discret de la pàgina principal sense haver tancat sessió abans), es
+// redirigeix directament al panell en lloc de tornar a demanar contrasenya.
 app.get('/admin/login.html', (req, res) => {
+  if (teSessioValida(req)) return res.redirect('/admin/index.html');
   res.sendFile(path.join(__dirname, 'public', 'admin', 'login.html'));
 });
 app.use('/admin', requireAuthPage, express.static(path.join(__dirname, 'public', 'admin')));
