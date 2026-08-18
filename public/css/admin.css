@@ -37,6 +37,16 @@
   margin: 0 0 24px;
 }
 
+/* .admin-shell no és una targeta centrada com les pàgines públiques:
+   és una pantalla completa que pot ser més curta que el viewport (per
+   exemple en mòbil, on només es veu un panell alhora). El
+   align-items:center del body compartit (variables.css) l'empenyeria
+   cap avall deixant un buit enorme a sobre; l'ancorem a dalt aquí. */
+body:has(> .admin-shell) {
+  align-items: flex-start;
+  padding: 0;
+}
+
 .admin-shell {
   width: 100%;
   max-width: 1520px;
@@ -287,8 +297,15 @@
    mostren quan la taula realment no hi cap sencera. */
 .admin-table-scroll-embolcall {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
+}
+
+/* Amb align-items:flex-start, els botons queden alineats amb la
+   capçalera de la taula (28px) en lloc de flotar centrats a mig aire
+   d'una taula alta amb moltes files. */
+.admin-table-scroll-embolcall .btn-scroll-taula {
+  margin-top: 6px;
 }
 
 .admin-table-scroll-embolcall .admin-table-scroll {

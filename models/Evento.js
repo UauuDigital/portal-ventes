@@ -58,8 +58,8 @@ async function getById(id) {
 
 async function create(data) {
   const stmt = db.prepare(
-    `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado)
-     VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado)
+    `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado, nombre_invitado, cargo_invitado)
+     VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado, @nombre_invitado, @cargo_invitado)
      RETURNING id`
   );
   const info = await stmt.run({
@@ -69,6 +69,8 @@ async function create(data) {
     descripcion_en: null,
     nombre_es: null,
     nombre_en: null,
+    nombre_invitado: null,
+    cargo_invitado: null,
     ...data,
   });
   return getById(info.lastInsertRowid);
@@ -81,19 +83,22 @@ async function update(id, data) {
     nombre, nombre_es, nombre_en, fecha,
     descripcion, descripcion_es, descripcion_en,
     precio, aforo_total, fecha_limite_compra, estado,
+    nombre_invitado, cargo_invitado,
   } = { ...actual, ...data };
   await db
     .prepare(
       `UPDATE eventos SET nombre=@nombre, nombre_es=@nombre_es, nombre_en=@nombre_en, fecha=@fecha,
          descripcion=@descripcion, descripcion_es=@descripcion_es, descripcion_en=@descripcion_en,
          precio=@precio, aforo_total=@aforo_total,
-         fecha_limite_compra=@fecha_limite_compra, estado=@estado
+         fecha_limite_compra=@fecha_limite_compra, estado=@estado,
+         nombre_invitado=@nombre_invitado, cargo_invitado=@cargo_invitado
        WHERE id=@id`
     )
     .run({
       nombre, nombre_es, nombre_en, fecha,
       descripcion, descripcion_es, descripcion_en,
       precio, aforo_total, fecha_limite_compra, estado, id,
+      nombre_invitado, cargo_invitado,
     });
   return getById(id);
 }

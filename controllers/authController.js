@@ -12,21 +12,31 @@ function safeEqual(a, b) {
 
 function login(req, res) {
   const { usuari, contrasenya } = req.body || {};
-  const usuariOk = safeEqual(usuari || '', process.env.ADMIN_USER || '');
-  const passOk = safeEqual(contrasenya || '', process.env.ADMIN_PASS || '');
 
-  if (!usuariOk || !passOk) {
+  const esAdmin =
+    safeEqual(usuari || '', process.env.ADMIN_USER || '') &&
+    safeEqual(contrasenya || '', process.env.ADMIN_PASS || '');
+  const esViewer =
+    !esAdmin &&
+    process.env.VIEWER_USER &&
+    process.env.VIEWER_PASS &&
+    safeEqual(usuari || '', process.env.VIEWER_USER) &&
+    safeEqual(contrasenya || '', process.env.VIEWER_PASS);
+
+  if (!esAdmin && !esViewer) {
     return res.status(401).json({ error: 'credencials_invalides' });
   }
 
-  const valor = crearCookieSessio(process.env.ADMIN_USER);
+  const rol = esAdmin ? 'admin' : 'viewer';
+  const nomUsuari = esAdmin ? process.env.ADMIN_USER : process.env.VIEWER_USER;
+  const valor = crearCookieSessio(nomUsuari, rol);
   res.cookie('admin_session', valor, {
     httpOnly: true,
     sameSite: 'strict',
     secure: process.env.NODE_ENV === 'production',
     maxAge: VUIT_HORES_MS,
   });
-  res.json({ ok: true });
+  res.json({ ok: true, rol });
 }
 
 function logout(req, res) {

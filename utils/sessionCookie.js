@@ -8,9 +8,9 @@ function firmar(payload) {
   return crypto.createHmac('sha256', secret).update(payload).digest('base64url');
 }
 
-function crearCookieSessio(usuari) {
+function crearCookieSessio(usuari, rol = 'admin') {
   const exp = Date.now() + HORES_EXPIRACIO * 60 * 60 * 1000;
-  const payload = Buffer.from(JSON.stringify({ usuari, exp })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ usuari, rol, exp })).toString('base64url');
   const signatura = firmar(payload);
   return `${payload}.${signatura}`;
 }
@@ -36,7 +36,7 @@ function verificarCookieSessio(valor) {
   }
 
   if (!dades.usuari || !dades.exp || Date.now() > dades.exp) return null;
-  return { usuari: dades.usuari };
+  return { usuari: dades.usuari, rol: dades.rol || 'admin' };
 }
 
 module.exports = { crearCookieSessio, verificarCookieSessio };

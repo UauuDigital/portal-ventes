@@ -467,7 +467,8 @@
         color: #F2EFEE;
         background: rgba(242, 239, 238, 0.12);
       }
-      .menu-idioma-btn--actiu {
+      .menu-idioma-btn--actiu,
+      .menu-idioma-btn--actiu:hover {
         background: #F2EFEE;
         color: #221F1E;
       }

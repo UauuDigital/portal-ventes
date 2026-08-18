@@ -156,6 +156,17 @@
   }
 }
 
+@media (max-width: 480px) {
+  .card {
+    max-width: 100%;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .panel {
+    padding: 32px 24px;
+  }
+}
+
 /* Selector d'esdeveniment: quan hi ha diversos esdeveniments actius alhora,
    la landing mostra aquesta quadrícula abans del formulari de compra. */
 .selector-esdeveniments {

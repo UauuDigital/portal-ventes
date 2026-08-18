@@ -2,6 +2,7 @@ node_modules/
 .env
 *.log
 .DS_Store
+certificat/
 
 .superpowers/
 GLOBAL_CLAUDE.md

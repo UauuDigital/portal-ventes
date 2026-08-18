@@ -1,6 +1,7 @@
 const Stripe = require('stripe');
 const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
+const { enviarEmailConfirmacio } = require('../utils/mailer');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 // Stripe exigeix que expires_at sigui com a mínim 30 minuts després de crear
@@ -197,6 +198,10 @@ async function webhook(req, res) {
       if (compra && compra.estado_pago !== 'pagado') {
         await Compra.marcarPagado(compra.id);
         console.log(`Compra #${compra.id} marcada com a pagada.`);
+        const evento = await Evento.getById(compra.evento_id);
+        if (evento) {
+          await enviarEmailConfirmacio({ compra: { ...compra, estado_pago: 'pagado' }, evento });
+        }
       }
       break;
     }
@@ -216,4 +221,28 @@ async function webhook(req, res) {
   res.json({ received: true });
 }
 
-module.exports = { crearCheckoutSession, cancelarCheckoutSession, webhook };
+/**
+ * GET /api/checkout/confirmacion/:session_id
+ * Dades per pintar la pàgina de confirmació (success.html) sense hardcodejar
+ * res al frontend: la data/hora sempre es llegeix de l'esdeveniment, mai es
+ * reescriu a mà a la pàgina de confirmació.
+ */
+async function obtenerConfirmacion(req, res) {
+  const compra = await Compra.findBySessionId(req.params.session_id);
+  if (!compra || compra.estado_pago !== 'pagado') {
+    return res.status(404).json({ error: 'compra_no_trobada' });
+  }
+  const evento = await Evento.getById(compra.evento_id);
+  if (!evento) return res.status(404).json({ error: 'compra_no_trobada' });
+
+  res.json({
+    evento: { nombre: evento.nombre, fecha: evento.fecha },
+    compra: {
+      nombre_comprador: compra.nombre_comprador,
+      cantidad: compra.cantidad,
+      importe_total: compra.importe_total,
+    },
+  });
+}
+
+module.exports = { crearCheckoutSession, cancelarCheckoutSession, webhook, obtenerConfirmacion };

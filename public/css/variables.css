@@ -68,6 +68,12 @@ body {
   padding: 24px;
 }
 
+@media (max-width: 480px) {
+  body {
+    padding: 0;
+  }
+}
+
 /* Fons de la pantalla principal: dues taques radials borroses ("bombolles")
    que deriven lleugerament a les seves cantonades. Purament atmosfèric. */
 body.pagina-principal {
@@ -119,5 +125,15 @@ body.pagina-principal::after {
   body.pagina-principal::before,
   body.pagina-principal::after {
     animation: none;
+  }
+}
+
+/* Amb la targeta a sang (sense marges) en mòbil, les bombolles fixes
+   travessen la pantalla per sota del contingut i es veuen com una
+   ombra. Les amaguem en aquesta amplada. */
+@media (max-width: 480px) {
+  body.pagina-principal::before,
+  body.pagina-principal::after {
+    display: none;
   }
 }

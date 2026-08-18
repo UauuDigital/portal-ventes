@@ -18,6 +18,11 @@ ALTER TABLE eventos ADD COLUMN IF NOT EXISTS nombre_en TEXT;
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion_es TEXT;
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion_en TEXT;
 
+-- Camps informatius que introdueix l'admin a la fitxa de l'esdeveniment
+-- (no els respon el comprador al formulari de compra).
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS nombre_invitado TEXT;
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS cargo_invitado TEXT;
+
 CREATE TABLE IF NOT EXISTS compras (
   id SERIAL PRIMARY KEY,
   evento_id INTEGER NOT NULL REFERENCES eventos(id),

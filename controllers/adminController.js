@@ -126,6 +126,8 @@ async function crearEvento(req, res) {
     aforo_total: parseInt(req.body.aforo_total, 10),
     fecha_limite_compra: new Date(req.body.fecha_limite_compra).toISOString(),
     estado: req.body.estado || 'abierto',
+    nombre_invitado: req.body.nombre_invitado ? String(req.body.nombre_invitado).trim() : null,
+    cargo_invitado: req.body.cargo_invitado ? String(req.body.cargo_invitado).trim() : null,
   });
   res.status(201).json(evento);
 }
@@ -139,7 +141,10 @@ async function actualitzarEvento(req, res) {
   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
 
   const canvis = {};
-  ['nombre', 'nombre_es', 'nombre_en', 'descripcion', 'descripcion_es', 'descripcion_en', 'estado'].forEach((camp) => {
+  [
+    'nombre', 'nombre_es', 'nombre_en', 'descripcion', 'descripcion_es', 'descripcion_en', 'estado',
+    'nombre_invitado', 'cargo_invitado',
+  ].forEach((camp) => {
     if (req.body[camp] !== undefined) canvis[camp] = String(req.body[camp]).trim();
   });
   // El formulari ja envia les 3 traduccions (fetes en temps real mentre

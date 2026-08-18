@@ -163,6 +163,38 @@ async function apiFetch(url, options = {}) {
   return res;
 }
 
+// Rol de la sessió actual ('admin' | 'viewer'): el personal d'Espai Econòmic
+// (viewer) només pot consultar, mai crear/editar/cancel·lar res. El backend
+// ja bloqueja aquestes accions independentment d'això; aquí només s'amaguen
+// els controls perquè la UI no ofereixi accions que fallarien.
+let rolActual = null;
+async function aplicarRestriccionsPerRol() {
+  const res = await apiFetch('/api/admin/me');
+  if (!res || !res.ok) return;
+  const { rol } = await res.json();
+  rolActual = rol;
+  if (rol !== 'viewer') return;
+
+  document.body.classList.add('rol-viewer');
+  const btnObrirCrearEl = document.getElementById('btn-obrir-crear');
+  if (btnObrirCrearEl) btnObrirCrearEl.style.display = 'none';
+  const btnEliminarEl = document.getElementById('btn-eliminar-evento');
+  if (btnEliminarEl) btnEliminarEl.style.display = 'none';
+  const formEditarEl = document.getElementById('form-evento-editar');
+  if (formEditarEl) {
+    formEditarEl.querySelectorAll('input, textarea, select, button[type="submit"]').forEach((el) => {
+      el.disabled = true;
+    });
+  }
+  const linkExportEl = document.getElementById('link-export-csv');
+  if (linkExportEl) linkExportEl.style.display = 'none';
+}
+// Només a les pàgines reals de l'admin (mai a login.html, que no té sessió
+// encara i provocaria un bucle de redireccions via el 401 de apiFetch).
+if (document.getElementById('btn-logout') && !document.getElementById('form-evento-editar')) {
+  document.addEventListener('DOMContentLoaded', aplicarRestriccionsPerRol);
+}
+
 const ICONA_CADENAT_TANCAT =
   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 const ICONA_CADENAT_OBERT =
@@ -598,6 +630,8 @@ if (taulaEventos) {
       precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
       aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
       fecha_limite_compra: fechaLimite.toISOString(),
+      nombre_invitado: document.getElementById('nombre_invitado').value,
+      cargo_invitado: document.getElementById('cargo_invitado').value,
     };
 
     const res = await apiFetch('/api/admin/eventos', {
@@ -889,6 +923,8 @@ if (formEventoEditar) {
     document.getElementById('aforo_total').value = evento.aforo_total;
     document.getElementById('fecha_limite_compra').value = aInputDatetimeLocal(evento.fecha_limite_compra);
     document.getElementById('estado').value = evento.estado;
+    document.getElementById('nombre_invitado').value = evento.nombre_invitado || '';
+    document.getElementById('cargo_invitado').value = evento.cargo_invitado || '';
   }
 
   formEventoEditar.addEventListener('submit', async (e) => {
@@ -908,6 +944,8 @@ if (formEventoEditar) {
       aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
       fecha_limite_compra: new Date(document.getElementById('fecha_limite_compra').value).toISOString(),
       estado: document.getElementById('estado').value,
+      nombre_invitado: document.getElementById('nombre_invitado').value,
+      cargo_invitado: document.getElementById('cargo_invitado').value,
     };
 
     const res = await apiFetch(`/api/admin/eventos/${eventoId}`, {
@@ -932,7 +970,7 @@ if (formEventoEditar) {
     const compras = await res.json();
     taulaCompras.innerHTML = '';
     compras.forEach((c) => {
-      const potCancelar = ['pendiente', 'pagado'].includes(c.estado_pago);
+      const potCancelar = ['pendiente', 'pagado'].includes(c.estado_pago) && rolActual !== 'viewer';
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escapeHtml(c.nombre_comprador)}</td>
@@ -958,6 +996,10 @@ if (formEventoEditar) {
     });
   }
 
-  carregarEvento();
-  carregarCompras();
+  // Espera a conèixer el rol abans de pintar les compres, perquè el botó
+  // "Cancel·lar" no aparegui un instant per després desaparèixer.
+  aplicarRestriccionsPerRol().then(() => {
+    carregarEvento();
+    carregarCompras();
+  });
 }
