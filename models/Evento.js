@@ -58,8 +58,8 @@ async function getById(id) {
 
 async function create(data) {
   const stmt = db.prepare(
-    `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado, nombre_invitado, cargo_invitado)
-     VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado, @nombre_invitado, @cargo_invitado)
+    `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado, nombre_invitado, cargo_invitado, campos_formulario)
+     VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado, @nombre_invitado, @cargo_invitado, @campos_formulario)
      RETURNING id`
   );
   const info = await stmt.run({
@@ -71,7 +71,9 @@ async function create(data) {
     nombre_en: null,
     nombre_invitado: null,
     cargo_invitado: null,
+    campos_formulario: JSON.stringify([]),
     ...data,
+    campos_formulario: JSON.stringify(data.campos_formulario || []),
   });
   return getById(info.lastInsertRowid);
 }
@@ -83,7 +85,7 @@ async function update(id, data) {
     nombre, nombre_es, nombre_en, fecha,
     descripcion, descripcion_es, descripcion_en,
     precio, aforo_total, fecha_limite_compra, estado,
-    nombre_invitado, cargo_invitado,
+    nombre_invitado, cargo_invitado, campos_formulario,
   } = { ...actual, ...data };
   await db
     .prepare(
@@ -91,7 +93,8 @@ async function update(id, data) {
          descripcion=@descripcion, descripcion_es=@descripcion_es, descripcion_en=@descripcion_en,
          precio=@precio, aforo_total=@aforo_total,
          fecha_limite_compra=@fecha_limite_compra, estado=@estado,
-         nombre_invitado=@nombre_invitado, cargo_invitado=@cargo_invitado
+         nombre_invitado=@nombre_invitado, cargo_invitado=@cargo_invitado,
+         campos_formulario=@campos_formulario
        WHERE id=@id`
     )
     .run({
@@ -99,6 +102,7 @@ async function update(id, data) {
       descripcion, descripcion_es, descripcion_en,
       precio, aforo_total, fecha_limite_compra, estado, id,
       nombre_invitado, cargo_invitado,
+      campos_formulario: JSON.stringify(campos_formulario || []),
     });
   return getById(id);
 }
