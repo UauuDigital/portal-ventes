@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const db = require('../config/db');
 
 // Estats que encara ocupen aforament: pagades + pendents que no han expirat
@@ -20,10 +21,12 @@ async function create(data) {
   const stmt = db.prepare(
     `INSERT INTO compras (
        evento_id, nombre_comprador, email, telefono, cantidad, importe_total,
-       quiere_factura, nif, nombre_fiscal, direccion_fiscal, estado_pago
+       quiere_factura, nif, nombre_fiscal, direccion_fiscal, estado_pago,
+       respuestas_campos, edit_token
      ) VALUES (
        @evento_id, @nombre_comprador, @email, @telefono, @cantidad, @importe_total,
-       @quiere_factura, @nif, @nombre_fiscal, @direccion_fiscal, 'pendiente'
+       @quiere_factura, @nif, @nombre_fiscal, @direccion_fiscal, 'pendiente',
+       @respuestas_campos, @edit_token
      ) RETURNING id`
   );
   const info = await stmt.run({
@@ -33,6 +36,8 @@ async function create(data) {
     telefono: null,
     ...data,
     quiere_factura: !!data.quiere_factura,
+    respuestas_campos: JSON.stringify(data.respuestas_campos || {}),
+    edit_token: crypto.randomBytes(24).toString('hex'),
   });
   return getById(info.lastInsertRowid);
 }
@@ -43,6 +48,17 @@ async function getById(id) {
 
 async function findBySessionId(sessionId) {
   return db.prepare('SELECT * FROM compras WHERE stripe_checkout_session_id = ?').get(sessionId);
+}
+
+async function findByEditToken(token) {
+  return db.prepare('SELECT * FROM compras WHERE edit_token = ?').get(token);
+}
+
+async function updateRespuestas(id, respuestas) {
+  await db
+    .prepare('UPDATE compras SET respuestas_campos = ? WHERE id = ?')
+    .run(JSON.stringify(respuestas || {}), id);
+  return getById(id);
 }
 
 async function setSessionId(id, sessionId) {
@@ -93,6 +109,8 @@ module.exports = {
   create,
   getById,
   findBySessionId,
+  findByEditToken,
+  updateRespuestas,
   setSessionId,
   marcarPagado,
   marcarCancelado,
