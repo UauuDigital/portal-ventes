@@ -300,3 +300,15 @@ input[type="checkbox"]:focus-visible {
   margin-top: 10px;
   font-family: var(--font-sans);
 }
+
+.camp-dinamic{margin-bottom:16px;}
+.camp-dinamic label,.camp-dinamic-etiqueta{display:block;margin-bottom:4px;font-weight:500;}
+.opcio-dinamica{display:flex;align-items:center;gap:6px;font-weight:400;margin-bottom:4px;}
+
+/* Els labels dels camps dinàmics ja inclouen el " *" al text (generat en
+   JS), a diferència de la resta del formulari (que el genera per CSS via
+   label:has(+ input[required])::after). Es desactiva aquí per no duplicar
+   l'asterisc. */
+.camp-dinamic label:has(+ input[required])::after {
+  content: none;
+}
