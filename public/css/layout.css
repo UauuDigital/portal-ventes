@@ -161,17 +161,15 @@
   .card {
     flex-direction: column;
     min-height: auto;
-  }
-  .card[data-layout="info-right"] {
-    flex-direction: column-reverse;
-  }
-}
-
-@media (max-width: 480px) {
-  .card {
+    /* Un cop apilat en una sola columna, el formulari ja no necessita
+       quedar flotant com a targeta sobre el fons: ocupa tota l'amplada
+       (mateix llindar que l'apilat, no un de més estret a part). */
     max-width: 100%;
     border-radius: 0;
     box-shadow: none;
+  }
+  .card[data-layout="info-right"] {
+    flex-direction: column-reverse;
   }
   .panel {
     padding: 32px 24px;

@@ -129,11 +129,11 @@ async function enviarEmailPrueba({ destinatario, asunto, html, evento, baseUrl }
   }
 
   const compraExemple = {
-    nombre_comprador: 'Joan Exemple',
+    nombre_comprador: 'Nom Exemple',
     cantidad: 2,
     importe_total: evento.precio ? evento.precio * 2 : 4000,
     quiere_factura: true,
-    nombre_fiscal: 'Joan Exemple SL',
+    nombre_fiscal: 'Nom Exemple SL',
     nif: '12345678A',
     direccion_fiscal: 'Carrer Exemple, 1, Barcelona',
     edit_token: 'token-de-prova-no-funcional',

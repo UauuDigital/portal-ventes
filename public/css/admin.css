@@ -54,6 +54,20 @@ body:has(> .admin-shell) {
   padding: 32px 24px;
 }
 
+/* Al mòbil, el marge del contenidor (24px) més el padding intern del
+   formulari blanc (24px) es menjaven gairebé 100px d'amplada útil entre
+   els dos costats. Es redueixen tots dos perquè el formulari aprofiti
+   pràcticament tota l'amplada de la pantalla. */
+@media (max-width: 480px) {
+  .admin-shell {
+    padding: 16px 10px;
+  }
+  .admin-form {
+    padding: 16px;
+    border-radius: 12px;
+  }
+}
+
 .admin-shell h1 {
   font-family: var(--font-serif);
   font-size: 26px;

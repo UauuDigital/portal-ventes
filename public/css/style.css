@@ -1,6 +1,6 @@
 /* Punt d'entrada — importa els mòduls per component.
    No afegir regles directament aquí; veure /public/css/*.css */
-@import url('variables.css?v=3');
+@import url('variables.css?v=4');
 @import url('legal-modal.css?v=2');
-@import url('layout.css?v=15');
+@import url('layout.css?v=16');
 @import url('forms.css?v=9');
