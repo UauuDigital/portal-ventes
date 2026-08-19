@@ -31,12 +31,23 @@
   position: relative;
 }
 
+/* Ancoratge del crumb de tornada: perquè quedi sempre al mateix nivell que
+   "Esdeveniment del mes" (i no un valor fix en píxels, fràgil si canvia
+   l'alçada del logo o el text), s'ubica dins el mateix bloc que l'eyebrow
+   i es posiciona relatiu a aquest contenidor, no al panell sencer. */
+.evento-info-titol {
+  position: relative;
+}
+
 /* Crumb de tornada al selector d'esdeveniments (només visible quan s'hi ha
    arribat des de la quadrícula, quan hi havia diversos esdeveniments actius). */
 .breadcrumb-tornar {
   position: absolute;
-  top: 20px;
-  right: 24px;
+  top: 0;
+  right: 0;
+  /* Sense això l'eyebrow (bloc a tota l'amplada, mateix requadre) rebia
+     els clics per sobre del botó tot i ser contingut estàtic. */
+  z-index: 1;
   background: transparent;
   border: none;
   padding: 0;
