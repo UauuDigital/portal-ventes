@@ -8,7 +8,7 @@ const { crearCookieSessio, verificarCookieSessio } = require('../utils/sessionCo
 test('crea i verifica una cookie vàlida', () => {
   const cookie = crearCookieSessio('admin');
   const dades = verificarCookieSessio(cookie);
-  assert.deepEqual(dades, { usuari: 'admin' });
+  assert.deepEqual(dades, { usuari: 'admin', rol: 'admin' });
 });
 
 test('rebutja una cookie amb signatura manipulada', () => {
