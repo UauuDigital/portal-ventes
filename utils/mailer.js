@@ -22,7 +22,7 @@ function formatDataHora(isoString) {
  * domini no verificat...) es loggeja i no es propaga, perquè no ha de fer
  * fallar la confirmació del webhook de Stripe.
  */
-async function enviarEmailConfirmacio({ compra, evento }) {
+async function enviarEmailConfirmacio({ compra, evento, baseUrl }) {
   if (!process.env.RESEND_API_KEY) {
     console.error('No s\'ha pogut enviar l\'email de confirmació: falta RESEND_API_KEY.');
     return;
@@ -33,6 +33,11 @@ async function enviarEmailConfirmacio({ compra, evento }) {
        ${compra.nombre_fiscal}<br>
        NIF/CIF: ${compra.nif}<br>
        ${compra.direccion_fiscal}</p>`
+    : '';
+
+  const enllacEdicio = compra.edit_token && new Date() < new Date(evento.fecha)
+    ? `<p>Pots revisar o modificar les teves dades (com les al·lèrgies) fins al dia de l'esdeveniment des d'aquest enllaç: <br>
+       <a href="${baseUrl}/mis-datos.html?token=${compra.edit_token}">${baseUrl}/mis-datos.html?token=${compra.edit_token}</a></p>`
     : '';
 
   const html = `
@@ -46,6 +51,7 @@ async function enviarEmailConfirmacio({ compra, evento }) {
         <li><strong>Import total:</strong> ${formatEuros(compra.importe_total)}</li>
       </ul>
       ${dadesFactura}
+      ${enllacEdicio}
       <p>Ens veiem a l'esdeveniment!</p>
     </div>
   `;
