@@ -213,7 +213,8 @@ async function llistarCompresEvento(req, res) {
   const eventoId = parseInt(req.params.id, 10);
   const evento = await Evento.getById(eventoId);
   if (!evento) return res.status(404).json({ error: 'no_trobat' });
-  res.json(await Compra.listByEvento(eventoId));
+  const compras = await Compra.listByEvento(eventoId);
+  res.json(compras.map(({ edit_token, ...resta }) => resta));
 }
 
 async function cancelarCompra(req, res) {

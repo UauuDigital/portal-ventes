@@ -49,7 +49,8 @@ async function actualizarMisDatos(req, res) {
     return res.status(400).json({ error: 'dades_invalides', detalls: errors });
   }
 
-  const actualitzada = await Compra.updateRespuestas(compra.id, respuestasNormalizadas);
+  const respuestasFusionadas = { ...compra.respuestas_campos, ...respuestasNormalizadas };
+  const actualitzada = await Compra.updateRespuestas(compra.id, respuestasFusionadas);
   res.json({ respuestas_campos: actualitzada.respuestas_campos });
 }
 

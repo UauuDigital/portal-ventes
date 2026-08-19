@@ -24,6 +24,8 @@ function validarDefinicionCampos(campos) {
     }
     if (!esStringNoBuit(campo.id)) {
       errors.push(`${ref}: falta un identificador`);
+    } else if (!/^[A-Za-z0-9_-]{1,64}$/.test(campo.id)) {
+      errors.push(`${ref}: identificador amb format invàlid`);
     } else if (idsVists.has(campo.id)) {
       errors.push(`${ref}: identificador duplicat "${campo.id}"`);
     } else {

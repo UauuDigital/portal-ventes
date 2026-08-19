@@ -4,6 +4,14 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Igual que escapeHtml, però també escapa les cometes: cal fer-la servir
+// quan el valor s'insereix dins un atribut HTML delimitat per cometes
+// dobles (p. ex. value="${escapeAttr(valor)}"), perquè escapeHtml sol no
+// escapa el caràcter " i una cometa dins el valor trencaria l'atribut.
+function escapeAttr(text) {
+  return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function token() {
   return new URLSearchParams(window.location.search).get('token');
 }
@@ -21,7 +29,7 @@ function renderCamps(campos, respuestas) {
     if (campo.tipo === 'texto') {
       wrap.innerHTML = `
         <label for="camp_${campo.id}">${escapeHtml(campo.etiqueta)}${campo.requerido ? ' *' : ''}</label>
-        <input type="text" id="camp_${campo.id}" value="${escapeHtml(valor || '')}" ${campo.requerido ? 'required' : ''}>
+        <input type="text" id="camp_${campo.id}" value="${escapeAttr(valor || '')}" ${campo.requerido ? 'required' : ''}>
       `;
     } else if (campo.tipo === 'numero') {
       const min = campo.min !== undefined ? `min="${campo.min}"` : '';
@@ -36,7 +44,7 @@ function renderCamps(campos, respuestas) {
       const inputType = campo.multiple ? 'checkbox' : 'radio';
       const opcions = (campo.opciones || []).map((op) => `
         <label class="opcio-dinamica">
-          <input type="${inputType}" name="camp_${campo.id}" value="${escapeHtml(op)}" ${seleccionats.includes(op) ? 'checked' : ''}>
+          <input type="${inputType}" name="camp_${campo.id}" value="${escapeAttr(op)}" ${seleccionats.includes(op) ? 'checked' : ''}>
           ${escapeHtml(op)}
         </label>
       `).join('');

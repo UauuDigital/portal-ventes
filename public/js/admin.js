@@ -299,6 +299,14 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Igual que escapeHtml, però també escapa les cometes: cal fer-la servir
+// quan el valor s'insereix dins un atribut HTML delimitat per cometes
+// dobles (p. ex. value="${escapeAttr(valor)}"), perquè escapeHtml sol no
+// escapa el caràcter " i una cometa dins el valor trencaria l'atribut.
+function escapeAttr(text) {
+  return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 // Formulari de login
 const formLogin = document.getElementById('form-login');
 if (formLogin) {
@@ -962,7 +970,7 @@ if (formEventoEditar) {
     opciones.forEach((opcio, i) => {
       const fila = document.createElement('div');
       fila.className = 'fila-opcio-camp';
-      fila.innerHTML = `<input type="text" value="${escapeHtml(opcio)}" data-i="${i}"><button type="button" data-i="${i}">✕</button>`;
+      fila.innerHTML = `<input type="text" value="${escapeAttr(opcio)}" data-i="${i}"><button type="button" data-i="${i}">✕</button>`;
       cont.appendChild(fila);
     });
     cont.querySelectorAll('button').forEach((btn) => {
@@ -1114,14 +1122,34 @@ if (formEventoEditar) {
   });
 
   const taulaCompras = document.getElementById('taula-compras');
+  const filaCapsaleraCompras = document.getElementById('fila-capsalera-compras');
+
+  function actualitzarCapsaleraCompras() {
+    if (!filaCapsaleraCompras) return;
+    filaCapsaleraCompras.querySelectorAll('th[data-camp-dinamic]').forEach((th) => th.remove());
+    const thAccions = filaCapsaleraCompras.querySelector('th:last-child');
+    camposFormularioActuals.forEach((campo) => {
+      const th = document.createElement('th');
+      th.dataset.campDinamic = '1';
+      th.textContent = campo.etiqueta;
+      filaCapsaleraCompras.insertBefore(th, thAccions);
+    });
+  }
 
   async function carregarCompras() {
     const res = await apiFetch(`/api/admin/eventos/${eventoId}/compras`);
     if (!res) return;
     const compras = await res.json();
+    actualitzarCapsaleraCompras();
     taulaCompras.innerHTML = '';
     compras.forEach((c) => {
       const potCancelar = ['pendiente', 'pagado'].includes(c.estado_pago) && rolActual !== 'viewer';
+      const respuestas = c.respuestas_campos || {};
+      const tdsCamps = camposFormularioActuals.map((campo) => {
+        const valor = respuestas[campo.id];
+        const text = Array.isArray(valor) ? valor.join(', ') : (valor ?? '');
+        return `<td>${escapeHtml(text)}</td>`;
+      }).join('');
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escapeHtml(c.nombre_comprador)}</td>
@@ -1134,6 +1162,7 @@ if (formEventoEditar) {
         <td>${escapeHtml(c.nombre_fiscal || '—')}</td>
         <td>${escapeHtml(c.direccion_fiscal || '—')}</td>
         <td>${formatData(c.created_at)}</td>
+        ${tdsCamps}
         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
       `;
       taulaCompras.appendChild(tr);
@@ -1149,8 +1178,8 @@ if (formEventoEditar) {
 
   // Espera a conèixer el rol abans de pintar les compres, perquè el botó
   // "Cancel·lar" no aparegui un instant per després desaparèixer.
-  aplicarRestriccionsPerRol().then(() => {
-    carregarEvento();
+  aplicarRestriccionsPerRol().then(async () => {
+    await carregarEvento();
     carregarCompras();
   });
 }

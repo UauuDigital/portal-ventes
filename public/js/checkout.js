@@ -6,6 +6,14 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Igual que escapeHtml, però també escapa les cometes: cal fer-la servir
+// quan el valor s'insereix dins un atribut HTML delimitat per cometes
+// dobles (p. ex. value="${escapeAttr(valor)}"), perquè escapeHtml sol no
+// escapa el caràcter " i una cometa dins el valor trencaria l'atribut.
+function escapeAttr(text) {
+  return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function t(clau) {
   return window.i18n ? window.i18n.t(clau) : clau;
 }
@@ -210,7 +218,7 @@ function renderCampsFormulariDinamics(campos) {
       const inputType = campo.multiple ? 'checkbox' : 'radio';
       const opcions = (campo.opciones || []).map((op, i) => `
         <label class="opcio-dinamica">
-          <input type="${inputType}" name="camp_${campo.id}" value="${escapeHtml(op)}" ${campo.requerido && !campo.multiple ? 'required' : ''}>
+          <input type="${inputType}" name="camp_${campo.id}" value="${escapeAttr(op)}" ${campo.requerido && !campo.multiple ? 'required' : ''}>
           ${escapeHtml(op)}
         </label>
       `).join('');
