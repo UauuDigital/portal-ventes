@@ -935,11 +935,12 @@ if (formEventoEditar) {
       fila.className = 'fila-camp-formulari';
       fila.innerHTML = `
         <span class="fila-camp-formulari-etiqueta">${escapeHtml(campo.etiqueta)}</span>
-        <span class="fila-camp-formulari-tipus">${etiquetaTipo(campo.tipo)}${campo.requerido ? ' · Obligatori' : ''}</span>
-        <button type="button" data-accio="pujar" data-i="${i}" ${i === 0 ? 'disabled' : ''}>▲</button>
-        <button type="button" data-accio="baixar" data-i="${i}" ${i === camposFormularioActuals.length - 1 ? 'disabled' : ''}>▼</button>
-        <button type="button" data-accio="editar" data-i="${i}">✎</button>
-        <button type="button" data-accio="eliminar" data-i="${i}">🗑</button>
+        <span class="fila-camp-formulari-tipus">${etiquetaTipo(campo.tipo)}</span>
+        <button type="button" data-accio="requerido" data-i="${i}" aria-pressed="${campo.requerido ? 'true' : 'false'}" aria-label="${campo.requerido ? 'Camp obligatori (clica per fer-lo opcional)' : 'Camp opcional (clica per fer-lo obligatori)'}" title="Obligatori">*</button>
+        <button type="button" data-accio="pujar" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Puja ${escapeHtml(campo.etiqueta)}">▲</button>
+        <button type="button" data-accio="baixar" data-i="${i}" ${i === camposFormularioActuals.length - 1 ? 'disabled' : ''} aria-label="Baixa ${escapeHtml(campo.etiqueta)}">▼</button>
+        <button type="button" data-accio="editar" data-i="${i}" aria-label="Edita ${escapeHtml(campo.etiqueta)}">✎</button>
+        <button type="button" data-accio="eliminar" data-i="${i}" aria-label="Elimina ${escapeHtml(campo.etiqueta)}">✕</button>
       `;
       cont.appendChild(fila);
     });
@@ -948,7 +949,10 @@ if (formEventoEditar) {
       btn.addEventListener('click', () => {
         const i = parseInt(btn.dataset.i, 10);
         const accio = btn.dataset.accio;
-        if (accio === 'pujar' && i > 0) {
+        if (accio === 'requerido') {
+          camposFormularioActuals[i].requerido = !camposFormularioActuals[i].requerido;
+          renderLlistaCamps();
+        } else if (accio === 'pujar' && i > 0) {
           [camposFormularioActuals[i - 1], camposFormularioActuals[i]] = [camposFormularioActuals[i], camposFormularioActuals[i - 1]];
           renderLlistaCamps();
         } else if (accio === 'baixar' && i < camposFormularioActuals.length - 1) {
