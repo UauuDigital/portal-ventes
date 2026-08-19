@@ -2,6 +2,7 @@ const Stripe = require('stripe');
 const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
 const { enviarEmailConfirmacio } = require('../utils/mailer');
+const { validarRespuestas } = require('../utils/camposFormulario');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 // Stripe exigeix que expires_at sigui com a mínim 30 minuts després de crear
@@ -95,6 +96,14 @@ async function crearCheckoutSession(req, res) {
       return res.status(409).json({ error: 'aforament_insuficient', disponibles });
     }
 
+    const { errors: errorsCamps, respuestasNormalizadas } = validarRespuestas(
+      evento.campos_formulario || [],
+      req.body.respuestas_campos
+    );
+    if (errorsCamps.length) {
+      return res.status(400).json({ error: 'dades_invalides', detalls: errorsCamps });
+    }
+
     const importeTotal = cantidad * evento.precio; // cèntims
 
     const telefono = String(req.body.telefono || '').trim();
@@ -110,6 +119,7 @@ async function crearCheckoutSession(req, res) {
       nif: req.body.quiere_factura ? String(req.body.nif).trim().toUpperCase() : null,
       nombre_fiscal: req.body.quiere_factura ? String(req.body.nombre_fiscal).trim() : null,
       direccion_fiscal: req.body.quiere_factura ? String(req.body.direccion_fiscal).trim() : null,
+      respuestas_campos: respuestasNormalizadas,
     });
 
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
@@ -200,7 +210,8 @@ async function webhook(req, res) {
         console.log(`Compra #${compra.id} marcada com a pagada.`);
         const evento = await Evento.getById(compra.evento_id);
         if (evento) {
-          await enviarEmailConfirmacio({ compra: { ...compra, estado_pago: 'pagado' }, evento });
+          const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+          await enviarEmailConfirmacio({ compra: { ...compra, estado_pago: 'pagado' }, evento, baseUrl });
         }
       }
       break;
