@@ -1147,3 +1147,15 @@ body:has(> .admin-shell) {
 
 .calendari-punt--marcat { background: var(--dark); }
 .calendari-punt--interval { background: rgba(34, 31, 30, 0.2); }
+
+.camps-formulari-seccio{margin:24px 0;padding:16px;border:1px solid var(--dark-muted);border-radius:8px;}
+.camps-formulari-titol{font-size:14px;text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px;}
+.camps-formulari-ajuda{font-size:13px;color:var(--dark-muted);margin:0 0 12px;}
+.camps-formulari-buit{font-size:13px;color:var(--dark-muted);}
+.fila-camp-formulari{display:grid;grid-template-columns:1fr auto auto auto auto auto;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--dark-muted);}
+.modal-camp-formulari{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:50;}
+.modal-camp-formulari.hidden{display:none;}
+.modal-camp-formulari-cos{background:#fff;padding:24px;border-radius:8px;max-width:420px;width:90%;max-height:85vh;overflow:auto;}
+.modal-camp-formulari-accions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.fila-opcio-camp{display:flex;gap:8px;margin-bottom:6px;}
+.fila-opcio-camp input{flex:1;}

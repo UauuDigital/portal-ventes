@@ -903,6 +903,154 @@ if (formEventoEditar) {
     }
   });
 
+  let camposFormularioActuals = [];
+  let indexCampEditant = null;
+  let opcionsModalActuals = [];
+
+  function generarIdCamp() {
+    return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  function etiquetaTipo(tipo) {
+    return { texto: 'Text lliure', numero: 'Número', seleccion: 'Selecció' }[tipo] || tipo;
+  }
+
+  function renderLlistaCamps() {
+    const cont = document.getElementById('llista-camps-formulari');
+    cont.innerHTML = '';
+    if (camposFormularioActuals.length === 0) {
+      cont.innerHTML = '<p class="camps-formulari-buit">Encara no hi ha cap camp definit.</p>';
+      return;
+    }
+    camposFormularioActuals.forEach((campo, i) => {
+      const fila = document.createElement('div');
+      fila.className = 'fila-camp-formulari';
+      fila.innerHTML = `
+        <span class="fila-camp-formulari-etiqueta">${escapeHtml(campo.etiqueta)}</span>
+        <span class="fila-camp-formulari-tipus">${etiquetaTipo(campo.tipo)}${campo.requerido ? ' · Obligatori' : ''}</span>
+        <button type="button" data-accio="pujar" data-i="${i}" ${i === 0 ? 'disabled' : ''}>▲</button>
+        <button type="button" data-accio="baixar" data-i="${i}" ${i === camposFormularioActuals.length - 1 ? 'disabled' : ''}>▼</button>
+        <button type="button" data-accio="editar" data-i="${i}">✎</button>
+        <button type="button" data-accio="eliminar" data-i="${i}">🗑</button>
+      `;
+      cont.appendChild(fila);
+    });
+
+    cont.querySelectorAll('button[data-accio]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const i = parseInt(btn.dataset.i, 10);
+        const accio = btn.dataset.accio;
+        if (accio === 'pujar' && i > 0) {
+          [camposFormularioActuals[i - 1], camposFormularioActuals[i]] = [camposFormularioActuals[i], camposFormularioActuals[i - 1]];
+          renderLlistaCamps();
+        } else if (accio === 'baixar' && i < camposFormularioActuals.length - 1) {
+          [camposFormularioActuals[i + 1], camposFormularioActuals[i]] = [camposFormularioActuals[i], camposFormularioActuals[i + 1]];
+          renderLlistaCamps();
+        } else if (accio === 'eliminar') {
+          camposFormularioActuals.splice(i, 1);
+          renderLlistaCamps();
+        } else if (accio === 'editar') {
+          obrirModalCamp(i);
+        }
+      });
+    });
+  }
+
+  function renderOpcionsModal(opciones) {
+    const cont = document.getElementById('llista-opcions-camp');
+    cont.innerHTML = '';
+    opciones.forEach((opcio, i) => {
+      const fila = document.createElement('div');
+      fila.className = 'fila-opcio-camp';
+      fila.innerHTML = `<input type="text" value="${escapeHtml(opcio)}" data-i="${i}"><button type="button" data-i="${i}">✕</button>`;
+      cont.appendChild(fila);
+    });
+    cont.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        opcionsModalActuals.splice(parseInt(btn.dataset.i, 10), 1);
+        renderOpcionsModal(opcionsModalActuals);
+      });
+    });
+    cont.querySelectorAll('input').forEach((input) => {
+      input.addEventListener('input', () => {
+        opcionsModalActuals[parseInt(input.dataset.i, 10)] = input.value;
+      });
+    });
+  }
+
+  function obrirModalCamp(i) {
+    indexCampEditant = i === undefined ? null : i;
+    const campo = i === undefined ? null : camposFormularioActuals[i];
+    document.getElementById('camp-etiqueta').value = campo ? campo.etiqueta : '';
+    document.getElementById('camp-tipo').value = campo ? campo.tipo : 'texto';
+    document.getElementById('camp-unidad').value = campo && campo.unidad ? campo.unidad : '';
+    document.getElementById('camp-min').value = campo && campo.min !== undefined ? campo.min : '';
+    document.getElementById('camp-max').value = campo && campo.max !== undefined ? campo.max : '';
+    document.getElementById('camp-requerido').checked = !!(campo && campo.requerido);
+    document.getElementById('camp-multiple').checked = !!(campo && campo.multiple);
+    opcionsModalActuals = campo && Array.isArray(campo.opciones) ? [...campo.opciones] : [];
+    renderOpcionsModal(opcionsModalActuals);
+    document.getElementById('error-camp-formulari').textContent = '';
+    actualitzarVisibilitatTipusModal();
+    document.getElementById('modal-camp-formulari').classList.remove('hidden');
+  }
+
+  function actualitzarVisibilitatTipusModal() {
+    const tipo = document.getElementById('camp-tipo').value;
+    document.getElementById('camp-opcions-numero').classList.toggle('hidden', tipo !== 'numero');
+    document.getElementById('camp-opcions-seleccion').classList.toggle('hidden', tipo !== 'seleccion');
+  }
+
+  document.getElementById('camp-tipo').addEventListener('change', actualitzarVisibilitatTipusModal);
+  document.getElementById('btn-afegir-camp').addEventListener('click', () => obrirModalCamp(undefined));
+  document.getElementById('btn-cancelar-camp').addEventListener('click', () => {
+    document.getElementById('modal-camp-formulari').classList.add('hidden');
+  });
+  document.getElementById('btn-afegir-opcio-camp').addEventListener('click', () => {
+    opcionsModalActuals.push('');
+    renderOpcionsModal(opcionsModalActuals);
+  });
+
+  document.getElementById('btn-desar-camp').addEventListener('click', () => {
+    const errorEl = document.getElementById('error-camp-formulari');
+    const etiqueta = document.getElementById('camp-etiqueta').value.trim();
+    const tipo = document.getElementById('camp-tipo').value;
+    if (!etiqueta) {
+      errorEl.textContent = 'Cal una etiqueta per al camp.';
+      return;
+    }
+    if (tipo === 'seleccion' && opcionsModalActuals.filter((o) => o.trim()).length === 0) {
+      errorEl.textContent = 'Cal almenys una opció.';
+      return;
+    }
+    const campo = {
+      id: indexCampEditant !== null ? camposFormularioActuals[indexCampEditant].id : generarIdCamp(),
+      etiqueta,
+      tipo,
+      requerido: document.getElementById('camp-requerido').checked,
+    };
+    if (tipo === 'numero') {
+      const unidad = document.getElementById('camp-unidad').value.trim();
+      const min = document.getElementById('camp-min').value;
+      const max = document.getElementById('camp-max').value;
+      if (unidad) campo.unidad = unidad;
+      if (min !== '') campo.min = parseFloat(min);
+      if (max !== '') campo.max = parseFloat(max);
+    }
+    if (tipo === 'seleccion') {
+      campo.opciones = opcionsModalActuals.map((o) => o.trim()).filter(Boolean);
+      campo.multiple = document.getElementById('camp-multiple').checked;
+    }
+
+    if (indexCampEditant !== null) {
+      camposFormularioActuals[indexCampEditant] = campo;
+    } else {
+      camposFormularioActuals.push(campo);
+    }
+    document.getElementById('modal-camp-formulari').classList.add('hidden');
+    renderLlistaCamps();
+  });
+
   async function carregarEvento() {
     const res = await apiFetch(`/api/admin/eventos/${eventoId}`);
     if (!res) return;
@@ -925,6 +1073,8 @@ if (formEventoEditar) {
     document.getElementById('estado').value = evento.estado;
     document.getElementById('nombre_invitado').value = evento.nombre_invitado || '';
     document.getElementById('cargo_invitado').value = evento.cargo_invitado || '';
+    camposFormularioActuals = Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [];
+    renderLlistaCamps();
   }
 
   formEventoEditar.addEventListener('submit', async (e) => {
@@ -946,6 +1096,7 @@ if (formEventoEditar) {
       estado: document.getElementById('estado').value,
       nombre_invitado: document.getElementById('nombre_invitado').value,
       cargo_invitado: document.getElementById('cargo_invitado').value,
+      campos_formulario: camposFormularioActuals,
     };
 
     const res = await apiFetch(`/api/admin/eventos/${eventoId}`, {
