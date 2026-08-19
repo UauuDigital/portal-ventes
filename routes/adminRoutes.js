@@ -14,6 +14,7 @@ const {
   cancelarCompra,
   exportarComprasCsv,
   traduirNom,
+  enviarEmailDePrueba,
 } = require('../controllers/adminController');
 
 router.post('/admin/login', login);
@@ -35,5 +36,6 @@ router.put('/api/admin/eventos/:id', requireRole('admin'), asyncHandler(actualit
 router.delete('/api/admin/eventos/:id', requireRole('admin'), asyncHandler(eliminarEvento));
 router.post('/api/admin/compras/:id/cancelar', requireRole('admin'), asyncHandler(cancelarCompra));
 router.get('/api/admin/eventos/:id/compras/export.csv', requireRole('admin'), asyncHandler(exportarComprasCsv));
+router.post('/api/admin/eventos/:id/email-prova', requireRole('admin'), asyncHandler(enviarEmailDePrueba));
 
 module.exports = router;

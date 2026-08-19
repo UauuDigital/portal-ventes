@@ -188,6 +188,8 @@ async function aplicarRestriccionsPerRol() {
   }
   const linkExportEl = document.getElementById('link-export-csv');
   if (linkExportEl) linkExportEl.style.display = 'none';
+  const btnEmailProvaEl = document.getElementById('btn-enviar-email-prova');
+  if (btnEmailProvaEl) btnEmailProvaEl.style.display = 'none';
 }
 // Només a les pàgines reals de l'admin (mai a login.html, que no té sessió
 // encara i provocaria un bucle de redireccions via el 401 de apiFetch).
@@ -1085,6 +1087,8 @@ if (formEventoEditar) {
     document.getElementById('estado').value = evento.estado;
     document.getElementById('nombre_invitado').value = evento.nombre_invitado || '';
     document.getElementById('cargo_invitado').value = evento.cargo_invitado || '';
+    document.getElementById('email_asunto').value = evento.email_asunto || '';
+    document.getElementById('email_html').value = evento.email_html || '';
     camposFormularioActuals = Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [];
     renderLlistaCamps();
   }
@@ -1109,6 +1113,8 @@ if (formEventoEditar) {
       nombre_invitado: document.getElementById('nombre_invitado').value,
       cargo_invitado: document.getElementById('cargo_invitado').value,
       campos_formulario: camposFormularioActuals,
+      email_asunto: document.getElementById('email_asunto').value,
+      email_html: document.getElementById('email_html').value,
     };
 
     const res = await apiFetch(`/api/admin/eventos/${eventoId}`, {
@@ -1122,6 +1128,41 @@ if (formEventoEditar) {
     } else {
       const data = await res.json();
       errorEl.textContent = (data.detalls || [data.error]).join(', ');
+    }
+  });
+
+  document.getElementById('btn-enviar-email-prova').addEventListener('click', async () => {
+    const missatgeEl = document.getElementById('email-prova-missatge');
+    const destinatari = document.getElementById('email-prova-destinatari').value.trim();
+    missatgeEl.textContent = '';
+    missatgeEl.classList.remove('email-prova-ok');
+
+    if (!destinatari) {
+      missatgeEl.textContent = 'Indica una adreça de destinatari per a la prova.';
+      return;
+    }
+
+    const btn = document.getElementById('btn-enviar-email-prova');
+    btn.disabled = true;
+    const res = await apiFetch(`/api/admin/eventos/${eventoId}/email-prova`, {
+      method: 'POST',
+      body: JSON.stringify({
+        destinatario: destinatari,
+        email_asunto: document.getElementById('email_asunto').value,
+        email_html: document.getElementById('email_html').value,
+      }),
+    });
+    btn.disabled = false;
+    if (!res) return;
+
+    if (res.ok) {
+      missatgeEl.textContent = `Email de prova enviat a ${destinatari}.`;
+      missatgeEl.classList.add('email-prova-ok');
+    } else {
+      const data = await res.json();
+      missatgeEl.textContent = (data.detalls || [data.error === 'error_enviament_email'
+        ? 'No s\'ha pogut enviar l\'email de prova.'
+        : data.error]).join(', ');
     }
   });
 

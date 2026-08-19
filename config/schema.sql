@@ -52,6 +52,11 @@ ALTER TABLE compras ADD COLUMN IF NOT EXISTS edit_token TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_compras_edit_token ON compras(edit_token) WHERE edit_token IS NOT NULL;
 
+-- Email de confirmació personalitzable per esdeveniment (utils/mailer.js).
+-- Buits = es fa servir la plantilla per defecte (comportament actual).
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_asunto TEXT;
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_html TEXT;
+
 -- L'app es connecta sempre via Postgres directe (usuari amb privilegis, no
 -- subjecte a RLS): activar-ho aquí només bloqueja l'accés públic accidental
 -- via l'API REST autogenerada de Supabase (PostgREST/anon key).

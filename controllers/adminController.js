@@ -3,6 +3,7 @@ const Compra = require('../models/Compra');
 const { toCsv } = require('../utils/csv');
 const { traduirNomEsdeveniment, traduirATotsIdiomes } = require('../utils/traduccio');
 const { validarDefinicionCampos } = require('../utils/camposFormulario');
+const { enviarEmailPrueba } = require('../utils/mailer');
 
 const IDIOMES_NOM = ['ca', 'es', 'en'];
 
@@ -132,6 +133,8 @@ async function crearEvento(req, res) {
     nombre_invitado: req.body.nombre_invitado ? String(req.body.nombre_invitado).trim() : null,
     cargo_invitado: req.body.cargo_invitado ? String(req.body.cargo_invitado).trim() : null,
     campos_formulario: camposFormulario,
+    email_asunto: req.body.email_asunto ? String(req.body.email_asunto).trim() : null,
+    email_html: req.body.email_html ? String(req.body.email_html).trim() : null,
   });
   res.status(201).json(evento);
 }
@@ -150,7 +153,7 @@ async function actualitzarEvento(req, res) {
   const canvis = {};
   [
     'nombre', 'nombre_es', 'nombre_en', 'descripcion', 'descripcion_es', 'descripcion_en', 'estado',
-    'nombre_invitado', 'cargo_invitado',
+    'nombre_invitado', 'cargo_invitado', 'email_asunto', 'email_html',
   ].forEach((camp) => {
     if (req.body[camp] !== undefined) canvis[camp] = String(req.body[camp]).trim();
   });
@@ -186,6 +189,41 @@ async function actualitzarEvento(req, res) {
 
   const evento = await Evento.update(id, canvis);
   res.json(evento);
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * POST /api/admin/eventos/:id/email-prova
+ * Envia l'email de confirmació amb dades d'exemple a l'adreça indicada,
+ * fent servir l'assumpte/HTML que arriben al body (encara no desats),
+ * perquè l'admin pugui iterar abans de guardar els canvis.
+ */
+async function enviarEmailDePrueba(req, res) {
+  const id = parseInt(req.params.id, 10);
+  const evento = await Evento.getById(id);
+  if (!evento) return res.status(404).json({ error: 'no_trobat' });
+
+  const destinatario = String(req.body.destinatario || '').trim();
+  if (!EMAIL_REGEX.test(destinatario)) {
+    return res.status(400).json({ error: 'dades_invalides', detalls: ['email de destinatari invàlid'] });
+  }
+
+  const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+
+  try {
+    await enviarEmailPrueba({
+      destinatario,
+      asunto: req.body.email_asunto ? String(req.body.email_asunto) : '',
+      html: req.body.email_html ? String(req.body.email_html) : '',
+      evento,
+      baseUrl,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error enviant l\'email de prova:', err);
+    res.status(502).json({ error: 'error_enviament_email' });
+  }
 }
 
 async function eliminarEvento(req, res) {
@@ -286,4 +324,5 @@ module.exports = {
   cancelarCompra,
   exportarComprasCsv,
   traduirNom,
+  enviarEmailDePrueba,
 };

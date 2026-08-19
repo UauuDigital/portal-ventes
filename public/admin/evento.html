@@ -7,7 +7,7 @@
 <link rel="icon" href="/assets/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css?v=83">
+<link rel="stylesheet" href="/css/admin.css?v=84">
 </head>
 <body>
 <div class="admin-shell">
@@ -131,6 +131,23 @@
       </div>
     </div>
 
+    <div class="camps-formulari-seccio">
+      <h2 class="camps-formulari-titol">Email de confirmació</h2>
+      <p class="camps-formulari-ajuda">Es fa servir per defecte si es deixa buit. Variables disponibles: <code>{{nom_comprador}}</code>, <code>{{nom_esdeveniment}}</code>, <code>{{data_hora}}</code>, <code>{{quantitat}}</code>, <code>{{import_total}}</code>, <code>{{dades_factura}}</code>, <code>{{enllac_edicio}}</code>.</p>
+
+      <label for="email_asunto">Assumpte</label>
+      <input type="text" id="email_asunto" name="email_asunto" placeholder="Confirmació de la teva entrada — {{nom_esdeveniment}}">
+
+      <label for="email_html">Cos (HTML)</label>
+      <textarea id="email_html" name="email_html" rows="10" placeholder="Deixa-ho buit per fer servir la plantilla per defecte."></textarea>
+
+      <div class="email-prova-fila">
+        <input type="email" id="email-prova-destinatari" placeholder="adreça per a la prova">
+        <button type="button" id="btn-enviar-email-prova" class="btn-secundari">Enviar prova</button>
+      </div>
+      <p id="email-prova-missatge" class="form-error"></p>
+    </div>
+
     <button type="submit" class="btn-primary">Desar canvis</button>
     <button type="button" id="btn-eliminar-evento" class="btn-primary btn-primary--perillos">Eliminar esdeveniment</button>
     <p id="error-evento-editar" class="form-error"></p>
@@ -162,6 +179,6 @@
     </table>
   </div>
 </div>
-<script src="/js/admin.js?v=59"></script>
+<script src="/js/admin.js?v=60"></script>
 </body>
 </html>

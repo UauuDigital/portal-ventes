@@ -17,17 +17,44 @@ function formatDataHora(isoString) {
   return `${dataText} a les ${horaText}h`;
 }
 
-/**
- * Enviament "best effort": si falla (clau no configurada, error de xarxa,
- * domini no verificat...) es loggeja i no es propaga, perquè no ha de fer
- * fallar la confirmació del webhook de Stripe.
- */
-async function enviarEmailConfirmacio({ compra, evento, baseUrl }) {
-  if (!process.env.RESEND_API_KEY) {
-    console.error('No s\'ha pogut enviar l\'email de confirmació: falta RESEND_API_KEY.');
-    return;
-  }
+const ASSUMPTE_DEFECTE = 'Confirmació de la teva entrada — {{nom_esdeveniment}}';
 
+const HTML_DEFECTE = `
+    <div style="font-family:sans-serif; max-width:480px; margin:0 auto;">
+      <h1 style="font-size:20px;">Reserva confirmada</h1>
+      <p>Hola {{nom_comprador}},</p>
+      <p>La teva compra per a <strong>{{nom_esdeveniment}}</strong> ha quedat confirmada.</p>
+      <ul>
+        <li><strong>Data i hora:</strong> {{data_hora}}</li>
+        <li><strong>Entrades:</strong> {{quantitat}}</li>
+        <li><strong>Import total:</strong> {{import_total}}</li>
+      </ul>
+      {{dades_factura}}
+      {{enllac_edicio}}
+      <p>Ens veiem a l'esdeveniment!</p>
+    </div>
+  `;
+
+/** Variables disponibles a l'assumpte i al cos de l'email (vegeu admin/evento.html). */
+const VARIABLES_DISPONIBLES = [
+  'nom_comprador', 'nom_esdeveniment', 'data_hora', 'quantitat',
+  'import_total', 'dades_factura', 'enllac_edicio',
+];
+
+function substituirVariables(text, variables) {
+  return VARIABLES_DISPONIBLES.reduce(
+    (acc, clau) => acc.split(`{{${clau}}}`).join(variables[clau] || ''),
+    text
+  );
+}
+
+/**
+ * Calcula els valors de les variables a partir d'una compra i un
+ * esdeveniment. Compartit entre l'enviament real (dades de compra
+ * autèntiques) i l'enviament de prova (dades d'exemple), perquè els dos
+ * facin servir exactament la mateixa lògica de renderitzat.
+ */
+function calcularVariables({ compra, evento, baseUrl }) {
   const dadesFactura = compra.quiere_factura
     ? `<p><strong>Dades de facturació</strong><br>
        ${compra.nombre_fiscal}<br>
@@ -40,27 +67,50 @@ async function enviarEmailConfirmacio({ compra, evento, baseUrl }) {
        <a href="${baseUrl}/mis-datos.html?token=${compra.edit_token}">${baseUrl}/mis-datos.html?token=${compra.edit_token}</a></p>`
     : '';
 
-  const html = `
-    <div style="font-family:sans-serif; max-width:480px; margin:0 auto;">
-      <h1 style="font-size:20px;">Reserva confirmada</h1>
-      <p>Hola ${compra.nombre_comprador},</p>
-      <p>La teva compra per a <strong>${evento.nombre}</strong> ha quedat confirmada.</p>
-      <ul>
-        <li><strong>Data i hora:</strong> ${formatDataHora(evento.fecha)}</li>
-        <li><strong>Entrades:</strong> ${compra.cantidad}</li>
-        <li><strong>Import total:</strong> ${formatEuros(compra.importe_total)}</li>
-      </ul>
-      ${dadesFactura}
-      ${enllacEdicio}
-      <p>Ens veiem a l'esdeveniment!</p>
-    </div>
-  `;
+  return {
+    nom_comprador: compra.nombre_comprador,
+    nom_esdeveniment: evento.nombre,
+    data_hora: formatDataHora(evento.fecha),
+    quantitat: String(compra.cantidad),
+    import_total: formatEuros(compra.importe_total),
+    dades_factura: dadesFactura,
+    enllac_edicio: enllacEdicio,
+  };
+}
+
+/**
+ * Renderitza l'assumpte i el cos de l'email de confirmació. Fa servir la
+ * plantilla de l'esdeveniment (`evento.email_asunto`/`email_html`) si
+ * n'hi ha, i la per defecte en cas contrari.
+ */
+function renderitzarEmail({ compra, evento, baseUrl }) {
+  const variables = calcularVariables({ compra, evento, baseUrl });
+  const assumpte = evento.email_asunto && evento.email_asunto.trim() ? evento.email_asunto : ASSUMPTE_DEFECTE;
+  const html = evento.email_html && evento.email_html.trim() ? evento.email_html : HTML_DEFECTE;
+  return {
+    subject: substituirVariables(assumpte, variables),
+    html: substituirVariables(html, variables),
+  };
+}
+
+/**
+ * Enviament "best effort": si falla (clau no configurada, error de xarxa,
+ * domini no verificat...) es loggeja i no es propaga, perquè no ha de fer
+ * fallar la confirmació del webhook de Stripe.
+ */
+async function enviarEmailConfirmacio({ compra, evento, baseUrl }) {
+  if (!process.env.RESEND_API_KEY) {
+    console.error('No s\'ha pogut enviar l\'email de confirmació: falta RESEND_API_KEY.');
+    return;
+  }
+
+  const { subject, html } = renderitzarEmail({ compra, evento, baseUrl });
 
   try {
     await client().emails.send({
       from: process.env.RESEND_FROM,
       to: compra.email,
-      subject: `Confirmació de la teva entrada — ${evento.nombre}`,
+      subject,
       html,
     });
   } catch (err) {
@@ -68,4 +118,41 @@ async function enviarEmailConfirmacio({ compra, evento, baseUrl }) {
   }
 }
 
-module.exports = { enviarEmailConfirmacio };
+/**
+ * Enviament de prova des de l'admin: fa servir dades d'exemple (no una
+ * compra real) i, a diferència de enviarEmailConfirmacio, propaga
+ * qualsevol error perquè l'admin en tingui feedback immediat.
+ */
+async function enviarEmailPrueba({ destinatario, asunto, html, evento, baseUrl }) {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('Falta RESEND_API_KEY a la configuració del servidor.');
+  }
+
+  const compraExemple = {
+    nombre_comprador: 'Joan Exemple',
+    cantidad: 2,
+    importe_total: evento.precio ? evento.precio * 2 : 4000,
+    quiere_factura: true,
+    nombre_fiscal: 'Joan Exemple SL',
+    nif: '12345678A',
+    direccion_fiscal: 'Carrer Exemple, 1, Barcelona',
+    edit_token: 'token-de-prova-no-funcional',
+  };
+
+  const { subject } = renderitzarEmail({
+    compra: compraExemple,
+    evento: { ...evento, email_asunto: asunto },
+    baseUrl,
+  });
+  const variables = calcularVariables({ compra: compraExemple, evento, baseUrl });
+  const htmlRenderitzat = substituirVariables(html && html.trim() ? html : HTML_DEFECTE, variables);
+
+  await client().emails.send({
+    from: process.env.RESEND_FROM,
+    to: destinatario,
+    subject: `[PROVA] ${subject}`,
+    html: htmlRenderitzat,
+  });
+}
+
+module.exports = { enviarEmailConfirmacio, enviarEmailPrueba, VARIABLES_DISPONIBLES };

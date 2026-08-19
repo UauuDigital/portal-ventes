@@ -58,8 +58,8 @@ async function getById(id) {
 
 async function create(data) {
   const stmt = db.prepare(
-    `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado, nombre_invitado, cargo_invitado, campos_formulario)
-     VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado, @nombre_invitado, @cargo_invitado, @campos_formulario)
+    `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado, nombre_invitado, cargo_invitado, campos_formulario, email_asunto, email_html)
+     VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado, @nombre_invitado, @cargo_invitado, @campos_formulario, @email_asunto, @email_html)
      RETURNING id`
   );
   const info = await stmt.run({
@@ -72,6 +72,8 @@ async function create(data) {
     nombre_invitado: null,
     cargo_invitado: null,
     campos_formulario: JSON.stringify([]),
+    email_asunto: null,
+    email_html: null,
     ...data,
     campos_formulario: JSON.stringify(data.campos_formulario || []),
   });
@@ -86,6 +88,7 @@ async function update(id, data) {
     descripcion, descripcion_es, descripcion_en,
     precio, aforo_total, fecha_limite_compra, estado,
     nombre_invitado, cargo_invitado, campos_formulario,
+    email_asunto, email_html,
   } = { ...actual, ...data };
   await db
     .prepare(
@@ -94,7 +97,8 @@ async function update(id, data) {
          precio=@precio, aforo_total=@aforo_total,
          fecha_limite_compra=@fecha_limite_compra, estado=@estado,
          nombre_invitado=@nombre_invitado, cargo_invitado=@cargo_invitado,
-         campos_formulario=@campos_formulario
+         campos_formulario=@campos_formulario,
+         email_asunto=@email_asunto, email_html=@email_html
        WHERE id=@id`
     )
     .run({
@@ -103,6 +107,8 @@ async function update(id, data) {
       precio, aforo_total, fecha_limite_compra, estado, id,
       nombre_invitado, cargo_invitado,
       campos_formulario: JSON.stringify(campos_formulario || []),
+      email_asunto: email_asunto || null,
+      email_html: email_html || null,
     });
   return getById(id);
 }
