@@ -2,6 +2,7 @@ const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
 const { toCsv } = require('../utils/csv');
 const { traduirNomEsdeveniment, traduirATotsIdiomes } = require('../utils/traduccio');
+const { validarDefinicionCampos } = require('../utils/camposFormulario');
 
 const IDIOMES_NOM = ['ca', 'es', 'en'];
 
@@ -96,6 +97,8 @@ async function resoldreTraduccions(text, esBody, enBody) {
 
 async function crearEvento(req, res) {
   const errors = validarEvento(req.body);
+  const camposFormulario = Array.isArray(req.body.campos_formulario) ? req.body.campos_formulario : [];
+  errors.push(...validarDefinicionCampos(camposFormulario));
   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
 
   const nombre = String(req.body.nombre).trim();
@@ -128,6 +131,7 @@ async function crearEvento(req, res) {
     estado: req.body.estado || 'abierto',
     nombre_invitado: req.body.nombre_invitado ? String(req.body.nombre_invitado).trim() : null,
     cargo_invitado: req.body.cargo_invitado ? String(req.body.cargo_invitado).trim() : null,
+    campos_formulario: camposFormulario,
   });
   res.status(201).json(evento);
 }
@@ -138,6 +142,9 @@ async function actualitzarEvento(req, res) {
   if (!actual) return res.status(404).json({ error: 'no_trobat' });
 
   const errors = validarEvento(req.body, { parcial: true });
+  if (req.body.campos_formulario !== undefined) {
+    errors.push(...validarDefinicionCampos(req.body.campos_formulario));
+  }
   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
 
   const canvis = {};
@@ -171,6 +178,10 @@ async function actualitzarEvento(req, res) {
   if (req.body.fecha !== undefined) canvis.fecha = new Date(req.body.fecha).toISOString();
   if (req.body.fecha_limite_compra !== undefined) {
     canvis.fecha_limite_compra = new Date(req.body.fecha_limite_compra).toISOString();
+  }
+
+  if (req.body.campos_formulario !== undefined) {
+    canvis.campos_formulario = req.body.campos_formulario;
   }
 
   const evento = await Evento.update(id, canvis);
@@ -236,13 +247,29 @@ async function exportarComprasCsv(req, res) {
   if (!evento) return res.status(404).json({ error: 'no_trobat' });
 
   const compres = await Compra.listByEvento(eventoId);
-  const files = compres.map((c) => ({
-    ...c,
-    importe_total_eur: (c.importe_total / 100).toFixed(2),
-    quiere_factura_text: c.quiere_factura ? 'Sí' : 'No',
+  const camposEvento = Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [];
+
+  const columnesCampos = camposEvento.map((campo) => ({
+    clau: `campo_${campo.id}`,
+    capsalera: campo.etiqueta,
   }));
 
-  const csv = toCsv(files, COLUMNES_CSV);
+  const files = compres.map((c) => {
+    const respuestas = c.respuestas_campos || {};
+    const filaCampos = {};
+    camposEvento.forEach((campo) => {
+      const valor = respuestas[campo.id];
+      filaCampos[`campo_${campo.id}`] = Array.isArray(valor) ? valor.join(', ') : (valor ?? '');
+    });
+    return {
+      ...c,
+      ...filaCampos,
+      importe_total_eur: (c.importe_total / 100).toFixed(2),
+      quiere_factura_text: c.quiere_factura ? 'Sí' : 'No',
+    };
+  });
+
+  const csv = toCsv(files, [...COLUMNES_CSV, ...columnesCampos]);
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="compres-evento-${eventoId}.csv"`);
   res.send(csv);
