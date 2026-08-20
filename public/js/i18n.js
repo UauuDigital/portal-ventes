@@ -58,6 +58,7 @@
       rebras_confirmacio: 'Rebràs la confirmació de la teva entrada per email en breu.',
       reserva_confirmada: 'Reserva confirmada',
       pots_tancar: "Ja pots tancar aquesta finestra. Ens veiem a l'esdeveniment!",
+      com_cancelar_modificar: 'Si necessites cancel·lar o modificar la teva entrada, escriu-nos a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a> i t\'ajudarem.',
       tornar_inici: "Tornar a l'inici",
 
       titol_cancel: 'Pagament cancel·lat — Espai Econòmic',
@@ -188,6 +189,7 @@
       rebras_confirmacio: 'Recibirás la confirmación de tu entrada por email en breve.',
       reserva_confirmada: 'Reserva confirmada',
       pots_tancar: 'Ya puedes cerrar esta ventana. ¡Nos vemos en el evento!',
+      com_cancelar_modificar: 'Si necesitas cancelar o modificar tu entrada, escríbenos a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a> y te ayudaremos.',
       tornar_inici: 'Volver al inicio',
 
       titol_cancel: 'Pago cancelado — Espai Econòmic',
@@ -318,6 +320,7 @@
       rebras_confirmacio: "You'll receive your ticket confirmation by email shortly.",
       reserva_confirmada: 'Booking confirmed',
       pots_tancar: 'You can close this window now. See you at the event!',
+      com_cancelar_modificar: 'If you need to cancel or modify your ticket, email us at <a href="mailto:anna@uauu.cat">anna@uauu.cat</a> and we\'ll help you.',
       tornar_inici: 'Back to home',
 
       titol_cancel: 'Payment cancelled — Espai Econòmic',
@@ -426,6 +429,12 @@
     if (!arrel) document.documentElement.lang = idioma;
     elementsAmb(arrel, '[data-i18n]').forEach((el) => {
       el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    // Com data-i18n, però permet HTML dins la traducció (per exemple un
+    // enllaç mailto:): només fer-lo servir amb claus de confiança pròpia,
+    // mai amb contingut introduït per l'usuari.
+    elementsAmb(arrel, '[data-i18n-html]').forEach((el) => {
+      el.innerHTML = t(el.getAttribute('data-i18n-html'));
     });
     elementsAmb(arrel, '[data-i18n-aria]').forEach((el) => {
       el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));

@@ -1,5 +1,6 @@
 const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
+const Historial = require('../models/Historial');
 const { toCsv } = require('../utils/csv');
 const { traduirNomEsdeveniment, traduirATotsIdiomes } = require('../utils/traduccio');
 const { validarDefinicionCampos } = require('../utils/camposFormulario');
@@ -135,7 +136,7 @@ async function crearEvento(req, res) {
     campos_formulario: camposFormulario,
     email_asunto: req.body.email_asunto ? String(req.body.email_asunto).trim() : null,
     email_html: req.body.email_html ? String(req.body.email_html).trim() : null,
-  });
+  }, { origen: 'manual', usuari: req.adminUser });
   res.status(201).json(evento);
 }
 
@@ -187,7 +188,7 @@ async function actualitzarEvento(req, res) {
     canvis.campos_formulario = req.body.campos_formulario;
   }
 
-  const evento = await Evento.update(id, canvis);
+  const evento = await Evento.update(id, canvis, { origen: 'manual', usuari: req.adminUser });
   res.json(evento);
 }
 
@@ -240,10 +241,10 @@ async function eliminarEvento(req, res) {
   }
 
   if (teCompres) {
-    await Compra.eliminarPerEvento(id);
+    await Compra.eliminarPerEvento(id, { origen: 'manual', usuari: req.adminUser });
   }
 
-  await Evento.remove(id);
+  await Evento.remove(id, { origen: 'manual', usuari: req.adminUser });
   res.status(204).send();
 }
 
@@ -262,8 +263,22 @@ async function cancelarCompra(req, res) {
   if (['cancelado', 'reembolsado'].includes(compra.estado_pago)) {
     return res.status(409).json({ error: 'operacio_no_aplicable' });
   }
-  await Compra.marcarCancelado(id);
+  await Compra.marcarCancelado(id, { origen: 'manual', usuari: req.adminUser });
   res.json(await Compra.getById(id));
+}
+
+/**
+ * GET /api/admin/historial
+ * Registre de moviments (creacions, modificacions manuals i automàtiques,
+ * compres, pagaments i cancel·lacions), amb paginació i filtre opcional
+ * per esdeveniment. Accessible en lectura per admin i viewer.
+ */
+async function llistarHistorial(req, res) {
+  const eventoId = req.query.eventoId ? parseInt(req.query.eventoId, 10) : undefined;
+  const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
+  const offset = parseInt(req.query.offset, 10) || 0;
+  const entrades = await Historial.llistar({ eventoId, limit, offset });
+  res.json(entrades);
 }
 
 const COLUMNES_CSV = [
@@ -325,4 +340,5 @@ module.exports = {
   exportarComprasCsv,
   traduirNom,
   enviarEmailDePrueba,
+  llistarHistorial,
 };

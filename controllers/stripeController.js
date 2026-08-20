@@ -120,7 +120,7 @@ async function crearCheckoutSession(req, res) {
       nombre_fiscal: req.body.quiere_factura ? String(req.body.nombre_fiscal).trim() : null,
       direccion_fiscal: req.body.quiere_factura ? String(req.body.direccion_fiscal).trim() : null,
       respuestas_campos: respuestasNormalizadas,
-    });
+    }, { origen: 'client', usuari: req.body.email.trim().toLowerCase() });
 
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     const expiresAt = Math.floor(Date.now() / 1000) + EXPIRA_MINUTS * 60;
@@ -151,7 +151,11 @@ async function crearCheckoutSession(req, res) {
         cancel_url: `${baseUrl}/cancel.html?session_id={CHECKOUT_SESSION_ID}`,
       });
     } catch (errStripe) {
-      await Compra.marcarCancelado(compra.id);
+      await Compra.marcarCancelado(compra.id, {
+        origen: 'automatic',
+        usuari: 'sistema',
+        descripcio: `Compra #${compra.id} cancel·lada automàticament (error creant la sessió de pagament)`,
+      });
       throw errStripe;
     }
 
@@ -178,7 +182,7 @@ async function cancelarCheckoutSession(req, res) {
 
   const compra = await Compra.findBySessionId(sessionId);
   if (compra && compra.estado_pago === 'pendiente') {
-    await Compra.marcarCancelado(compra.id);
+    await Compra.marcarCancelado(compra.id, { origen: 'client', usuari: compra.email });
     console.log(`Compra #${compra.id} cancel·lada per l'usuari des de cancel_url.`);
   }
 
@@ -206,7 +210,7 @@ async function webhook(req, res) {
       const session = event.data.object;
       const compra = await Compra.findBySessionId(session.id);
       if (compra && compra.estado_pago !== 'pagado') {
-        await Compra.marcarPagado(compra.id);
+        await Compra.marcarPagado(compra.id, { origen: 'automatic', usuari: 'sistema' });
         console.log(`Compra #${compra.id} marcada com a pagada.`);
         const evento = await Evento.getById(compra.evento_id);
         if (evento) {
@@ -220,7 +224,7 @@ async function webhook(req, res) {
       const session = event.data.object;
       const compra = await Compra.findBySessionId(session.id);
       if (compra && compra.estado_pago === 'pendiente') {
-        await Compra.marcarCancelado(compra.id);
+        await Compra.marcarCancelado(compra.id, { origen: 'automatic', usuari: 'sistema' });
         console.log(`Compra #${compra.id} cancel·lada per expiració de sessió.`);
       }
       break;

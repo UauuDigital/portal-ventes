@@ -7,7 +7,7 @@
 <link rel="icon" href="/assets/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css?v=85">
+<link rel="stylesheet" href="/css/admin.css?v=88">
 </head>
 <body>
 <div class="admin-shell">
@@ -63,6 +63,24 @@
           <span><i class="calendari-punt calendari-punt--gris"></i> Ja celebrat</span>
         </div>
       </div>
+
+      <div class="admin-historial">
+        <h2 class="admin-col-title">Historial</h2>
+        <div class="admin-historial-llista" id="historial-llista"></div>
+        <button type="button" class="btn-secundari admin-historial-carregar-mes hidden" id="btn-historial-mes">Carregar més</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-modal-overlay hidden" id="modal-historial-detall" role="dialog" aria-modal="true" aria-labelledby="titol-modal-historial">
+    <div class="admin-modal admin-modal--historial">
+      <div class="admin-col-title-row">
+        <h2 class="admin-col-title" id="titol-modal-historial">Detall del moviment</h2>
+        <button type="button" id="btn-tancar-historial" class="btn-tancar-modal objectiu-tactil" aria-label="Tanca">×</button>
+      </div>
+      <p class="admin-historial-detall-descripcio" id="historial-detall-descripcio"></p>
+      <p class="admin-historial-detall-meta" id="historial-detall-meta"></p>
+      <div class="admin-historial-detall-canvis" id="historial-detall-canvis"></div>
     </div>
   </div>
 
@@ -164,5 +182,6 @@
   </div>
 </div>
 <script src="/js/admin.js?v=60"></script>
+<script src="/js/admin-historial.js?v=3"></script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const db = require('../config/db');
+const Historial = require('./Historial');
 
 // Estats que encara ocupen aforament: pagades + pendents que no han expirat
 // (les pendents expirades es marquen 'cancelado' des del webhook checkout.session.expired)
@@ -17,7 +18,7 @@ const ESTATS_OCUPEN_AFORO = ['pendiente', 'pagado'];
 // sobrevenda puntual (s'hauria de resoldre manualment si passa).
 const MINUTS_RESERVA = parseInt(process.env.RESERVA_MINUTES || '15', 10);
 
-async function create(data) {
+async function create(data, meta = {}) {
   const stmt = db.prepare(
     `INSERT INTO compras (
        evento_id, nombre_comprador, email, telefono, cantidad, importe_total,
@@ -39,7 +40,18 @@ async function create(data) {
     respuestas_campos: JSON.stringify(data.respuestas_campos || {}),
     edit_token: crypto.randomBytes(24).toString('hex'),
   });
-  return getById(info.lastInsertRowid);
+  const compra = await getById(info.lastInsertRowid);
+  await Historial.registrar({
+    tipus_entitat: 'compra',
+    entitat_id: compra.id,
+    evento_id: compra.evento_id,
+    accio: 'compra',
+    origen: meta.origen || 'client',
+    usuari: meta.usuari || compra.email,
+    descripcio: `Compra #${compra.id} creada per ${compra.nombre_comprador} (${compra.cantidad} entrades)`,
+    dades_despres: compra,
+  });
+  return compra;
 }
 
 async function getById(id) {
@@ -65,12 +77,45 @@ async function setSessionId(id, sessionId) {
   await db.prepare('UPDATE compras SET stripe_checkout_session_id = ? WHERE id = ?').run(sessionId, id);
 }
 
-async function marcarPagado(id) {
+async function marcarPagado(id, meta = {}) {
+  const abans = await getById(id);
+  if (!abans || abans.estado_pago === 'pagado') return;
   await db.prepare("UPDATE compras SET estado_pago = 'pagado' WHERE id = ?").run(id);
+  await Historial.registrar({
+    tipus_entitat: 'compra',
+    entitat_id: id,
+    evento_id: abans.evento_id,
+    accio: 'pagament',
+    origen: meta.origen || 'automatic',
+    usuari: meta.usuari || 'sistema',
+    descripcio: meta.descripcio || `Compra #${id} marcada com a pagada`,
+    dades_abans: { estado_pago: abans.estado_pago },
+    dades_despres: { estado_pago: 'pagado' },
+  });
 }
 
-async function marcarCancelado(id) {
+const DESCRIPCIONS_CANCELACIO = {
+  manual: (id) => `Compra #${id} cancel·lada per l'admin`,
+  automatic: (id) => `Compra #${id} cancel·lada automàticament (sessió de pagament expirada)`,
+  client: (id) => `Compra #${id} cancel·lada per l'usuari`,
+};
+
+async function marcarCancelado(id, meta = {}) {
+  const abans = await getById(id);
+  if (!abans || abans.estado_pago === 'cancelado') return;
   await db.prepare("UPDATE compras SET estado_pago = 'cancelado' WHERE id = ?").run(id);
+  const origen = meta.origen || 'automatic';
+  await Historial.registrar({
+    tipus_entitat: 'compra',
+    entitat_id: id,
+    evento_id: abans.evento_id,
+    accio: 'cancelacio',
+    origen,
+    usuari: meta.usuari || (origen === 'automatic' ? 'sistema' : null),
+    descripcio: meta.descripcio || (DESCRIPCIONS_CANCELACIO[origen] || DESCRIPCIONS_CANCELACIO.automatic)(id),
+    dades_abans: { estado_pago: abans.estado_pago },
+    dades_despres: { estado_pago: 'cancelado' },
+  });
 }
 
 /**
@@ -101,8 +146,21 @@ async function listByEvento(eventoId) {
     .all(eventoId);
 }
 
-async function eliminarPerEvento(eventoId) {
+async function eliminarPerEvento(eventoId, meta = {}) {
+  const compres = await listByEvento(eventoId);
   await db.prepare('DELETE FROM compras WHERE evento_id = ?').run(eventoId);
+  if (compres.length > 0) {
+    await Historial.registrar({
+      tipus_entitat: 'compra',
+      entitat_id: null,
+      evento_id: eventoId,
+      accio: 'eliminacio',
+      origen: meta.origen || 'manual',
+      usuari: meta.usuari || null,
+      descripcio: `${compres.length} compra${compres.length === 1 ? '' : 's'} eliminada${compres.length === 1 ? '' : 's'} en eliminar l'esdeveniment`,
+      dades_abans: { total: compres.length },
+    });
+  }
 }
 
 module.exports = {

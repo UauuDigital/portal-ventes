@@ -907,6 +907,168 @@ body:has(> .admin-shell) {
 .calendari-punt--vermell { background: #F0C9C4; }
 .calendari-punt--gris { background: #DEDBD8; }
 
+.admin-historial {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.admin-historial-llista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.admin-historial-buit {
+  font-size: 13px;
+  color: var(--admin-muted-text);
+  margin: 0;
+}
+
+.admin-historial-entrada {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(34, 31, 30, 0.08);
+}
+
+.admin-historial-entrada:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.admin-historial-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  color: var(--dark);
+  white-space: nowrap;
+}
+
+.admin-historial-entrada--verd .admin-historial-badge { background: #C7D9BE; }
+.admin-historial-entrada--vermell .admin-historial-badge { background: #F0C9C4; }
+.admin-historial-entrada--gris .admin-historial-badge { background: #DEDBD8; }
+
+.admin-historial-cos {
+  min-width: 0;
+}
+
+.admin-historial-descripcio {
+  margin: 0 0 2px;
+  font-size: 13px;
+  color: var(--dark);
+  word-break: break-word;
+}
+
+.admin-historial-meta {
+  margin: 0;
+  font-size: 11px;
+  color: var(--admin-muted-text);
+}
+
+.admin-historial-carregar-mes {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.admin-historial-carregar-mes.hidden {
+  display: none;
+}
+
+.admin-historial-entrada {
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.admin-historial-entrada:hover,
+.admin-historial-entrada:focus-visible {
+  background: rgba(34, 31, 30, 0.04);
+  outline: none;
+}
+
+.admin-modal--historial {
+  max-width: 520px;
+}
+
+.admin-historial-detall-descripcio {
+  font-size: 15px;
+  color: var(--dark);
+  margin: 0 0 4px;
+}
+
+.admin-historial-detall-meta {
+  font-size: 12px;
+  color: var(--admin-muted-text);
+  margin: 0 0 18px;
+}
+
+.admin-historial-detall-canvis {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.admin-historial-detall-buit {
+  font-size: 13px;
+  color: var(--admin-muted-text);
+  margin: 0;
+}
+
+.fila-canvi-historial {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(34, 31, 30, 0.08);
+}
+
+.fila-canvi-historial:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.fila-canvi-historial-etiqueta {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--admin-muted-text);
+}
+
+.fila-canvi-historial-valors {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.valor-anterior {
+  color: var(--admin-muted-text);
+  text-decoration: line-through;
+  word-break: break-word;
+}
+
+.valor-nou {
+  color: var(--dark);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.fletxa-canvi {
+  color: var(--admin-muted-text);
+}
+
 /* Vinyeta (tooltip) en passar el cursor per sobre d'un event del calendari */
 .calendari-tooltip {
   position: fixed;

@@ -57,8 +57,29 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_compras_edit_token ON compras(edit_token) 
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_asunto TEXT;
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_html TEXT;
 
+-- Historial/auditoria: registre de creacions, modificacions (manuals o
+-- automàtiques), compres, pagaments i cancel·lacions d'entrades. Es
+-- consulta des de l'admin (admin i viewer, només lectura).
+CREATE TABLE IF NOT EXISTS historial (
+  id SERIAL PRIMARY KEY,
+  tipus_entitat TEXT NOT NULL,            -- 'evento' | 'compra'
+  entitat_id INTEGER,                     -- pot ser NULL (ex: eliminació en bloc de compres)
+  evento_id INTEGER,                      -- esdeveniment relacionat, per poder filtrar-hi sempre
+  accio TEXT NOT NULL,                    -- 'creacio' | 'compra' | 'modificacio' | 'cancelacio' | 'pagament' | 'eliminacio'
+  origen TEXT NOT NULL DEFAULT 'manual',  -- 'manual' (admin) | 'automatic' (sistema) | 'client' (comprador)
+  usuari TEXT,
+  descripcio TEXT NOT NULL,
+  dades_abans JSONB,
+  dades_despres JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_historial_evento ON historial(evento_id);
+CREATE INDEX IF NOT EXISTS idx_historial_created ON historial(created_at DESC);
+
 -- L'app es connecta sempre via Postgres directe (usuari amb privilegis, no
 -- subjecte a RLS): activar-ho aquí només bloqueja l'accés públic accidental
 -- via l'API REST autogenerada de Supabase (PostgREST/anon key).
 ALTER TABLE eventos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE compras ENABLE ROW LEVEL SECURITY;
+ALTER TABLE historial ENABLE ROW LEVEL SECURITY;

@@ -1,4 +1,11 @@
 const db = require('../config/db');
+const Historial = require('./Historial');
+
+const CAMPS_AUDITABLES = [
+  'nombre', 'nombre_es', 'nombre_en', 'fecha', 'descripcion', 'descripcion_es', 'descripcion_en',
+  'precio', 'aforo_total', 'fecha_limite_compra', 'estado', 'nombre_invitado', 'cargo_invitado',
+  'campos_formulario', 'email_asunto', 'email_html',
+];
 
 /**
  * Tanca automàticament els esdeveniments oberts la data límit de compra dels
@@ -7,12 +14,31 @@ const db = require('../config/db');
  */
 async function tancarExpirats() {
   const now = new Date().toISOString();
+  const afectats = await db
+    .prepare(`SELECT id, nombre FROM eventos WHERE estado = 'abierto' AND fecha_limite_compra <= ?`)
+    .all(now);
+  if (afectats.length === 0) return;
+
   await db
     .prepare(
       `UPDATE eventos SET estado = 'cerrado'
        WHERE estado = 'abierto' AND fecha_limite_compra <= ?`
     )
     .run(now);
+
+  for (const ev of afectats) {
+    await Historial.registrar({
+      tipus_entitat: 'evento',
+      entitat_id: ev.id,
+      evento_id: ev.id,
+      accio: 'modificacio',
+      origen: 'automatic',
+      usuari: 'sistema',
+      descripcio: `Esdeveniment "${ev.nombre}" tancat automàticament (termini de compra superat)`,
+      dades_abans: { estado: 'abierto' },
+      dades_despres: { estado: 'cerrado' },
+    });
+  }
 }
 
 /**
@@ -56,7 +82,7 @@ async function getById(id) {
   return db.prepare('SELECT * FROM eventos WHERE id = ?').get(id);
 }
 
-async function create(data) {
+async function create(data, meta = {}) {
   const stmt = db.prepare(
     `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado, nombre_invitado, cargo_invitado, campos_formulario, email_asunto, email_html)
      VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado, @nombre_invitado, @cargo_invitado, @campos_formulario, @email_asunto, @email_html)
@@ -77,10 +103,21 @@ async function create(data) {
     ...data,
     campos_formulario: JSON.stringify(data.campos_formulario || []),
   });
-  return getById(info.lastInsertRowid);
+  const evento = await getById(info.lastInsertRowid);
+  await Historial.registrar({
+    tipus_entitat: 'evento',
+    entitat_id: evento.id,
+    evento_id: evento.id,
+    accio: 'creacio',
+    origen: meta.origen || 'manual',
+    usuari: meta.usuari || null,
+    descripcio: `Esdeveniment "${evento.nombre}" creat`,
+    dades_despres: evento,
+  });
+  return evento;
 }
 
-async function update(id, data) {
+async function update(id, data, meta = {}) {
   const actual = await getById(id);
   if (!actual) return null;
   const {
@@ -110,7 +147,22 @@ async function update(id, data) {
       email_asunto: email_asunto || null,
       email_html: email_html || null,
     });
-  return getById(id);
+  const nou = await getById(id);
+  const { abans, despres, hiHaCanvis } = Historial.diffCamps(actual, nou, CAMPS_AUDITABLES);
+  if (hiHaCanvis) {
+    await Historial.registrar({
+      tipus_entitat: 'evento',
+      entitat_id: id,
+      evento_id: id,
+      accio: 'modificacio',
+      origen: meta.origen || 'manual',
+      usuari: meta.usuari || (meta.origen === 'automatic' ? 'sistema' : null),
+      descripcio: `Esdeveniment "${nou.nombre}" modificat`,
+      dades_abans: abans,
+      dades_despres: despres,
+    });
+  }
+  return nou;
 }
 
 async function listAll() {
@@ -118,8 +170,21 @@ async function listAll() {
   return db.prepare('SELECT * FROM eventos ORDER BY fecha DESC').all();
 }
 
-async function remove(id) {
+async function remove(id, meta = {}) {
+  const evento = await getById(id);
   await db.prepare('DELETE FROM eventos WHERE id = ?').run(id);
+  if (evento) {
+    await Historial.registrar({
+      tipus_entitat: 'evento',
+      entitat_id: id,
+      evento_id: id,
+      accio: 'eliminacio',
+      origen: meta.origen || 'manual',
+      usuari: meta.usuari || null,
+      descripcio: `Esdeveniment "${evento.nombre}" eliminat`,
+      dades_abans: evento,
+    });
+  }
 }
 
 module.exports = { getActivo, listActivos, getById, create, update, listAll, remove };
