@@ -66,6 +66,24 @@
   text-decoration: underline;
 }
 
+/* Només a escriptori: el crumb puja al mateix nivell que "Espai Econòmic".
+   Traiem el position:relative de .evento-info-titol perquè el contenidor
+   de referència de l'absolute torni a ser .panel-color (que ja té
+   position:relative). Com que top/right d'un absolute es calculen contra
+   la padding-box del seu contenidor —no contra on comença el contingut—,
+   cal repetir el padding del panell (48px 40px) perquè quedi alineat amb
+   el logo en lloc de la cantonada exterior del panell. A mòbil es manté
+   el comportament original (relatiu a .evento-info-titol). */
+@media (min-width: 721px) {
+  .evento-info-titol {
+    position: static;
+  }
+  .breadcrumb-tornar {
+    top: 48px;
+    right: 40px;
+  }
+}
+
 .panel-white {
   background: var(--light);
   justify-content: center;
@@ -177,6 +195,19 @@
   }
   .panel {
     padding: 32px 24px;
+  }
+
+  /* A mòbil, el selector d'idioma només s'ha de veure mentre s'està triant
+     entre diversos esdeveniments actius (#selector-esdeveniments), no un
+     cop ja s'ha entrat al formulari de compra. Si només hi ha un
+     esdeveniment, el selector mai apareix i aquesta regla no s'activa —
+     el switch es queda visible com sempre.
+     #selector-grid conserva els botons encara que el selector quedi
+     amagat (només es torna a buidar si es refresca la llista), així que
+     "el grid té un segon .selector-btn" és un senyal fiable que hi havia
+     més d'un esdeveniment, sense necessitat de marcar-ho des del JS. */
+  body:has(#selector-grid > .selector-btn:nth-child(2)):has(#main-card:not(.hidden)) .menu-idioma {
+    display: none;
   }
 }
 
