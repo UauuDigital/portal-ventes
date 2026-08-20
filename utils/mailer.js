@@ -155,4 +155,45 @@ async function enviarEmailPrueba({ destinatario, asunto, html, evento, baseUrl }
   });
 }
 
-module.exports = { enviarEmailConfirmacio, enviarEmailPrueba, VARIABLES_DISPONIBLES };
+/**
+ * Notificació interna a digital@uauu.cat quan un comprador demana factura:
+ * inclou les dades fiscals i les dades de l'esdeveniment/compra perquè
+ * l'equip pugui emetre i enviar la factura manualment. Enviament "best
+ * effort", igual que enviarEmailConfirmacio: no ha de fer fallar el webhook.
+ */
+async function enviarNotificacioFactura({ compra, evento }) {
+  if (!process.env.RESEND_API_KEY) {
+    console.error('No s\'ha pogut enviar la notificació de factura: falta RESEND_API_KEY.');
+    return;
+  }
+
+  const html = `
+    <div style="font-family:sans-serif; max-width:480px; margin:0 auto;">
+      <h1 style="font-size:20px;">Sol·licitud de factura</h1>
+      <p><strong>Esdeveniment:</strong> ${evento.nombre}</p>
+      <p><strong>Data i hora:</strong> ${formatDataHora(evento.fecha)}</p>
+      <ul>
+        <li><strong>Comprador:</strong> ${compra.nombre_comprador} (${compra.email})</li>
+        <li><strong>Entrades:</strong> ${compra.cantidad}</li>
+        <li><strong>Import total:</strong> ${formatEuros(compra.importe_total)}</li>
+      </ul>
+      <p><strong>Dades de facturació</strong><br>
+      ${compra.nombre_fiscal}<br>
+      NIF/CIF: ${compra.nif}<br>
+      ${compra.direccion_fiscal}</p>
+    </div>
+  `;
+
+  try {
+    await client().emails.send({
+      from: process.env.RESEND_FROM,
+      to: 'digital@uauu.cat',
+      subject: `Sol·licitud de factura — ${evento.nombre}`,
+      html,
+    });
+  } catch (err) {
+    console.error('Error enviant la notificació de factura via Resend:', err);
+  }
+}
+
+module.exports = { enviarEmailConfirmacio, enviarEmailPrueba, enviarNotificacioFactura, VARIABLES_DISPONIBLES };

@@ -1,7 +1,7 @@
 const Stripe = require('stripe');
 const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
-const { enviarEmailConfirmacio } = require('../utils/mailer');
+const { enviarEmailConfirmacio, enviarNotificacioFactura } = require('../utils/mailer');
 const { validarRespuestas } = require('../utils/camposFormulario');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
@@ -216,6 +216,9 @@ async function webhook(req, res) {
         if (evento) {
           const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
           await enviarEmailConfirmacio({ compra: { ...compra, estado_pago: 'pagado' }, evento, baseUrl });
+          if (compra.quiere_factura) {
+            await enviarNotificacioFactura({ compra, evento });
+          }
         }
       }
       break;
@@ -256,6 +259,7 @@ async function obtenerConfirmacion(req, res) {
       nombre_comprador: compra.nombre_comprador,
       cantidad: compra.cantidad,
       importe_total: compra.importe_total,
+      quiere_factura: compra.quiere_factura,
     },
   });
 }
