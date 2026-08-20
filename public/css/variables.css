@@ -125,6 +125,7 @@ body.pagina-principal::after {
   body.pagina-principal::before,
   body.pagina-principal::after {
     animation: none;
+    will-change: auto;
   }
 }
 

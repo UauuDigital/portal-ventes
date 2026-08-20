@@ -39,6 +39,7 @@
       footer_condicions: 'Condicions de venda',
       modal_tanca: 'Tanca',
       modal_carregant: 'Carregant…',
+      prefix_pais_label: 'Prefix del país',
       modal_error: "No s'ha pogut carregar el contingut.",
 
       motiu_no_event: 'Ara mateix no hi ha cap esdeveniment obert per a la venda de entrades.',
@@ -172,6 +173,7 @@
       modal_tanca: 'Cerrar',
       modal_carregant: 'Cargando…',
       modal_error: 'No se ha podido cargar el contenido.',
+      prefix_pais_label: 'Prefijo del país',
 
       motiu_no_event: 'Ahora mismo no hay ningún evento abierto para la venta de entradas.',
       motiu_data_limit: 'El plazo de compra para este evento ha finalizado.',
@@ -304,6 +306,7 @@
       modal_tanca: 'Close',
       modal_carregant: 'Loading…',
       modal_error: 'The content could not be loaded.',
+      prefix_pais_label: 'Country prefix',
 
       motiu_no_event: 'There is currently no open event for ticket sales.',
       motiu_data_limit: 'The purchase window for this event has ended.',
@@ -471,6 +474,8 @@
         font-weight: 500;
         letter-spacing: 0.02em;
         padding: 6px 12px;
+        min-height: 44px;
+        min-width: 44px;
         border-radius: 999px;
         cursor: pointer;
         transition: background 150ms ease-out, color 150ms ease-out;

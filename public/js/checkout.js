@@ -106,6 +106,7 @@ function inicialitzarPrefixTelefon() {
     `
   ).join('');
   spanBandera.innerHTML = BANDERES.ES;
+  btn.setAttribute('aria-label', `Prefix telefònic: Espanya, +34`);
 
   function obrir() {
     llista.classList.remove('hidden');
@@ -116,9 +117,11 @@ function inicialitzarPrefixTelefon() {
     btn.setAttribute('aria-expanded', 'false');
   }
   function triar(opcioEl) {
+    const nomPais = opcioEl.querySelector('.prefix-telefon-opcio-nom').textContent;
     spanBandera.innerHTML = BANDERES[opcioEl.dataset.iso];
     spanCodi.textContent = opcioEl.dataset.codi;
     inputAmagat.value = opcioEl.dataset.codi;
+    btn.setAttribute('aria-label', `Prefix telefònic: ${nomPais}, ${opcioEl.dataset.codi}`);
     tancar();
   }
 

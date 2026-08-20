@@ -1,0 +1,40 @@
+/* Pàgines de text legal (avís legal, condicions, cookies, privacitat):
+   mateixa estructura senzilla (h1 + bloc .avis amb h2/p), reutilitzada
+   per les 4 pàgines en lloc de duplicar-la en un <style> inline a cadascuna. */
+/* variables.css defineix body com a flex container centrat (pensat per a
+   les pantalles de targeta); aquí es reseteja a bloc normal perquè
+   max-width + margin:auto centrin la columna de text com cal. */
+body {
+  display: block;
+  min-height: 0;
+  font-family: var(--font-sans);
+  max-width: 640px;
+  margin: 60px auto;
+  padding: 0 24px;
+  color: var(--dark);
+  background: var(--light);
+}
+
+.avis {
+  background: var(--white);
+  border: 1px solid rgba(34, 31, 30, 0.15);
+  border-radius: var(--radius-image);
+  padding: 20px;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.avis h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 20px 0 6px;
+}
+
+.avis h2:first-of-type {
+  margin-top: 0;
+}
+
+.avis p {
+  margin: 0 0 12px;
+}

@@ -26,6 +26,9 @@ public/              # index.html (compra), success.html, cancel.html, admin/*, 
 - Credencials per variables d'entorn: `ADMIN_USER`/`ADMIN_PASS` i `VIEWER_USER`/`VIEWER_PASS`.
 - `middleware/authMiddleware.js`: `requireRole(...rols)` per protegir rutes segons rol.
 
+## Decisions conegudes
+- `public/mis-datos.html` / `public/js/mis-datos.js` són intencionadament només en català, a diferència de la resta del frontend públic (que és multi-idioma via `js/i18n.js`). El motiu: l'enllaç a aquesta pàgina s'envia per email després de la compra i, ara mateix, no es guarda l'idioma triat pel comprador (`eventos`/`compras` no tenen columna de locale), de manera que no hi ha manera de saber en quin idioma renderitzar-la. Fer-la multi-idioma de debò requeriria desar l'idioma de compra a la BD i passar-lo a l'enllaç — no és un simple afegit de claus `data-i18n`. Si es vol abordar, cal fer-ho com a tasca pròpia (canvi d'esquema + backend), no com a retoc de frontend.
+
 ## Notes de domini
 - `eventos.fecha` és sempre un datetime complet (no hi ha hora fixa hardcoded): tota pantalla que mostri l'hora de l'esdeveniment l'ha de llegir d'aquest camp, mai reescriure-la a mà.
 - `eventos.nombre_invitado` / `cargo_invitado`: camps informatius que introdueix l'admin, no responen a res que ompli el comprador.
