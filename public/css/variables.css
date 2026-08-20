@@ -21,13 +21,30 @@
 
 :root {
   --dark: #221F1E;
+  --dark-hover: #3a3532;
   --light: #F2EFEE;
   --white: #ffffff;
   --dark-muted: rgba(34, 31, 30, 0.6);
+  /* Variant més fosca de --dark-muted, només per a text: --dark-muted
+     (0.6) sobre --light queda a ~4.18:1, per sota del 4.5:1 que exigeix
+     WCAG AA per a text normal/petit. No es toca --dark-muted en si (té
+     usos no textuals, com icones, on 0.6 ja compleix el llindar de 3:1).
+     Mateix valor que --admin-muted-text (admin.css), unificat aquí. */
+  --dark-muted-text: rgba(34, 31, 30, 0.7);
   --dark-faint: rgba(34, 31, 30, 0.35);
   --light-muted: rgba(255, 255, 255, 0.6);
   --light-faint: rgba(255, 255, 255, 0.35);
   --error: #b3261e;
+
+  /* Accent únic de marca: terracota trencat, evoca el segell d'una
+     entrada d'esdeveniment. S'usa amb moderació: aforament baix i
+     senyalització de la perforació de tiquet. */
+  --accent: #B3492E;
+  /* Variant clarificada de --accent, només per pintar-lo sobre el
+     fons fosc (barra d'aforament dins el panell fosc): --accent pur
+     hi dona ~1.8:1, per sota del 3:1 que exigeix WCAG AA per a
+     components d'interfície (1.4.11). Aquesta variant hi dona ~3.5:1. */
+  --accent-on-dark: #CE8977;
 
   --font-serif: 'Ogg', Georgia, serif;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -71,70 +88,5 @@ body {
 @media (max-width: 720px) {
   body {
     padding: 0;
-  }
-}
-
-/* Fons de la pantalla principal: dues taques radials borroses ("bombolles")
-   que deriven lleugerament a les seves cantonades. Purament atmosfèric. */
-body.pagina-principal {
-  position: relative;
-  z-index: 0;
-  overflow-x: hidden;
-}
-
-body.pagina-principal::before,
-body.pagina-principal::after {
-  content: '';
-  position: fixed;
-  z-index: -1;
-  border-radius: 50%;
-  pointer-events: none;
-  filter: blur(35px);
-  will-change: transform;
-}
-
-body.pagina-principal::before {
-  top: -18%;
-  left: -12%;
-  width: 60vw;
-  height: 60vw;
-  background: radial-gradient(circle, rgba(34, 31, 30, 0.4), transparent 68%);
-  animation: bombolles-a 11s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
-}
-
-body.pagina-principal::after {
-  bottom: -22%;
-  right: -14%;
-  width: 65vw;
-  height: 65vw;
-  background: radial-gradient(circle, rgba(34, 31, 30, 0.32), transparent 68%);
-  animation: bombolles-b 13s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
-}
-
-@keyframes bombolles-a {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(4vw, 5vh) scale(1.12); }
-}
-
-@keyframes bombolles-b {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(-4vw, -5vh) scale(1.1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  body.pagina-principal::before,
-  body.pagina-principal::after {
-    animation: none;
-    will-change: auto;
-  }
-}
-
-/* Amb la targeta a sang (sense marges) en mòbil, les bombolles fixes
-   travessen la pantalla per sota del contingut i es veuen com una
-   ombra. Les amaguem en aquesta amplada. */
-@media (max-width: 480px) {
-  body.pagina-principal::before,
-  body.pagina-principal::after {
-    display: none;
   }
 }

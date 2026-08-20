@@ -326,11 +326,11 @@ function renderSelectorEsdeveniments(eventos) {
     btn.style.setProperty('--i', i);
     btn.innerHTML = `
       <span class="selector-btn-nom">${escapeHtml(ev.nombre)}</span>
-      <span class="selector-btn-data">📅 ${escapeHtml(new Date(ev.fecha).toLocaleString(localeActual()))}</span>
+      <span class="selector-btn-data"><span aria-hidden="true">📅</span> ${escapeHtml(new Date(ev.fecha).toLocaleString(localeActual()))}</span>
       <div class="aforo-bar aforo-bar--selector">
         <div class="aforo-bar-fill ${classe}" style="width:${percentOcupat}%"></div>
       </div>
-      <span class="selector-btn-aforo">🎟️ ${ev.aforo_disponible} ${escapeHtml(t('places_disponibles'))}</span>
+      <span class="selector-btn-aforo"><span aria-hidden="true">🎟️</span> ${ev.aforo_disponible} ${escapeHtml(t('places_disponibles'))}</span>
     `;
 
     btn.addEventListener('click', (evt) => {

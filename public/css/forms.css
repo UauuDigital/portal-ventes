@@ -1,4 +1,4 @@
-.form-side h1 {
+.form-side h2 {
   font-family: var(--font-serif);
   font-weight: 500;
   font-size: 30px;
@@ -10,7 +10,7 @@
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 300;
-  color: var(--dark-muted);
+  color: var(--dark-muted-text);
   margin: 0 0 24px;
 }
 
@@ -20,7 +20,7 @@ label {
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--dark-muted);
+  color: var(--dark-muted-text);
   display: block;
   margin-bottom: 6px;
 }
@@ -129,7 +129,7 @@ input[type="checkbox"]:focus-visible {
 }
 
 .prefix-telefon-btn svg {
-  color: var(--dark-muted);
+  color: var(--dark-muted-text);
   flex-shrink: 0;
 }
 
@@ -203,7 +203,7 @@ input[type="checkbox"]:focus-visible {
 
 .prefix-telefon-opcio-codi {
   flex-shrink: 0;
-  color: var(--dark-muted);
+  color: var(--dark-muted-text);
   font-weight: 500;
 }
 
@@ -214,7 +214,7 @@ input[type="checkbox"]:focus-visible {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 300;
-  color: var(--dark-muted);
+  color: var(--dark-muted-text);
   margin-bottom: 16px;
 }
 
@@ -248,7 +248,7 @@ input[type="checkbox"]:focus-visible {
   transition: background 0.25s ease, opacity 0.25s ease;
 }
 
-.btn-primary:hover { background: #3a3532; }
+.btn-primary:hover { background: var(--dark-hover); }
 
 .btn-primary:disabled {
   opacity: 0.5;
@@ -260,7 +260,7 @@ input[type="checkbox"]:focus-visible {
   align-items: center;
   gap: 10px;
   font-family: var(--font-sans);
-  color: var(--dark-muted);
+  color: var(--dark-muted-text);
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -283,7 +283,7 @@ input[type="checkbox"]:focus-visible {
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: var(--dark-muted);
+  color: var(--dark-muted-text);
 }
 
 .hidden {
@@ -323,7 +323,7 @@ input[type="checkbox"]:focus-visible {
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--dark-muted);
+  color: var(--dark-muted-text);
 }
 
 /* .opcio-dinamica SÍ és un <label> real: sense aquesta regla heretaria
