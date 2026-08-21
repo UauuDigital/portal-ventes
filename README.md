@@ -42,6 +42,25 @@ npm run dev                 # arrenca amb autoreload (node --watch)
 
 `DATABASE_URL` és la connection string de Postgres del teu projecte Supabase (Dashboard → botó "Connect" → Connection string). El schema (`eventos`, `compras`) es crea automàticament en arrencar si no existeix.
 
+### Variables d'entorn
+
+| Variable | Descripció |
+|---|---|
+| `PORT` | Port on escolta el servidor Express |
+| `NODE_ENV` | `development` / `production` |
+| `BASE_URL` | URL base pública del portal (redireccions de Stripe, enllaços d'email) |
+| `STRIPE_SECRET_KEY` | Clau secreta de Stripe (mode test o live) |
+| `STRIPE_PUBLISHABLE_KEY` | Clau pública de Stripe |
+| `STRIPE_WEBHOOK_SECRET` | Secret per verificar la signatura del webhook de Stripe |
+| `CHECKOUT_EXPIRES_MINUTES` | Minuts d'expiració de la sessió de Checkout |
+| `RESERVA_MINUTES` | Minuts que una compra "pendiente" ocupa plaça abans d'alliberar-se sola |
+| `DATABASE_URL` | Connection string de PostgreSQL (Supabase) |
+| `ADMIN_USER` / `ADMIN_PASS` | Credencials del rol admin del panell |
+| `VIEWER_USER` / `VIEWER_PASS` | Credencials del rol viewer (només lectura) |
+| `SESSION_SECRET` | Cadena llarga i aleatòria per signar la cookie de sessió (HMAC-SHA256) |
+| `RESEND_API_KEY` | Clau d'API de Resend per a l'email de confirmació de compra |
+| `RESEND_FROM` | Remitent de l'email (ha de ser d'un domini verificat a Resend) |
+
 Per provar els webhooks en local amb l'Stripe CLI:
 
 ```bash

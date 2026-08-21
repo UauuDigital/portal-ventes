@@ -1,5 +1,5 @@
 .form-side h2 {
-  font-family: var(--font-serif);
+  font-family: var(--font-heading);
   font-weight: 500;
   font-size: 30px;
   letter-spacing: -0.02em;
@@ -7,7 +7,7 @@
 }
 
 .form-side .subtitle {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 13px;
   font-weight: 300;
   color: var(--dark-muted-text);
@@ -15,7 +15,7 @@
 }
 
 label {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
@@ -55,7 +55,7 @@ textarea {
   border: 1px solid rgba(34, 31, 30, 0.1);
   border-radius: var(--radius-input);
   padding: 12px 14px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 400;
   margin-bottom: 16px;
@@ -122,7 +122,7 @@ input[type="checkbox"]:focus-visible {
   border-right: none;
   border-radius: var(--radius-input) 0 0 var(--radius-input);
   padding: 12px 10px 12px 14px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 14px;
   color: var(--dark);
   cursor: pointer;
@@ -166,7 +166,7 @@ input[type="checkbox"]:focus-visible {
   gap: 8px;
   padding: 8px 10px;
   border-radius: 10px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 13px;
   color: var(--dark);
   cursor: pointer;
@@ -211,7 +211,7 @@ input[type="checkbox"]:focus-visible {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 300;
   color: var(--dark-muted-text);
@@ -239,7 +239,7 @@ input[type="checkbox"]:focus-visible {
   border: 1px solid var(--dark);
   border-radius: var(--radius-pill);
   padding: 15px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.1em;
@@ -259,7 +259,7 @@ input[type="checkbox"]:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   color: var(--dark-muted-text);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -279,7 +279,7 @@ input[type="checkbox"]:focus-visible {
   display: flex;
   gap: 12px;
   justify-content: center;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -300,14 +300,14 @@ input[type="checkbox"]:focus-visible {
   color: var(--error);
   font-size: 12px;
   margin-top: 10px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
 }
 
 .form-ok {
   color: #1e7a34;
   font-size: 12px;
   margin-top: 10px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
 }
 
 .camp-dinamic { margin-bottom: 16px; }
@@ -318,7 +318,7 @@ input[type="checkbox"]:focus-visible {
 .camp-dinamic-etiqueta {
   display: block;
   margin-bottom: 6px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
@@ -335,7 +335,7 @@ input[type="checkbox"]:focus-visible {
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 13px;
   font-weight: 300;
   letter-spacing: normal;

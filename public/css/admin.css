@@ -31,7 +31,7 @@
 }
 
 .admin-login-card h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-heading);
   font-size: 22px;
   font-weight: 500;
   margin: 0 0 24px;
@@ -69,7 +69,7 @@ body:has(> .admin-shell) {
 }
 
 .admin-shell h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-heading);
   font-size: 26px;
   font-weight: 500;
 }
@@ -94,7 +94,7 @@ body:has(> .admin-shell) {
 }
 
 .admin-col-title {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -230,7 +230,7 @@ body:has(> .admin-shell) {
     border: 1px solid rgba(34, 31, 30, 0.15);
     border-radius: var(--radius-pill);
     padding: 10px 8px;
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.03em;
@@ -594,7 +594,7 @@ body:has(> .admin-shell) {
 }
 
 .entrades-restants-numero {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 600;
   min-width: 18px;
@@ -632,7 +632,7 @@ body:has(> .admin-shell) {
   border: 1px solid rgba(34, 31, 30, 0.3);
   border-radius: var(--radius-pill);
   padding: 8px 16px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -666,7 +666,7 @@ body:has(> .admin-shell) {
   border: 1px solid rgba(179, 38, 30, 0.4);
   border-radius: var(--radius-pill);
   padding: 8px 16px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -686,7 +686,7 @@ body:has(> .admin-shell) {
   border: 1px solid rgba(179, 38, 30, 0.4);
   border-radius: var(--radius-pill);
   padding: 5px 12px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.03em;
@@ -726,7 +726,7 @@ body:has(> .admin-shell) {
 }
 
 .admin-calendari-mes {
-  font-family: var(--font-serif);
+  font-family: var(--font-heading);
   font-size: 16px;
   font-weight: 500;
   text-transform: capitalize;
@@ -756,7 +756,7 @@ body:has(> .admin-shell) {
   border: 1.5px solid var(--dark);
   border-radius: var(--radius-pill);
   padding: 4px 14px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.03em;
@@ -815,7 +815,7 @@ body:has(> .admin-shell) {
   justify-content: center;
   width: 26px;
   height: 26px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 12px;
   line-height: 1;
 }
@@ -850,7 +850,7 @@ body:has(> .admin-shell) {
   border-radius: 50%;
   background: var(--dark);
   color: var(--light);
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 9px;
   font-weight: 600;
   line-height: 1;
@@ -1075,7 +1075,7 @@ body:has(> .admin-shell) {
   z-index: 20;
   background: var(--dark);
   color: var(--light);
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 12px;
   line-height: 1.5;
   padding: 8px 12px;
@@ -1217,7 +1217,7 @@ body:has(> .admin-shell) {
 }
 
 .mini-calendari-titol {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
   color: var(--admin-muted-text);
@@ -1248,7 +1248,7 @@ body:has(> .admin-shell) {
 .mini-calendari-hora input[type="time"] {
   width: auto;
   padding: 6px 10px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 13px;
   border: 1px solid rgba(34, 31, 30, 0.2);
   border-radius: 8px;
@@ -1340,7 +1340,7 @@ body:has(> .admin-shell) {
 /* Mateix tractament que el títol "Compres" (evento.html), perquè els dos
    títols de secció d'aquesta pàgina es llegeixin com el mateix nivell. */
 .camps-formulari-titol {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 500;
   text-transform: uppercase;
@@ -1350,14 +1350,14 @@ body:has(> .admin-shell) {
 }
 
 .camps-formulari-ajuda {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 13px;
   color: var(--admin-muted-text);
   margin: 0 0 16px;
 }
 
 .camps-formulari-buit {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 13px;
   color: var(--admin-muted-text);
   padding: 12px 0;
@@ -1373,7 +1373,7 @@ body:has(> .admin-shell) {
 }
 
 .fila-camp-formulari-etiqueta {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 13px;
   font-weight: 500;
   color: var(--dark);
@@ -1381,7 +1381,7 @@ body:has(> .admin-shell) {
 }
 
 .fila-camp-formulari-tipus {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 12px;
   color: var(--admin-muted-text);
   margin-right: 12px;

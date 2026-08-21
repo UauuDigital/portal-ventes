@@ -46,8 +46,8 @@
      components d'interfície (1.4.11). Aquesta variant hi dona ~3.5:1. */
   --accent-on-dark: #CE8977;
 
-  --font-serif: 'Ogg', Georgia, serif;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: 'Ogg', Georgia, serif;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   --radius-card: 32px;
   --radius-image: 16px;
@@ -80,7 +80,7 @@ body {
   align-items: center;
   justify-content: center;
   background: var(--light);
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   color: var(--dark);
   padding: 24px;
 }

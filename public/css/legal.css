@@ -7,7 +7,7 @@
 body {
   display: block;
   min-height: 0;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   max-width: 640px;
   margin: 60px auto;
   padding: 0 24px;

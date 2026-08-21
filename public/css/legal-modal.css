@@ -52,7 +52,7 @@
 }
 
 .legal-modal h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-heading);
   font-size: 22px;
   font-weight: 500;
   margin: 0 0 16px;
