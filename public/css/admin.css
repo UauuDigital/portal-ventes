@@ -167,6 +167,25 @@ body:has(> .admin-shell) {
   max-width: 420px;
   max-height: 90vh;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 31, 30, 0.25) transparent;
+}
+
+.admin-modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-modal::-webkit-scrollbar-thumb {
+  background: rgba(34, 31, 30, 0.25);
+  border-radius: 10px;
+}
+
+.admin-modal::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 31, 30, 0.4);
 }
 
 /* Amb els 3 idiomes en columnes (.camps-traduccio), 420px queda massa
