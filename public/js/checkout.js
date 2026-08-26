@@ -283,17 +283,20 @@ function renderCampsFormulariDinamics(campos) {
 // al final; si es baixa de 3 a 2 es descarta només l'última, sense tocar
 // les dades ja escrites a les que es mantenen.
 //
-// Es mostren com un "mazo" de targetes apilades (vegeu forms.css): només
-// l'acompanyant "actiu" (al davant del mazo) té els seus <input> al DOM en
-// cada moment — la resta són franges de fons sense contingut. Per això, a
-// diferència del comprador principal (que sí és sempre visible i es pot
-// validar només amb required/type=email natius), aquí cal una validació
-// pròpia en JS abans d'enviar — si no, les dades d'una targeta de fons no
-// es comprovarien mai.
+// Es mostren com un acordió: una capçalera "Acompanyant N" per cadascun,
+// amb com a molt un panell desplegat alhora — obrir-ne un tanca
+// automàticament el que estigués obert. Així l'alçada del bloc mai depèn
+// del nombre d'acompanyants (només suma capçaleres tancades, que ocupen
+// poc), a diferència del mazo de targetes de la tanda anterior. Només la
+// secció oberta té els seus <input> al DOM en cada moment — per això, a
+// diferència del comprador principal (sempre visible, validable només amb
+// required/type=email natius), aquí cal una validació pròpia en JS abans
+// d'enviar: si no, les dades d'una secció tancada no es comprovarien mai.
 let acompanyantsActuals = [];
-let acompanyantTabActiva = 0;
+let acompanyantObert = -1; // índex de la secció oberta; -1 = totes tancades
+
 // Es marca a true només després d'un intent d'enviament que ha fallat per
-// dades d'acompanyants invàlides, perquè la vora vermella no aparegui
+// dades d'acompanyants invàlides, perquè cap indicador d'error aparegui
 // abans que l'usuari hagi ni intentat enviar el formulari.
 let intentAcompanyantsFallit = false;
 
@@ -302,120 +305,105 @@ let intentAcompanyantsFallit = false;
 // que de veritat exigeix el servidor.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Nombre màxim de targetes de fons que s'ensenyen amb franja pròpia
-// desplaçada (vegeu _temp_mazo_acompanyants.md per la justificació). Més
-// enllà d'aquest nombre, la resta s'amaguen del tot darrere l'última
-// franja visible i només es reflecteixen al comptador "+N".
-const MAX_ACOMPANYANTS_PEEK = 2;
-
 function acompanyantInvalid(ac) {
   return !ac.nombre.trim() || !EMAIL_REGEX.test(ac.email.trim());
 }
 
-// Genera el HTML d'una targeta del mazo. Només la targeta activa porta els
-// tres camps editables; les de fons són un div buit (només s'hi veu la
-// franja, gràcies al desplaçament per --profunditat en CSS) — no cal
-// pintar-hi contingut que mai s'arribarà a llegir.
+// Fletxa del desplegable, reutilitzada literalment (mateix SVG, no se
+// n'ha creat cap de nou) del desplegable d'acompanyants de l'admin
+// (public/js/admin.js) i del prefix telefònic (public/index.html).
+const ICONA_CHEVRON = '<svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+// Genera el HTML d'una secció de l'acordió. Només la secció oberta porta
+// els tres camps editables al DOM; les tancades només tenen la capçalera
+// (i un contenidor buit perquè aria-controls apunti a un element real).
 //
 // Els labels de nom/email/telèfon es mantenen (accessibilitat: un lector
 // de pantalla els necessita) però visualment amagats amb .sr-only (ja
-// existent al projecte) enlloc del <label> visible que fa servir la resta
-// del formulari: calia una targeta molt més compacta perquè l'alçada fixa
-// del mazo no faci créixer massa el panell (vegeu _temp_mazo_acompanyants.md
-// — el pressupost d'alçada disponible abans de tapar el preu és estret).
-// El número d'ordre ("acompanyant 2") es trasllada al placeholder del
-// primer camp en lloc d'un subtítol propi, pel mateix motiu d'espai.
-function targetaAcompanyantHtml(i, profunditat) {
+// existent al projecte, mateixa tècnica que la tanda del mazo) enlloc del
+// <label> visible que fa servir la resta del formulari — amb diversos
+// acompanyants n'hi ha una capçalera per cadascun, així que calia un
+// panell compacte perquè el bloc sencer no s'acosti massa al pressupost
+// d'alçada disponible abans de tapar el preu (_temp_acordio_acompanyants.md).
+function seccioAcompanyantHtml(i, oberta) {
   const ac = acompanyantsActuals[i];
-  const activa = profunditat === 0;
   const invalida = intentAcompanyantsFallit && acompanyantInvalid(ac);
-  const classes = ['acompanyant-carta'];
-  if (activa) classes.push('acompanyant-carta--activa');
-  if (invalida) classes.push('acompanyant-carta--error');
-  const rolAtributs = activa ? '' : `role="button" tabindex="0" aria-label="Mostrar dades de l'acompanyant ${i + 1}"`;
-  const estil = profunditat > 0 ? ` style="--profunditat:${profunditat}"` : '';
+  const panellId = `acompanyant-panell-${i}`;
 
   return `
-    <div class="${classes.join(' ')}" data-i="${i}"${estil} ${rolAtributs}>
-      ${activa ? `
-        <label class="sr-only" for="acompanyant_nom">Nom i cognoms de l'acompanyant ${i + 1}</label>
-        <input type="text" id="acompanyant_nom" data-camp="nombre" placeholder="Nom i cognoms — acompanyant ${i + 1}" value="${escapeAttr(ac.nombre)}" required>
-        <label class="sr-only" for="acompanyant_email">Email de l'acompanyant ${i + 1}</label>
-        <input type="email" id="acompanyant_email" data-camp="email" placeholder="Email" value="${escapeAttr(ac.email)}" required>
-        <label class="sr-only" for="acompanyant_telefon">Telèfon de l'acompanyant ${i + 1}</label>
-        <input type="tel" id="acompanyant_telefon" data-camp="telefono" placeholder="Telèfon (opcional)" value="${escapeAttr(ac.telefono)}">
-      ` : ''}
+    <div class="acompanyant-seccio${invalida ? ' acompanyant-seccio--error' : ''}">
+      <button type="button" class="acompanyant-capcalera" data-i="${i}" aria-expanded="${oberta}" aria-controls="${panellId}">
+        <span>Acompanyant ${i + 1}</span>
+        ${ICONA_CHEVRON}
+      </button>
+      ${oberta ? `
+        <div class="acompanyant-panell" id="${panellId}">
+          <label class="sr-only" for="acompanyant_nom">Nom i cognoms de l'acompanyant ${i + 1}</label>
+          <input type="text" id="acompanyant_nom" data-camp="nombre" placeholder="Nom i cognoms" value="${escapeAttr(ac.nombre)}" required>
+          <label class="sr-only" for="acompanyant_email">Email de l'acompanyant ${i + 1}</label>
+          <input type="email" id="acompanyant_email" data-camp="email" placeholder="Email" value="${escapeAttr(ac.email)}" required>
+          <label class="sr-only" for="acompanyant_telefon">Telèfon de l'acompanyant ${i + 1}</label>
+          <input type="tel" id="acompanyant_telefon" data-camp="telefono" placeholder="Telèfon (opcional)" value="${escapeAttr(ac.telefono)}">
+        </div>
+      ` : `<div id="${panellId}" class="hidden"></div>`}
     </div>
   `;
 }
 
 function renderAcompanyants(n) {
   const cont = document.getElementById('acompanyants-dinamics');
+  const eraBuit = acompanyantsActuals.length === 0;
 
   while (acompanyantsActuals.length < n) acompanyantsActuals.push({ nombre: '', email: '', telefono: '' });
   acompanyantsActuals.length = n;
 
   if (n === 0) {
     cont.innerHTML = '';
-    acompanyantTabActiva = 0;
+    acompanyantObert = -1;
     return;
   }
 
-  // Si la targeta activa deixa d'existir (p. ex. cantidad baixa estant-hi
-  // a sobre), es passa a l'última vàlida.
-  if (acompanyantTabActiva > n - 1) acompanyantTabActiva = n - 1;
-
-  // Ordre de profunditat al mazo: totes les targetes menys l'activa, en
-  // el seu ordre natural d'índex. Les primeres MAX_ACOMPANYANTS_PEEK
-  // s'ensenyen amb franja pròpia; la resta s'apilen sense desplaçament
-  // addicional darrere l'última (comptador "+N").
-  const fons = [];
-  for (let i = 0; i < n; i++) {
-    if (i !== acompanyantTabActiva) fons.push(i);
+  if (eraBuit) {
+    // Primer cop que apareix el bloc (cantidad passa d'1 a 2+): s'obre
+    // "Acompanyant 1" automàticament, l'usuari no ha de fer clic per
+    // començar a omplir-lo.
+    acompanyantObert = 0;
+  } else if (acompanyantObert > n - 1) {
+    // La secció oberta ha deixat d'existir (cantidad ha baixat): es passa
+    // a l'última vàlida.
+    acompanyantObert = n - 1;
   }
-  const extra = Math.max(0, fons.length - MAX_ACOMPANYANTS_PEEK);
 
-  const cartesFonsHtml = fons
-    .map((i, idx) => targetaAcompanyantHtml(i, Math.min(idx + 1, MAX_ACOMPANYANTS_PEEK)))
-    .join('');
+  const seccionsHtml = Array.from({ length: n }, (_, i) => seccioAcompanyantHtml(i, i === acompanyantObert)).join('');
 
   cont.innerHTML = `
     <p class="acompanyants-titol">Dades dels acompanyants${n > 1 ? ` (${n})` : ''}</p>
-    <div class="acompanyants-mazo">
-      ${cartesFonsHtml}
-      ${targetaAcompanyantHtml(acompanyantTabActiva, 0)}
-      ${extra > 0 ? `<span class="acompanyants-mazo-comptador">+${extra}</span>` : ''}
-    </div>
+    <div class="acompanyants-acordio${intentAcompanyantsFallit ? ' acompanyants-acordio--validat' : ''}">${seccionsHtml}</div>
   `;
 
-  function activar(i) {
-    if (i === acompanyantTabActiva) return;
-    acompanyantTabActiva = i;
-    renderAcompanyants(acompanyantsActuals.length);
-  }
-
-  cont.querySelectorAll('.acompanyant-carta').forEach((carta) => {
-    const i = parseInt(carta.dataset.i, 10);
-    carta.addEventListener('click', () => activar(i));
-    carta.addEventListener('keydown', (evt) => {
-      if (evt.key === 'Enter' || evt.key === ' ') {
-        evt.preventDefault();
-        activar(i);
-      }
+  cont.querySelectorAll('.acompanyant-capcalera').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.i, 10);
+      // Clic sobre la que ja estava oberta: es tanca (cap oberta). Clic
+      // sobre una altra: aquesta s'obre i la resta es tanquen soles,
+      // perquè només n'hi ha una al DOM al mateix temps (acompanyantObert
+      // és un únic índex).
+      acompanyantObert = acompanyantObert === i ? -1 : i;
+      renderAcompanyants(acompanyantsActuals.length);
     });
   });
 
   cont.querySelectorAll('input[data-camp]').forEach((input) => {
     input.addEventListener('input', () => {
-      acompanyantsActuals[acompanyantTabActiva][input.dataset.camp] = input.value;
-      // Repinta només la vora de la targeta activa (no tota la targeta,
-      // per no perdre el focus/cursor de l'input on l'usuari està
-      // escrivint) perquè s'esborri a l'instant en corregir-se. Les
-      // targetes de fons no tenen camps visibles: la seva vora només es
-      // recalcula quan es porten al davant (renderAcompanyants sencer).
+      acompanyantsActuals[acompanyantObert][input.dataset.camp] = input.value;
+      // Repinta només la classe d'error de la secció oberta (no tot
+      // l'acordió, per no perdre el focus/cursor de l'input on l'usuari
+      // està escrivint) perquè s'esborri a l'instant en corregir-se. La
+      // vora vermella dels camps concrets ja es repinta sola (CSS
+      // :invalid, vegeu forms.css) sense necessitat de JS addicional.
       if (intentAcompanyantsFallit) {
-        cont.querySelector('.acompanyant-carta--activa')
-          ?.classList.toggle('acompanyant-carta--error', acompanyantInvalid(acompanyantsActuals[acompanyantTabActiva]));
+        input.closest('.acompanyant-seccio')
+          .classList.toggle('acompanyant-seccio--error', acompanyantInvalid(acompanyantsActuals[acompanyantObert]));
       }
     });
   });
@@ -565,17 +553,16 @@ async function enviarFormulari(evt) {
 
   const cantidad = parseInt(document.getElementById('cantidad').value, 10) || 1;
 
-  // Amb la targeta única de pestanyes, només l'acompanyant de la pestanya
-  // activa té els inputs al DOM en aquest moment — required/type=email
-  // natius només poden validar-lo a ell. Cal comprovar aquí explícitament
-  // TOTS els acompanyants (incloses les pestanyes no visibles) abans
-  // d'enviar, i si algun falla, saltar a la primera pestanya amb problema
-  // perquè l'usuari sàpiga exactament on tornar.
+  // Amb l'acordió, només la secció oberta té els inputs al DOM en aquest
+  // moment — required/type=email natius només poden validar-la a ella.
+  // Cal comprovar aquí explícitament TOTS els acompanyants (incloses les
+  // seccions tancades) abans d'enviar, i si algun falla, obrir la primera
+  // secció amb problema perquè l'usuari sàpiga exactament on tornar.
   if (cantidad > 1) {
     const primerInvalid = acompanyantsActuals.slice(0, cantidad - 1).findIndex(acompanyantInvalid);
     if (primerInvalid !== -1) {
       intentAcompanyantsFallit = true;
-      acompanyantTabActiva = primerInvalid;
+      acompanyantObert = primerInvalid;
       renderAcompanyants(cantidad - 1);
       errorEl.textContent = "Revisa les dades dels acompanyants: falta algun nom o l'email no és vàlid.";
       btn.disabled = false;
