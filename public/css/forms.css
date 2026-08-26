@@ -373,14 +373,12 @@ input[type="checkbox"]:focus-visible {
    alhora (obrir-ne un tanca automàticament el que estigués obert) —
    mateix patró d'interacció que el desplegable d'acompanyants de
    l'admin (public/css/admin.css, .btn-veure-acompanyants), reutilitzat
-   aquí en lloc d'inventar-ne un altre. Com que com a màxim un panell
-   està obert, L'ALÇADA DEL BLOC MAI DEPÈN DEL NOMBRE D'ACOMPANYANTS —
-   substitueix el mazo de targetes apilades de la tanda anterior, que
-   necessitava una alçada fixa artificialment petita per no fer créixer
-   el panell fosc (`align-items: stretch` per defecte a .card — vegeu
-   _temp_mazo_acompanyants.md): aquí la contenció d'alçada surt de
-   l'estructura mateixa (n capçaleres tancades + com a molt 1 panell
-   obert), no d'un valor fix arbitrari. */
+   aquí en lloc d'inventar-ne un altre. Els camps del panell (label +
+   input) no porten cap tractament propi: hereten exactament l'estil de
+   la resta del formulari (mateixos `label`/`input[type=...]` globals que
+   fa servir el comprador principal), sense cap regla "scoped" que en
+   redueixi la mida — ja no cal comprimir-los, l'acordió pot créixer en
+   alçada en obrir una secció sense cap restricció de disseny. */
 .acompanyants-titol {
   font-family: var(--font-ui);
   font-size: 11px;
@@ -388,7 +386,7 @@ input[type="checkbox"]:focus-visible {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--dark-muted-text);
-  margin: 4px 0 6px;
+  margin: 4px 0 12px;
 }
 
 /* Un sol contenidor amb vora pròpia i divisors fins entre seccions (en
@@ -399,7 +397,7 @@ input[type="checkbox"]:focus-visible {
   border: 1px solid rgba(34, 31, 30, 0.12);
   border-radius: var(--radius-input);
   overflow: hidden;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 
 .acompanyant-seccio {
@@ -410,24 +408,25 @@ input[type="checkbox"]:focus-visible {
   border-bottom: none;
 }
 
-/* Capçalera compacta (padding i mida de lletra reduïts respecte al patró
-   equivalent de l'admin): amb diversos acompanyants n'hi ha una per cada
-   un, així que cada píxel que s'hi estalvia compta per mantenir el bloc
-   dins el pressupost d'alçada disponible abans de tapar el preu (vegeu
-   _temp_acordio_acompanyants.md). */
+/* Capçalera: "Acompanyant N" en Ogg (--font-heading), la mateixa família
+   que el <h1> de l'evento i la resta de titulars del projecte — mida
+   reduïda respecte al <h1> (38px) perquè aquí és una capçalera dins una
+   llista, no el protagonista de la pantalla; 18px és la mateixa mida que
+   ja fa servir .selector-btn-nom (layout.css) per a un patró equivalent
+   (títol d'un bloc individual dins una llista/graella). */
 .acompanyant-capcalera {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 5px 12px;
+  padding: 14px 16px;
   background: var(--white);
   border: none;
-  font-family: var(--font-ui);
-  font-size: 11px;
+  font-family: var(--font-heading);
+  font-size: 18px;
   font-weight: 500;
-  line-height: 1.3;
+  letter-spacing: -0.01em;
   color: var(--dark);
   cursor: pointer;
   text-align: left;
@@ -451,26 +450,8 @@ input[type="checkbox"]:focus-visible {
 }
 
 .acompanyant-panell {
-  padding: 4px 12px 5px;
+  padding: 4px 16px 16px;
   background: var(--light);
-}
-
-/* Camps compactes (padding i mida de lletra reduïts respecte a la resta
-   del formulari) i labels amagats amb .sr-only (ja existent al projecte,
-   accessibles per lector de pantalla) enlloc de labels visibles: amb com
-   a molt un panell obert alhora el pressupost d'alçada millora molt
-   respecte al mazo de la tanda anterior, però encara cal que els 3 camps
-   hi càpiguen sense fer créixer massa el bloc (vegeu
-   _temp_acordio_acompanyants.md). */
-.acompanyant-panell input {
-  padding: 4px 10px;
-  font-size: 11px;
-  line-height: 1.3;
-  margin-bottom: 3px;
-}
-
-.acompanyant-panell input:last-of-type {
-  margin-bottom: 0;
 }
 
 /* Vora vermella pels camps concrets que fallen (no la secció sencera):

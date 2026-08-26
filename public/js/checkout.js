@@ -318,13 +318,10 @@ const ICONA_CHEVRON = '<svg width="10" height="6" viewBox="0 0 10 6" fill="none"
 // els tres camps editables al DOM; les tancades només tenen la capçalera
 // (i un contenidor buit perquè aria-controls apunti a un element real).
 //
-// Els labels de nom/email/telèfon es mantenen (accessibilitat: un lector
-// de pantalla els necessita) però visualment amagats amb .sr-only (ja
-// existent al projecte, mateixa tècnica que la tanda del mazo) enlloc del
-// <label> visible que fa servir la resta del formulari — amb diversos
-// acompanyants n'hi ha una capçalera per cadascun, així que calia un
-// panell compacte perquè el bloc sencer no s'acosti massa al pressupost
-// d'alçada disponible abans de tapar el preu (_temp_acordio_acompanyants.md).
+// Els camps (label + input) són idèntics als del comprador principal —
+// mateix <label> visible, mateixos estils heretats de la resta del
+// formulari, sense cap tractament compacte: ja no cal estalviar alçada
+// (l'acordió pot créixer lliurement en obrir una secció, vegeu forms.css).
 function seccioAcompanyantHtml(i, oberta) {
   const ac = acompanyantsActuals[i];
   const invalida = intentAcompanyantsFallit && acompanyantInvalid(ac);
@@ -338,12 +335,12 @@ function seccioAcompanyantHtml(i, oberta) {
       </button>
       ${oberta ? `
         <div class="acompanyant-panell" id="${panellId}">
-          <label class="sr-only" for="acompanyant_nom">Nom i cognoms de l'acompanyant ${i + 1}</label>
-          <input type="text" id="acompanyant_nom" data-camp="nombre" placeholder="Nom i cognoms" value="${escapeAttr(ac.nombre)}" required>
-          <label class="sr-only" for="acompanyant_email">Email de l'acompanyant ${i + 1}</label>
-          <input type="email" id="acompanyant_email" data-camp="email" placeholder="Email" value="${escapeAttr(ac.email)}" required>
-          <label class="sr-only" for="acompanyant_telefon">Telèfon de l'acompanyant ${i + 1}</label>
-          <input type="tel" id="acompanyant_telefon" data-camp="telefono" placeholder="Telèfon (opcional)" value="${escapeAttr(ac.telefono)}">
+          <label for="acompanyant_nom">Nom i cognoms</label>
+          <input type="text" id="acompanyant_nom" data-camp="nombre" value="${escapeAttr(ac.nombre)}" required>
+          <label for="acompanyant_email">Email</label>
+          <input type="email" id="acompanyant_email" data-camp="email" value="${escapeAttr(ac.email)}" required>
+          <label for="acompanyant_telefon">Telèfon</label>
+          <input type="tel" id="acompanyant_telefon" data-camp="telefono" value="${escapeAttr(ac.telefono)}">
         </div>
       ` : `<div id="${panellId}" class="hidden"></div>`}
     </div>
