@@ -380,7 +380,7 @@ function mostrarTooltipCalendari(evt, eventosDia) {
         <div>
           <div>${escapeHtml(ev.nombre)}</div>
           <div>Aforament: <strong>${ev.aforo_total}</strong></div>
-          <div>Entrades comprades: <strong>${ev.ocupadas || 0}</strong></div>
+          <div>Places comprades: <strong>${ev.ocupadas || 0}</strong></div>
           <button type="button" class="calendari-tooltip-link" data-evento-id="${ev.id}">Veure detall ›</button>
         </div>
       `

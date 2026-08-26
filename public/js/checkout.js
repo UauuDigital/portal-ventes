@@ -17,15 +17,15 @@ function escapeAttr(text) {
 const LOCALE = 'ca-ES';
 
 const TEXTOS = {
-  motiu_no_event: 'Ara mateix no hi ha cap esdeveniment obert per a la venda de entrades.',
+  motiu_no_event: 'Ara mateix no hi ha cap esdeveniment obert per a la venda de places.',
   motiu_data_limit: 'El termini de compra per a aquest esdeveniment ha finalitzat.',
-  motiu_aforament: "Les entrades per a aquest esdeveniment s'han esgotat.",
+  motiu_aforament: "Les places per a aquest esdeveniment s'han esgotat.",
   motiu_default: 'La compra no està disponible ara mateix.',
   evento_default_desc: 'Torna aviat per veure el proper esdeveniment.',
   places_disponibles: 'places disponibles',
   error_connexio: "No s'ha pogut connectar amb el servidor. Torna-ho a provar.",
   error_inesperat: 'Error inesperat.',
-  btn_comprar: 'Pagar i reservar entrada',
+  btn_comprar: 'Pagar i reservar plaça',
   btn_comprar_processant: 'Processant…',
 };
 

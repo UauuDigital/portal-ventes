@@ -52,7 +52,7 @@ async function create(data, meta = {}) {
     accio: 'compra',
     origen: meta.origen || 'client',
     usuari: meta.usuari || compra.email,
-    descripcio: `Compra #${compra.id} creada per ${compra.nombre_comprador} (${compra.cantidad} entrades)`,
+    descripcio: `Compra #${compra.id} creada per ${compra.nombre_comprador} (${compra.cantidad} places)`,
     dades_despres: compraPerHistorial,
   });
   return compra;

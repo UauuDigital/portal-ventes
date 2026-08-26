@@ -20,7 +20,7 @@ function renderitzarConfirmacio() {
     <p class="subtitle">
       <strong>${escapeHtml(data.evento.nombre)}</strong><br>
       📅 ${escapeHtml(dataText)}<br>
-      🎟️ ${data.compra.cantidad} entrada(es) — ${escapeHtml(importText)}
+      🎟️ ${data.compra.cantidad} ${data.compra.cantidad === 1 ? 'plaça' : 'places'} — ${escapeHtml(importText)}
     </p>
   `;
 }

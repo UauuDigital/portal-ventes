@@ -132,7 +132,7 @@ async function crearCheckoutSession(req, res) {
           {
             price_data: {
               currency: 'eur',
-              product_data: { name: `Entrada — ${evento.nombre}` },
+              product_data: { name: `Plaça — ${evento.nombre}` },
               unit_amount: evento.precio,
             },
             quantity: cantidad,

@@ -17,7 +17,7 @@ function formatDataHora(isoString) {
   return `${dataText} a les ${horaText}h`;
 }
 
-const ASSUMPTE_DEFECTE = 'Confirmació de la teva entrada — {{nom_esdeveniment}}';
+const ASSUMPTE_DEFECTE = 'Confirmació de la teva plaça — {{nom_esdeveniment}}';
 
 const HTML_DEFECTE = `
     <div style="font-family:sans-serif; max-width:480px; margin:0 auto;">
@@ -26,7 +26,7 @@ const HTML_DEFECTE = `
       <p>La teva compra per a <strong>{{nom_esdeveniment}}</strong> ha quedat confirmada.</p>
       <ul>
         <li><strong>Data i hora:</strong> {{data_hora}}</li>
-        <li><strong>Entrades:</strong> {{quantitat}}</li>
+        <li><strong>Places:</strong> {{quantitat}}</li>
         <li><strong>Import total:</strong> {{import_total}}</li>
       </ul>
       {{enllac_edicio}}
