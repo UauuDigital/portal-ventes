@@ -6,8 +6,8 @@
 //
 // Ús per CLI: node scripts/migrar-invitados.js (o npm run migrar-invitados)
 // També s'exporta migrarInvitados() perquè es pugui cridar des d'un altre
-// procés que ja tingui l'entorn carregat (vegeu la ruta temporal
-// POST /admin/migrar-invitados-temp a routes/adminRoutes.js).
+// procés que ja tingui l'entorn carregat, si mai cal reexecutar la migració
+// des d'un altre lloc.
 require('dotenv').config();
 const db = require('../config/db');
 

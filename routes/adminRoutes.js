@@ -5,7 +5,6 @@ const asyncHandler = require('../utils/asyncHandler');
 const { login, logout } = require('../controllers/authController');
 const { requireAuth, requireRole } = require('../middleware/authMiddleware');
 const { loginLimiter } = require('../middleware/rateLimiter');
-const { migrarInvitados } = require('../scripts/migrar-invitados');
 const {
   llistarEventos,
   obtenirEvento,
@@ -41,14 +40,5 @@ router.delete('/api/admin/eventos/:id', requireRole('admin'), asyncHandler(elimi
 router.post('/api/admin/compras/:id/cancelar', requireRole('admin'), asyncHandler(cancelarCompra));
 router.get('/api/admin/eventos/:id/compras/export.csv', requireRole('admin'), asyncHandler(exportarComprasCsv));
 router.post('/api/admin/eventos/:id/email-prova', requireRole('admin'), asyncHandler(enviarEmailDePrueba));
-
-// TEMPORAL - eliminar tras ejecutar la migración una vez en producción
-// (Plesk no hereda DATABASE_URL en "Ejecutar comandos Node.js"/"Ejecutar
-// Script"; reutilitza la connexió ja viva del servidor. Escriptura sobre
-// dades, encara que idempotent: només admin, no viewer.)
-router.post('/admin/migrar-invitados-temp', requireRole('admin'), asyncHandler(async (req, res) => {
-  const resum = await migrarInvitados();
-  res.json(resum);
-}));
 
 module.exports = router;
