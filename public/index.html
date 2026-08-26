@@ -10,7 +10,7 @@
 <!-- Inter via Google Fonts (Ogg és una tipografia amb llicència pròpia de UAUU:
      veure comentari a css/style.css sobre com afegir-la a public/fonts/) -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css?v=12">
+<link rel="stylesheet" href="/css/style.css?v=13">
 </head>
 <body class="pagina-principal">
 
@@ -37,6 +37,7 @@
     <div class="evento-info-titol">
       <button type="button" class="breadcrumb-tornar hidden" id="btn-tornar-selector">‹ Tots els esdeveniments</button>
       <h1 id="evento-nombre">Carregant l'esdeveniment…</h1>
+      <p class="evento-data" id="evento-data"></p>
       <p id="evento-descripcio"></p>
     </div>
     <div class="evento-convidats hidden" id="evento-convidats">
@@ -44,12 +45,7 @@
       <div id="evento-convidats-llista"></div>
     </div>
     <div class="evento-meta">
-      <span id="evento-data"></span>
-      <span id="evento-preu"></span>
-      <span id="evento-aforo"></span>
-      <div class="aforo-bar" id="aforo-bar" role="progressbar" aria-labelledby="evento-aforo">
-        <div class="aforo-bar-fill" id="aforo-bar-fill"></div>
-      </div>
+      <span class="evento-preu" id="evento-preu"></span>
     </div>
   </section>
 
@@ -121,7 +117,7 @@
   </div>
 </div>
 
-<script src="/js/checkout.js?v=19"></script>
+<script src="/js/checkout.js?v=20"></script>
 <script src="/js/legal-modal.js?v=2"></script>
 </body>
 </html>

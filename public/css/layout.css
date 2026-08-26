@@ -130,6 +130,19 @@
   margin: 0 0 16px;
 }
 
+/* Subtítol amb la data, just sota el títol: mateixa família (Ogg) per
+   llegir-se com a part del mateix bloc, però clarament per sota en mida —
+   és informació de suport, no el protagonista. Sense hora ni icona: aquí
+   fa de subtítol elegant, no de línia de metadades. */
+.evento-data {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  color: var(--light-muted);
+  margin: 0 0 16px;
+}
+
 .evento-info p {
   font-family: var(--font-ui);
   font-size: 14px;
@@ -140,13 +153,19 @@
 
 .evento-meta {
   margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--light-muted);
+}
+
+/* El preu és l'única dada que queda al peu del panell (l'aforament s'ha
+   eliminat de la fitxa): li dona protagonisme visual — Ogg, blanc ple (no
+   --light-muted) i clarament més gran que .evento-data, perquè es llegeixi
+   com la xifra que importa, no com una metadada més. */
+.evento-preu {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+  color: var(--white);
 }
 
 /* Convidats/ponents de l'esdeveniment (evento.invitados): sol ser-ne un,

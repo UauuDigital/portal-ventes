@@ -21,9 +21,7 @@ const TEXTOS = {
   motiu_data_limit: 'El termini de compra per a aquest esdeveniment ha finalitzat.',
   motiu_aforament: "Les entrades per a aquest esdeveniment s'han esgotat.",
   motiu_default: 'La compra no està disponible ara mateix.',
-  sense_places: 'Sense places disponibles',
   evento_default_desc: 'Torna aviat per veure el proper esdeveniment.',
-  suffix_entrada: ' / entrada',
   places_disponibles: 'places disponibles',
   error_connexio: "No s'ha pogut connectar amb el servidor. Torna-ho a provar.",
   error_inesperat: 'Error inesperat.',
@@ -33,6 +31,13 @@ const TEXTOS = {
 
 function t(clau) {
   return TEXTOS[clau] || clau;
+}
+
+/** Data en català sense hora (ex: "3 de setembre de 2026"), per a la fitxa
+ * del checkout — mateix mecanisme que ja fa servir utils/mailer.js al
+ * backend (formatDataHora), sense la part de l'hora perquè aquí no cal. */
+function formatDataSenseHora(isoString) {
+  return new Date(isoString).toLocaleDateString('ca-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 /** Uneix el prefix de país triat amb el número, en un sol camp de text
@@ -177,13 +182,6 @@ async function carregarEvento(eventoId) {
     avis.textContent = motius[data.motiu] || t('motiu_default');
     document.getElementById('evento-data').textContent = '';
     document.getElementById('evento-preu').textContent = '';
-    if (data.motiu === 'aforament_exhaurit') {
-      document.getElementById('evento-aforo').textContent = '🎟️ ' + t('sense_places');
-      actualitzarBarraAforo(0, 1);
-    } else {
-      document.getElementById('evento-aforo').textContent = '';
-      document.getElementById('aforo-bar').classList.add('hidden');
-    }
     if (data.evento) {
       document.getElementById('evento-nombre').textContent = data.evento.nombre;
       document.getElementById('evento-descripcio').textContent = data.evento.descripcion || '';
@@ -199,10 +197,8 @@ async function carregarEvento(eventoId) {
   eventoSeleccionatId = ev.id;
   document.getElementById('evento-nombre').textContent = ev.nombre;
   document.getElementById('evento-descripcio').textContent = ev.descripcion || '';
-  document.getElementById('evento-data').textContent = '📅 ' + new Date(ev.fecha).toLocaleString(LOCALE);
-  document.getElementById('evento-preu').textContent = '💶 ' + (ev.precio / 100).toFixed(2) + ' €' + t('suffix_entrada');
-  document.getElementById('evento-aforo').textContent = '🎟️ ' + ev.aforo_disponible + ' ' + t('places_disponibles');
-  actualitzarBarraAforo(ev.aforo_disponible, ev.aforo_total);
+  document.getElementById('evento-data').textContent = formatDataSenseHora(ev.fecha);
+  document.getElementById('evento-preu').textContent = (ev.precio / 100).toFixed(2) + ' €';
   renderCampsFormulariDinamics(ev.campos_formulario || []);
   renderConvidats(ev.invitados || []);
 
@@ -297,24 +293,6 @@ function calcularAforo(disponibles, total) {
     classe = 'aforo-bar-fill--mitja';
   }
   return { percentOcupat, classe };
-}
-
-function actualitzarBarraAforo(disponibles, total) {
-  const fill = document.getElementById('aforo-bar-fill');
-  const barra = document.getElementById('aforo-bar');
-  if (!total) {
-    barra.classList.add('hidden');
-    return;
-  }
-  barra.classList.remove('hidden');
-
-  const { percentOcupat, classe } = calcularAforo(disponibles, total);
-  fill.style.width = `${percentOcupat}%`;
-  fill.classList.remove('aforo-bar-fill--mitja', 'aforo-bar-fill--baixa');
-  if (classe) fill.classList.add(classe);
-  barra.setAttribute('aria-valuenow', String(Math.round(percentOcupat)));
-  barra.setAttribute('aria-valuemin', '0');
-  barra.setAttribute('aria-valuemax', '100');
 }
 
 function mostrarFormulariEvento(eventoId, desSelector) {
