@@ -47,14 +47,26 @@ function formatDataSenseHora(isoString) {
   return new Date(isoString).toLocaleDateString('ca-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-/** Uneix el prefix de país triat amb el número, en un sol camp de text
- * (p. ex. "+34 612345678"), tal com espera el backend. Si no s'ha escrit
- * cap número, no s'envia prefix sol. */
+/** Uneix un prefix i un número en un sol camp de text (p. ex.
+ * "+34 612345678"), tal com espera el backend. Si no hi ha número, no
+ * s'envia cap prefix sol. Es fa servir tant per llegir el camp del
+ * comprador (del DOM, sempre present) com per l'estat en memòria de cada
+ * acompanyant (cal llegir-ho de l'array, no del DOM, perquè les seccions
+ * tancades de l'acordió no tenen els seus inputs al DOM). */
+function combinarPrefixNumero(prefix, numero) {
+  const n = numero.trim();
+  return n ? `${prefix} ${n}` : '';
+}
+
+/** Llegeix el camp de telèfon del comprador (número + prefix triat) del
+ * DOM. `#form-compra > .camp-telefon` és el selector amb fill directe
+ * perquè només agafi el del comprador — el d'un acompanyant obert queda
+ * niat dins #acompanyants-dinamics, no com a fill directe del formulari. */
 function combinarTelefonAmbPrefix() {
-  const numero = document.getElementById('telefono').value.trim();
-  if (!numero) return '';
-  const prefix = document.getElementById('prefix_telefono').value;
-  return `${prefix} ${numero}`;
+  const campTelefon = document.querySelector('#form-compra > .camp-telefon');
+  const numero = campTelefon.querySelector('input[type="tel"]').value;
+  const prefix = campTelefon.querySelector('.prefix-telefon-valor').value;
+  return combinarPrefixNumero(prefix, numero);
 }
 
 // Desplegable personalitzat de prefix telefònic (bandera + país + codi),
@@ -111,15 +123,39 @@ const PAISOS_PREFIX = [
   { iso: 'BR', nom: 'Brasil', codi: '+55' },
 ];
 
-function inicialitzarPrefixTelefon() {
-  const contenidor = document.getElementById('prefix-telefon');
+// Tanca un desplegable de prefix concret, identificat pel seu contenidor
+// ".prefix-telefon" — funció independent de qualsevol tancament d'una
+// instància concreta perquè els listeners globals de "clic fora"/Escape
+// (registrats un sol cop a DOMContentLoaded) la puguin cridar per a
+// QUALSEVOL instància oberta (comprador o un acompanyant), sense haver de
+// mantenir viva la clausura de cada inicialitzarPrefixTelefon.
+function tancarPrefixTelefon(contenidorPrefix) {
+  if (!contenidorPrefix) return;
+  contenidorPrefix.querySelector('.prefix-telefon-llista').classList.add('hidden');
+  contenidorPrefix.querySelector('.prefix-telefon-btn').setAttribute('aria-expanded', 'false');
+}
+
+// Inicialitza una instància independent del desplegable de prefix
+// telefònic dins `contenidor` (un ".prefix-telefon"). Generalitzada per
+// admetre'n diverses a la mateixa pàgina (el comprador, sempre present, i
+// cada acompanyant obert de l'acordió — vegeu seccioAcompanyantHtml i
+// renderAcompanyants): tot es llegeix/escriu via `contenidor.querySelector`
+// (no ids globals), així que dues instàncies mai interfereixen entre si.
+// `prefixInicial` marca amb quin país es pinta en obrir (per defecte +34,
+// però cada acompanyant recorda el seu propi triat — vegeu
+// acompanyantsActuals[i].prefixTelefon). `onTriar(codi)` és opcional: la
+// crida el comprador no la necessita (el seu DOM no es torna a construir
+// mai), però cada acompanyant sí, per desar la tria a l'array i no
+// perdre-la en tancar/reobrir la seva secció de l'acordió.
+function inicialitzarPrefixTelefon(contenidor, prefixInicial, onTriar) {
   if (!contenidor) return;
 
-  const btn = document.getElementById('prefix-telefon-btn');
-  const llista = document.getElementById('prefix-telefon-llista');
-  const inputAmagat = document.getElementById('prefix_telefono');
-  const spanBandera = document.getElementById('prefix-telefon-bandera');
-  const spanCodi = document.getElementById('prefix-telefon-codi');
+  const btn = contenidor.querySelector('.prefix-telefon-btn');
+  const llista = contenidor.querySelector('.prefix-telefon-llista');
+  const inputAmagat = contenidor.querySelector('.prefix-telefon-valor');
+  const spanBandera = contenidor.querySelector('.prefix-telefon-bandera');
+  const spanCodi = contenidor.querySelector('.prefix-telefon-codi');
+  const paisInicial = PAISOS_PREFIX.find((p) => p.codi === prefixInicial) || PAISOS_PREFIX[0];
 
   llista.innerHTML = PAISOS_PREFIX.map(
     (p, i) => `
@@ -130,39 +166,30 @@ function inicialitzarPrefixTelefon() {
       </li>
     `
   ).join('');
-  spanBandera.innerHTML = BANDERES.ES;
-  btn.setAttribute('aria-label', `Prefix telefònic: Espanya, +34`);
-
-  function obrir() {
-    llista.classList.remove('hidden');
-    btn.setAttribute('aria-expanded', 'true');
-  }
-  function tancar() {
-    llista.classList.add('hidden');
-    btn.setAttribute('aria-expanded', 'false');
-  }
-  function triar(opcioEl) {
-    const nomPais = opcioEl.querySelector('.prefix-telefon-opcio-nom').textContent;
-    spanBandera.innerHTML = BANDERES[opcioEl.dataset.iso];
-    spanCodi.textContent = opcioEl.dataset.codi;
-    inputAmagat.value = opcioEl.dataset.codi;
-    btn.setAttribute('aria-label', `Prefix telefònic: ${nomPais}, ${opcioEl.dataset.codi}`);
-    tancar();
-  }
+  spanBandera.innerHTML = BANDERES[paisInicial.iso];
+  spanCodi.textContent = paisInicial.codi;
+  inputAmagat.value = paisInicial.codi;
+  btn.setAttribute('aria-label', `Prefix telefònic: ${paisInicial.nom}, ${paisInicial.codi}`);
 
   btn.addEventListener('click', (evt) => {
     evt.stopPropagation();
-    llista.classList.contains('hidden') ? obrir() : tancar();
+    if (llista.classList.contains('hidden')) {
+      llista.classList.remove('hidden');
+      btn.setAttribute('aria-expanded', 'true');
+    } else {
+      tancarPrefixTelefon(contenidor);
+    }
   });
   llista.addEventListener('click', (evt) => {
     const opcio = evt.target.closest('li');
-    if (opcio) triar(opcio);
-  });
-  document.addEventListener('click', (evt) => {
-    if (!contenidor.contains(evt.target)) tancar();
-  });
-  document.addEventListener('keydown', (evt) => {
-    if (evt.key === 'Escape') tancar();
+    if (!opcio) return;
+    const nomPais = opcio.querySelector('.prefix-telefon-opcio-nom').textContent;
+    spanBandera.innerHTML = BANDERES[opcio.dataset.iso];
+    spanCodi.textContent = opcio.dataset.codi;
+    inputAmagat.value = opcio.dataset.codi;
+    btn.setAttribute('aria-label', `Prefix telefònic: ${nomPais}, ${opcio.dataset.codi}`);
+    if (onTriar) onTriar(opcio.dataset.codi);
+    tancarPrefixTelefon(contenidor);
   });
 }
 
@@ -340,7 +367,18 @@ function seccioAcompanyantHtml(i, oberta) {
           <label for="acompanyant_email">Email</label>
           <input type="email" id="acompanyant_email" data-camp="email" value="${escapeAttr(ac.email)}" required>
           <label for="acompanyant_telefon">Telèfon</label>
-          <input type="tel" id="acompanyant_telefon" data-camp="telefono" value="${escapeAttr(ac.telefono)}">
+          <div class="camp-telefon">
+            <div class="prefix-telefon">
+              <button type="button" class="prefix-telefon-btn" aria-haspopup="listbox" aria-expanded="false">
+                <span class="prefix-telefon-bandera"></span>
+                <span class="prefix-telefon-codi">+34</span>
+                ${ICONA_CHEVRON}
+              </button>
+              <ul class="prefix-telefon-llista hidden" role="listbox" aria-label="Prefix del país"></ul>
+              <input type="hidden" class="prefix-telefon-valor" value="+34">
+            </div>
+            <input type="tel" id="acompanyant_telefon" data-camp="telefono" value="${escapeAttr(ac.telefono)}">
+          </div>
         </div>
       ` : `<div id="${panellId}" class="hidden"></div>`}
     </div>
@@ -351,7 +389,7 @@ function renderAcompanyants(n) {
   const cont = document.getElementById('acompanyants-dinamics');
   const eraBuit = acompanyantsActuals.length === 0;
 
-  while (acompanyantsActuals.length < n) acompanyantsActuals.push({ nombre: '', email: '', telefono: '' });
+  while (acompanyantsActuals.length < n) acompanyantsActuals.push({ nombre: '', email: '', telefono: '', prefixTelefon: '+34' });
   acompanyantsActuals.length = n;
 
   if (n === 0) {
@@ -403,6 +441,20 @@ function renderAcompanyants(n) {
       }
     });
   });
+
+  // Desplegable de prefix de la secció oberta: instància pròpia i
+  // independent (vegeu inicialitzarPrefixTelefon), inicialitzada amb el
+  // prefix que aquest acompanyant ja tenia triat (o +34 per defecte si
+  // n'és la primera vegada), i que desa qualsevol tria nova de tornada a
+  // l'array perquè no es perdi en tancar la secció.
+  const panellObert = cont.querySelector('.acompanyant-panell');
+  if (panellObert) {
+    inicialitzarPrefixTelefon(
+      panellObert.querySelector('.prefix-telefon'),
+      acompanyantsActuals[acompanyantObert].prefixTelefon,
+      (codi) => { acompanyantsActuals[acompanyantObert].prefixTelefon = codi; }
+    );
+  }
 }
 
 function actualitzarAcompanyants() {
@@ -583,7 +635,7 @@ async function enviarFormulari(evt) {
     body.acompanyants = acompanyantsActuals.slice(0, cantidad - 1).map((ac) => ({
       nombre: ac.nombre.trim(),
       email: ac.email.trim(),
-      telefono: ac.telefono.trim(),
+      telefono: combinarPrefixNumero(ac.prefixTelefon, ac.telefono),
     }));
   }
 
@@ -612,7 +664,25 @@ async function enviarFormulari(evt) {
 
 document.addEventListener('DOMContentLoaded', () => {
   iniciar();
-  inicialitzarPrefixTelefon();
+  inicialitzarPrefixTelefon(document.querySelector('#form-compra > .camp-telefon .prefix-telefon'), '+34');
+  // Tanca qualsevol desplegable de prefix obert (comprador o un
+  // acompanyant) en clicar fora seu o prémer Escape — un sol listener
+  // delegat per a totes les instàncies possibles, en lloc que cadascuna
+  // en registri un de propi (evitaria acumular-ne un per cada vegada que
+  // es renderitza una secció de l'acordió).
+  document.addEventListener('click', (evt) => {
+    document.querySelectorAll('.prefix-telefon-llista:not(.hidden)').forEach((llista) => {
+      const contenidorPrefix = llista.closest('.prefix-telefon');
+      if (contenidorPrefix && !contenidorPrefix.contains(evt.target)) tancarPrefixTelefon(contenidorPrefix);
+    });
+  });
+  document.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Escape') {
+      document.querySelectorAll('.prefix-telefon-llista:not(.hidden)').forEach((llista) => {
+        tancarPrefixTelefon(llista.closest('.prefix-telefon'));
+      });
+    }
+  });
   document.getElementById('btn-comprar').addEventListener('click', comprovarAccesAdmin, true);
   document.getElementById('form-compra').addEventListener('submit', enviarFormulari);
   document.getElementById('btn-tornar-selector').addEventListener('click', tornarAlSelector);

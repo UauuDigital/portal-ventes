@@ -93,7 +93,9 @@ input[type="checkbox"]:focus-visible {
 /* Prefix de país + número de telèfon com un sol camp visual. El prefix és
    un desplegable personalitzat (bandera + país + codi) en lloc d'un
    <select> natiu, perquè el navegador no permet estilitzar la llista
-   d'aquest últim. */
+   d'aquest últim. Estils basats en classes (no ids): checkout.js en pot
+   inicialitzar diverses instàncies independents a la mateixa pàgina (el
+   comprador i cada acompanyant obert de l'acordió). */
 .camp-telefon {
   display: flex;
   margin-bottom: 16px;
@@ -180,7 +182,7 @@ input[type="checkbox"]:focus-visible {
   flex-shrink: 0;
 }
 
-#prefix-telefon-bandera svg,
+.prefix-telefon-bandera svg,
 .prefix-telefon-opcio-bandera svg {
   display: block;
   width: 20px;
@@ -189,7 +191,7 @@ input[type="checkbox"]:focus-visible {
   box-shadow: 0 0 0 1px rgba(34, 31, 30, 0.12);
 }
 
-#prefix-telefon-bandera {
+.prefix-telefon-bandera {
   display: flex;
 }
 
@@ -396,7 +398,6 @@ input[type="checkbox"]:focus-visible {
 .acompanyants-acordio {
   border: 1px solid rgba(34, 31, 30, 0.12);
   border-radius: var(--radius-input);
-  overflow: hidden;
   margin-bottom: 16px;
 }
 
@@ -406,6 +407,23 @@ input[type="checkbox"]:focus-visible {
 
 .acompanyant-seccio:last-child {
   border-bottom: none;
+}
+
+/* Les cantonades arrodonides del contenidor es repliquen aquí (capçalera
+   de la primera secció, capçalera o panell —el que quedi visible al
+   final— de la darrera) en lloc de retallar-les amb overflow:hidden al
+   contenidor: el desplegable de prefix telefònic (position:absolute) de
+   qualsevol secció necessita poder sortir visualment per sobre del marc
+   de l'acordió, i un overflow:hidden l'hauria tallat. */
+.acompanyant-seccio:first-child .acompanyant-capcalera {
+  border-top-left-radius: var(--radius-input);
+  border-top-right-radius: var(--radius-input);
+}
+
+.acompanyant-seccio:last-child .acompanyant-capcalera,
+.acompanyant-seccio:last-child .acompanyant-panell {
+  border-bottom-left-radius: var(--radius-input);
+  border-bottom-right-radius: var(--radius-input);
 }
 
 /* Capçalera: "Acompanyant N" en Ogg (--font-heading), la mateixa família
