@@ -1,4 +1,5 @@
 let eventoSeleccionatId = null;
+let precioUnitari = 0; // cèntims, preu unitari de l'evento carregat
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -31,6 +32,12 @@ const TEXTOS = {
 
 function t(clau) {
   return TEXTOS[clau] || clau;
+}
+
+/** Mateix format que ja fa servir la resta del projecte per a imports en
+ * cèntims (formatEuros a public/js/admin.js i utils/mailer.js): "70.00 €". */
+function formatEuros(centims) {
+  return (centims / 100).toFixed(2) + ' €';
 }
 
 /** Data en català sense hora (ex: "3 de setembre de 2026"), per a la fitxa
@@ -182,6 +189,7 @@ async function carregarEvento(eventoId) {
     avis.textContent = motius[data.motiu] || t('motiu_default');
     document.getElementById('evento-data').textContent = '';
     document.getElementById('evento-preu').textContent = '';
+    precioUnitari = 0;
     if (data.evento) {
       document.getElementById('evento-nombre').textContent = data.evento.nombre;
       document.getElementById('evento-descripcio').textContent = data.evento.descripcion || '';
@@ -195,10 +203,11 @@ async function carregarEvento(eventoId) {
 
   const ev = data.evento;
   eventoSeleccionatId = ev.id;
+  precioUnitari = ev.precio;
   document.getElementById('evento-nombre').textContent = ev.nombre;
   document.getElementById('evento-descripcio').textContent = ev.descripcion || '';
   document.getElementById('evento-data').textContent = formatDataSenseHora(ev.fecha);
-  document.getElementById('evento-preu').textContent = (ev.precio / 100).toFixed(2) + ' €';
+  actualitzarPreu();
   renderCampsFormulariDinamics(ev.campos_formulario || []);
   renderConvidats(ev.invitados || []);
 
@@ -313,6 +322,15 @@ function renderAcompanyants(n) {
 function actualitzarAcompanyants() {
   const cantidad = parseInt(document.getElementById('cantidad').value, 10) || 1;
   renderAcompanyants(Math.max(0, cantidad - 1));
+}
+
+// Preu de la fitxa: es repinta amb el preu unitari de l'evento (precioUnitari)
+// multiplicat per "Nombre de places". El preu real cobrat es calcula al
+// backend (crearCheckoutSession); això és només reflex visual.
+function actualitzarPreu() {
+  if (!precioUnitari) return;
+  const cantidad = parseInt(document.getElementById('cantidad').value, 10) || 1;
+  document.getElementById('evento-preu').textContent = formatEuros(cantidad * precioUnitari);
 }
 
 function llegirRespostesCampsDinamics() {
@@ -494,6 +512,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-comprar').addEventListener('click', comprovarAccesAdmin, true);
   document.getElementById('form-compra').addEventListener('submit', enviarFormulari);
   document.getElementById('btn-tornar-selector').addEventListener('click', tornarAlSelector);
-  document.getElementById('cantidad').addEventListener('input', actualitzarAcompanyants);
+  document.getElementById('cantidad').addEventListener('input', () => {
+    actualitzarAcompanyants();
+    actualitzarPreu();
+  });
   actualitzarAcompanyants();
 });
