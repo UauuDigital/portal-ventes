@@ -1,0 +1,331 @@
+diff --git a/config/schema.sql b/config/schema.sql
+index 2ebb05c..8fcf5f1 100644
+--- a/config/schema.sql
++++ b/config/schema.sql
+@@ -63,6 +63,24 @@ CREATE TABLE IF NOT EXISTS evento_invitados (
+ 
+ CREATE INDEX IF NOT EXISTS idx_evento_invitados_evento ON evento_invitados(evento_id);
+ 
++-- Acompanyants d'una compra (nom + email + telèfon de cadascú). Obligatori
++-- si cantidad > 1: n'han de ser exactament cantidad - 1 (el comprador
++-- principal ja compta com a 1 plaça) — validat a l'aplicació
++-- (utils/validarAcompanyants.js), no amb una constraint de BD. Mateix patró
++-- que evento_invitados: sense CRUD granular, es reemplaça la llista sencera
++-- en crear la compra.
++CREATE TABLE IF NOT EXISTS compra_acompanyants (
++  id SERIAL PRIMARY KEY,
++  compra_id INTEGER NOT NULL REFERENCES compras(id) ON DELETE CASCADE,
++  nombre TEXT NOT NULL,
++  email TEXT NOT NULL,
++  telefono TEXT,
++  orden INTEGER NOT NULL DEFAULT 1,
++  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
++);
++
++CREATE INDEX IF NOT EXISTS idx_compra_acompanyants_compra ON compra_acompanyants(compra_id);
++
+ -- Historial/auditoria: registre de creacions, modificacions (manuals o
+ -- automàtiques), compres, pagaments i cancel·lacions d'entrades. Es
+ -- consulta des de l'admin (admin i viewer, només lectura).
+@@ -90,3 +108,4 @@ ALTER TABLE eventos ENABLE ROW LEVEL SECURITY;
+ ALTER TABLE compras ENABLE ROW LEVEL SECURITY;
+ ALTER TABLE historial ENABLE ROW LEVEL SECURITY;
+ ALTER TABLE evento_invitados ENABLE ROW LEVEL SECURITY;
++ALTER TABLE compra_acompanyants ENABLE ROW LEVEL SECURITY;
+diff --git a/controllers/adminController.js b/controllers/adminController.js
+index e6eafec..2d36ffd 100644
+--- a/controllers/adminController.js
++++ b/controllers/adminController.js
+@@ -191,7 +191,13 @@ async function llistarCompresEvento(req, res) {
+   const evento = await Evento.getById(eventoId);
+   if (!evento) return res.status(404).json({ error: 'no_trobat' });
+   const compras = await Compra.listByEvento(eventoId);
+-  res.json(compras.map(({ edit_token, ...resta }) => resta));
++  const ambAcompanyants = await Promise.all(
++    compras.map(async ({ edit_token, ...resta }) => ({
++      ...resta,
++      acompanyants: await Compra.getAcompanyants(resta.id),
++    }))
++  );
++  res.json(ambAcompanyants);
+ }
+ 
+ async function cancelarCompra(req, res) {
+diff --git a/controllers/stripeController.js b/controllers/stripeController.js
+index dfcd5af..d6bd30f 100644
+--- a/controllers/stripeController.js
++++ b/controllers/stripeController.js
+@@ -3,7 +3,9 @@ const Evento = require('../models/Evento');
+ const Compra = require('../models/Compra');
+ const { enviarEmailConfirmacio } = require('../utils/mailer');
+ const { validarRespuestas } = require('../utils/camposFormulario');
++const { validarAcompanyants } = require('../utils/validarAcompanyants');
+ const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
++const { EMAIL_REGEX } = require('../utils/validacio');
+ 
+ // Client de Stripe perezós: abans es creava a nivell de mòdul
+ // (Stripe(process.env.STRIPE_SECRET_KEY) just en fer require d'aquest
+@@ -24,7 +26,6 @@ function stripeClient() {
+   return stripe;
+ }
+ 
+-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+ // Telèfon: accepta prefix internacional opcional, espais, guions i parèntesis,
+ // entre 9 i 15 dígits en total (suficient per a fixos/mòbils ES i estrangers).
+ const TELEFON_REGEX = /^\+?[\d\s().-]{9,20}$/;
+@@ -100,6 +101,23 @@ async function crearCheckoutSession(req, res) {
+       return res.status(400).json({ error: 'dades_invalides', detalls: errorsCamps });
+     }
+ 
++    // Acompanyants: només si cantidad > 1 (el comprador principal ja compta
++    // com a 1 plaça). Amb cantidad=1 el camp ni s'exigeix ni es processa —
++    // si arriba igualment (client vell/cache), s'ignora sense error, no es
++    // valida ni es desa enlloc.
++    let acompanyantsNormalizados = [];
++    if (cantidad > 1) {
++      const errorsAcompanyants = validarAcompanyants(req.body.acompanyants, cantidad);
++      if (errorsAcompanyants.length) {
++        return res.status(400).json({ error: 'dades_invalides', detalls: errorsAcompanyants });
++      }
++      acompanyantsNormalizados = req.body.acompanyants.map((ac) => ({
++        nombre: String(ac.nombre).trim(),
++        email: String(ac.email).trim().toLowerCase(),
++        telefono: ac.telefono ? String(ac.telefono).trim() : null,
++      }));
++    }
++
+     const importeTotal = cantidad * evento.precio; // cèntims
+ 
+     const telefono = String(req.body.telefono || '').trim();
+@@ -112,6 +130,7 @@ async function crearCheckoutSession(req, res) {
+       cantidad,
+       importe_total: importeTotal,
+       respuestas_campos: respuestasNormalizadas,
++      acompanyants: acompanyantsNormalizados,
+     }, { origen: 'client', usuari: req.body.email.trim().toLowerCase() });
+ 
+     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+diff --git a/models/Compra.js b/models/Compra.js
+index ab529f2..97cdbfd 100644
+--- a/models/Compra.js
++++ b/models/Compra.js
+@@ -40,7 +40,17 @@ async function create(data, meta = {}) {
+     respuestas_campos: JSON.stringify(data.respuestas_campos || {}),
+     edit_token: crypto.randomBytes(24).toString('hex'),
+   });
++  // Els acompanyants no són una columna de compras: es guarden a part, dins
++  // la mateixa operació de creació (mateix patró que Evento.create amb els
++  // invitados). Array buit si cantidad=1 (stripeController.js no en fa cap
++  // ni els accepta en aquest cas).
++  await setAcompanyants(info.lastInsertRowid, Array.isArray(data.acompanyants) ? data.acompanyants : []);
+   const compra = await getById(info.lastInsertRowid);
++  // S'adjunten aquí (no a getById en general, per no afegir una consulta
++  // extra a cada lectura de compra arreu de l'app — webhook, confirmació,
++  // etc. — que no els necessita) només perquè quedin al registre
++  // d'historial i al valor retornat just després de crear-la.
++  compra.acompanyants = await getAcompanyants(compra.id);
+   // edit_token dona accés directe (sense login) a editar les dades del
+   // comprador: no es desa a l'historial perquè el rol viewer hi té accés de
+   // només lectura i no ha de poder veure ni reutilitzar aquest token.
+@@ -62,6 +72,34 @@ async function getById(id) {
+   return db.prepare('SELECT * FROM compras WHERE id = ?').get(id);
+ }
+ 
++/**
++ * Retorna els acompanyants d'una compra, en l'ordre en què es van introduir.
++ */
++async function getAcompanyants(compraId) {
++  return db
++    .prepare('SELECT id, nombre, email, telefono, orden FROM compra_acompanyants WHERE compra_id = ? ORDER BY orden ASC, id ASC')
++    .all(compraId);
++}
++
++/**
++ * Substitueix tota la llista d'acompanyants d'una compra (esborra els
++ * existents i insereix els nous, en l'ordre rebut). Mateix patró que
++ * Evento.setInvitados: no hi ha CRUD granular per acompanyant individual,
++ * es reemplaça la llista sencera de cop (aquí, en crear la compra).
++ */
++async function setAcompanyants(compraId, acompanyants) {
++  await db.prepare('DELETE FROM compra_acompanyants WHERE compra_id = ?').run(compraId);
++  let orden = 1;
++  for (const ac of acompanyants) {
++    await db
++      .prepare(
++        `INSERT INTO compra_acompanyants (compra_id, nombre, email, telefono, orden)
++         VALUES (@compra_id, @nombre, @email, @telefono, @orden)`
++      )
++      .run({ compra_id: compraId, nombre: ac.nombre, email: ac.email, telefono: ac.telefono || null, orden: orden++ });
++  }
++}
++
+ async function findBySessionId(sessionId) {
+   return db.prepare('SELECT * FROM compras WHERE stripe_checkout_session_id = ?').get(sessionId);
+ }
+@@ -201,6 +239,8 @@ async function eliminarPerEvento(eventoId, meta = {}) {
+ module.exports = {
+   create,
+   getById,
++  getAcompanyants,
++  setAcompanyants,
+   findBySessionId,
+   findByEditToken,
+   updateRespuestas,
+diff --git a/tests/validarAcompanyants.test.js b/tests/validarAcompanyants.test.js
+new file mode 100644
+index 0000000..5980831
+--- /dev/null
++++ b/tests/validarAcompanyants.test.js
+@@ -0,0 +1,90 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++
++const { validarAcompanyants } = require('../utils/validarAcompanyants');
++
++test('validarAcompanyants rebutja qualsevol cosa que no sigui una llista', () => {
++  assert.deepEqual(validarAcompanyants(undefined, 3), ['acompanyants ha de ser una llista']);
++  assert.deepEqual(validarAcompanyants(null, 3), ['acompanyants ha de ser una llista']);
++  assert.deepEqual(validarAcompanyants('no', 3), ['acompanyants ha de ser una llista']);
++});
++
++test('validarAcompanyants exigeix exactament cantidad - 1 acompanyants', () => {
++  assert.deepEqual(
++    validarAcompanyants([{ nombre: 'Joana Puig', email: 'joana@example.com' }], 3),
++    ["calen exactament 2 acompanyants (n'hi ha 1)"]
++  );
++  assert.deepEqual(validarAcompanyants([], 3), ["calen exactament 2 acompanyants (n'hi ha 0)"]);
++  assert.deepEqual(
++    validarAcompanyants(
++      [
++        { nombre: 'Joana Puig', email: 'joana@example.com' },
++        { nombre: 'Marc Serra', email: 'marc@example.com' },
++        { nombre: 'Anna Roig', email: 'anna@example.com' },
++      ],
++      3
++    ),
++    ["calen exactament 2 acompanyants (n'hi ha 3)"]
++  );
++});
++
++test('validarAcompanyants pluralitza correctament el missatge quan en cal només 1', () => {
++  assert.deepEqual(validarAcompanyants([], 2), ["calen exactament 1 acompanyant (n'hi ha 0)"]);
++});
++
++test('validarAcompanyants accepta la llista quan el nombre i les dades són correctes', () => {
++  assert.deepEqual(
++    validarAcompanyants(
++      [
++        { nombre: 'Joana Puig', email: 'joana@example.com' },
++        { nombre: 'Marc Serra', email: 'marc@example.com', telefono: '+34611222333' },
++      ],
++      3
++    ),
++    []
++  );
++});
++
++test('validarAcompanyants accepta un acompanyant sense telèfon (opcional)', () => {
++  assert.deepEqual(validarAcompanyants([{ nombre: 'Joana Puig', email: 'joana@example.com' }], 2), []);
++});
++
++test('validarAcompanyants rebutja un acompanyant sense nom', () => {
++  assert.deepEqual(
++    validarAcompanyants([{ email: 'joana@example.com' }], 2),
++    ['acompanyant 1: falta el nom']
++  );
++  assert.deepEqual(
++    validarAcompanyants([{ nombre: '   ', email: 'joana@example.com' }], 2),
++    ['acompanyant 1: falta el nom']
++  );
++});
++
++test('validarAcompanyants rebutja un acompanyant amb email invàlid o absent', () => {
++  assert.deepEqual(
++    validarAcompanyants([{ nombre: 'Joana Puig', email: 'no-es-un-email' }], 2),
++    ['acompanyant 1: email invàlid']
++  );
++  assert.deepEqual(
++    validarAcompanyants([{ nombre: 'Joana Puig' }], 2),
++    ['acompanyant 1: email invàlid']
++  );
++});
++
++test('validarAcompanyants rebutja una entrada que no és un objecte', () => {
++  assert.deepEqual(validarAcompanyants([null], 2), ['acompanyant 1: dades invàlides']);
++  assert.deepEqual(validarAcompanyants(['Joana Puig'], 2), ['acompanyant 1: dades invàlides']);
++});
++
++test('validarAcompanyants assenyala només l\'índex de l\'acompanyant invàlid entre diversos', () => {
++  assert.deepEqual(
++    validarAcompanyants(
++      [
++        { nombre: 'Joana Puig', email: 'joana@example.com' },
++        { nombre: '', email: 'marc@example.com' },
++      ],
++      3
++    ),
++    ['acompanyant 2: falta el nom']
++  );
++});
+diff --git a/utils/validacio.js b/utils/validacio.js
+new file mode 100644
+index 0000000..d2f1886
+--- /dev/null
++++ b/utils/validacio.js
+@@ -0,0 +1,7 @@
++// Regex compartides entre validacions de diferents parts del checkout
++// (comprador a stripeController.js, acompanyants a
++// utils/validarAcompanyants.js), perquè totes exigeixin exactament el
++// mateix format sense arriscar-se a divergir amb còpies soltes.
++const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
++
++module.exports = { EMAIL_REGEX };
+diff --git a/utils/validarAcompanyants.js b/utils/validarAcompanyants.js
+new file mode 100644
+index 0000000..c682446
+--- /dev/null
++++ b/utils/validarAcompanyants.js
+@@ -0,0 +1,43 @@
++const { EMAIL_REGEX } = require('./validacio');
++
++function esStringNoBuit(v) {
++  return typeof v === 'string' && v.trim().length > 0;
++}
++
++/**
++ * Valida la llista d'acompanyants d'una compra: nom + email (mateix format
++ * que el del comprador principal, EMAIL_REGEX compartit via
++ * utils/validacio.js) + telèfon opcional (igual que el del comprador —
++ * vegeu stripeController.js:validarBody, no és obligatori tampoc allà).
++ *
++ * Ha d'haver-n'hi exactament `cantidad - 1`: el comprador principal ja
++ * compta com a 1 plaça. Si `cantidad` és 1, stripeController.js no ha de
++ * cridar aquesta funció en absolut (ni exigir ni acceptar acompanyants).
++ */
++function validarAcompanyants(acompanyants, cantidad) {
++  const esperats = cantidad - 1;
++
++  if (!Array.isArray(acompanyants)) {
++    return ['acompanyants ha de ser una llista'];
++  }
++  if (acompanyants.length !== esperats) {
++    return [`calen exactament ${esperats} acompanyant${esperats === 1 ? '' : 's'} (n'hi ha ${acompanyants.length})`];
++  }
++
++  const errors = [];
++  acompanyants.forEach((ac, i) => {
++    if (!ac || typeof ac !== 'object') {
++      errors.push(`acompanyant ${i + 1}: dades invàlides`);
++      return;
++    }
++    if (!esStringNoBuit(ac.nombre)) {
++      errors.push(`acompanyant ${i + 1}: falta el nom`);
++    }
++    if (!EMAIL_REGEX.test(ac.email || '')) {
++      errors.push(`acompanyant ${i + 1}: email invàlid`);
++    }
++  });
++  return errors;
++}
++
++module.exports = { validarAcompanyants };

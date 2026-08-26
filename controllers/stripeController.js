@@ -3,7 +3,9 @@ const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
 const { enviarEmailConfirmacio } = require('../utils/mailer');
 const { validarRespuestas } = require('../utils/camposFormulario');
+const { validarAcompanyants } = require('../utils/validarAcompanyants');
 const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
+const { EMAIL_REGEX } = require('../utils/validacio');
 
 // Client de Stripe perezós: abans es creava a nivell de mòdul
 // (Stripe(process.env.STRIPE_SECRET_KEY) just en fer require d'aquest
@@ -24,7 +26,6 @@ function stripeClient() {
   return stripe;
 }
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Telèfon: accepta prefix internacional opcional, espais, guions i parèntesis,
 // entre 9 i 15 dígits en total (suficient per a fixos/mòbils ES i estrangers).
 const TELEFON_REGEX = /^\+?[\d\s().-]{9,20}$/;
@@ -100,6 +101,23 @@ async function crearCheckoutSession(req, res) {
       return res.status(400).json({ error: 'dades_invalides', detalls: errorsCamps });
     }
 
+    // Acompanyants: només si cantidad > 1 (el comprador principal ja compta
+    // com a 1 plaça). Amb cantidad=1 el camp ni s'exigeix ni es processa —
+    // si arriba igualment (client vell/cache), s'ignora sense error, no es
+    // valida ni es desa enlloc.
+    let acompanyantsNormalizados = [];
+    if (cantidad > 1) {
+      const errorsAcompanyants = validarAcompanyants(req.body.acompanyants, cantidad);
+      if (errorsAcompanyants.length) {
+        return res.status(400).json({ error: 'dades_invalides', detalls: errorsAcompanyants });
+      }
+      acompanyantsNormalizados = req.body.acompanyants.map((ac) => ({
+        nombre: String(ac.nombre).trim(),
+        email: String(ac.email).trim().toLowerCase(),
+        telefono: ac.telefono ? String(ac.telefono).trim() : null,
+      }));
+    }
+
     const importeTotal = cantidad * evento.precio; // cèntims
 
     const telefono = String(req.body.telefono || '').trim();
@@ -112,6 +130,7 @@ async function crearCheckoutSession(req, res) {
       cantidad,
       importe_total: importeTotal,
       respuestas_campos: respuestasNormalizadas,
+      acompanyants: acompanyantsNormalizados,
     }, { origen: 'client', usuari: req.body.email.trim().toLowerCase() });
 
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;

@@ -40,7 +40,17 @@ async function create(data, meta = {}) {
     respuestas_campos: JSON.stringify(data.respuestas_campos || {}),
     edit_token: crypto.randomBytes(24).toString('hex'),
   });
+  // Els acompanyants no són una columna de compras: es guarden a part, dins
+  // la mateixa operació de creació (mateix patró que Evento.create amb els
+  // invitados). Array buit si cantidad=1 (stripeController.js no en fa cap
+  // ni els accepta en aquest cas).
+  await setAcompanyants(info.lastInsertRowid, Array.isArray(data.acompanyants) ? data.acompanyants : []);
   const compra = await getById(info.lastInsertRowid);
+  // S'adjunten aquí (no a getById en general, per no afegir una consulta
+  // extra a cada lectura de compra arreu de l'app — webhook, confirmació,
+  // etc. — que no els necessita) només perquè quedin al registre
+  // d'historial i al valor retornat just després de crear-la.
+  compra.acompanyants = await getAcompanyants(compra.id);
   // edit_token dona accés directe (sense login) a editar les dades del
   // comprador: no es desa a l'historial perquè el rol viewer hi té accés de
   // només lectura i no ha de poder veure ni reutilitzar aquest token.
@@ -60,6 +70,34 @@ async function create(data, meta = {}) {
 
 async function getById(id) {
   return db.prepare('SELECT * FROM compras WHERE id = ?').get(id);
+}
+
+/**
+ * Retorna els acompanyants d'una compra, en l'ordre en què es van introduir.
+ */
+async function getAcompanyants(compraId) {
+  return db
+    .prepare('SELECT id, nombre, email, telefono, orden FROM compra_acompanyants WHERE compra_id = ? ORDER BY orden ASC, id ASC')
+    .all(compraId);
+}
+
+/**
+ * Substitueix tota la llista d'acompanyants d'una compra (esborra els
+ * existents i insereix els nous, en l'ordre rebut). Mateix patró que
+ * Evento.setInvitados: no hi ha CRUD granular per acompanyant individual,
+ * es reemplaça la llista sencera de cop (aquí, en crear la compra).
+ */
+async function setAcompanyants(compraId, acompanyants) {
+  await db.prepare('DELETE FROM compra_acompanyants WHERE compra_id = ?').run(compraId);
+  let orden = 1;
+  for (const ac of acompanyants) {
+    await db
+      .prepare(
+        `INSERT INTO compra_acompanyants (compra_id, nombre, email, telefono, orden)
+         VALUES (@compra_id, @nombre, @email, @telefono, @orden)`
+      )
+      .run({ compra_id: compraId, nombre: ac.nombre, email: ac.email, telefono: ac.telefono || null, orden: orden++ });
+  }
 }
 
 async function findBySessionId(sessionId) {
@@ -201,6 +239,8 @@ async function eliminarPerEvento(eventoId, meta = {}) {
 module.exports = {
   create,
   getById,
+  getAcompanyants,
+  setAcompanyants,
   findBySessionId,
   findByEditToken,
   updateRespuestas,

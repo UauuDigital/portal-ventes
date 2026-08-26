@@ -63,6 +63,24 @@ CREATE TABLE IF NOT EXISTS evento_invitados (
 
 CREATE INDEX IF NOT EXISTS idx_evento_invitados_evento ON evento_invitados(evento_id);
 
+-- Acompanyants d'una compra (nom + email + telèfon de cadascú). Obligatori
+-- si cantidad > 1: n'han de ser exactament cantidad - 1 (el comprador
+-- principal ja compta com a 1 plaça) — validat a l'aplicació
+-- (utils/validarAcompanyants.js), no amb una constraint de BD. Mateix patró
+-- que evento_invitados: sense CRUD granular, es reemplaça la llista sencera
+-- en crear la compra.
+CREATE TABLE IF NOT EXISTS compra_acompanyants (
+  id SERIAL PRIMARY KEY,
+  compra_id INTEGER NOT NULL REFERENCES compras(id) ON DELETE CASCADE,
+  nombre TEXT NOT NULL,
+  email TEXT NOT NULL,
+  telefono TEXT,
+  orden INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_compra_acompanyants_compra ON compra_acompanyants(compra_id);
+
 -- Historial/auditoria: registre de creacions, modificacions (manuals o
 -- automàtiques), compres, pagaments i cancel·lacions d'entrades. Es
 -- consulta des de l'admin (admin i viewer, només lectura).
@@ -90,3 +108,4 @@ ALTER TABLE eventos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE compras ENABLE ROW LEVEL SECURITY;
 ALTER TABLE historial ENABLE ROW LEVEL SECURITY;
 ALTER TABLE evento_invitados ENABLE ROW LEVEL SECURITY;
+ALTER TABLE compra_acompanyants ENABLE ROW LEVEL SECURITY;

@@ -191,7 +191,13 @@ async function llistarCompresEvento(req, res) {
   const evento = await Evento.getById(eventoId);
   if (!evento) return res.status(404).json({ error: 'no_trobat' });
   const compras = await Compra.listByEvento(eventoId);
-  res.json(compras.map(({ edit_token, ...resta }) => resta));
+  const ambAcompanyants = await Promise.all(
+    compras.map(async ({ edit_token, ...resta }) => ({
+      ...resta,
+      acompanyants: await Compra.getAcompanyants(resta.id),
+    }))
+  );
+  res.json(ambAcompanyants);
 }
 
 async function cancelarCompra(req, res) {
