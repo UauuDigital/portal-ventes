@@ -449,8 +449,13 @@ input[type="checkbox"]:focus-visible {
   color: var(--error);
 }
 
+/* Padding-bottom a 0: el darrer input ja porta el seu propi
+   margin-bottom (16px, regla global dels inputs) — si el panell hi
+   afegís padding a sota, l'aire per sota del darrer camp quedaria el
+   doble que per sobre del primer label. Amb padding-top a 16px (igual
+   que aquest margin-bottom global) l'aire queda igual als dos costats. */
 .acompanyant-panell {
-  padding: 4px 16px 16px;
+  padding: 16px 16px 0;
   background: var(--light);
 }
 

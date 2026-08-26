@@ -361,10 +361,9 @@ function renderAcompanyants(n) {
   }
 
   if (eraBuit) {
-    // Primer cop que apareix el bloc (cantidad passa d'1 a 2+): s'obre
-    // "Acompanyant 1" automàticament, l'usuari no ha de fer clic per
-    // començar a omplir-lo.
-    acompanyantObert = 0;
+    // Primer cop que apareix el bloc (cantidad passa d'1 a 2+): totes les
+    // seccions comencen plegades, l'usuari tria quina obrir.
+    acompanyantObert = -1;
   } else if (acompanyantObert > n - 1) {
     // La secció oberta ha deixat d'existir (cantidad ha baixat): es passa
     // a l'última vàlida.
