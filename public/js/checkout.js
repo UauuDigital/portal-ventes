@@ -14,12 +14,25 @@ function escapeAttr(text) {
   return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function t(clau) {
-  return window.i18n ? window.i18n.t(clau) : clau;
-}
+const LOCALE = 'ca-ES';
 
-function localeActual() {
-  return window.i18n ? window.i18n.localeActual() : 'ca-ES';
+const TEXTOS = {
+  motiu_no_event: 'Ara mateix no hi ha cap esdeveniment obert per a la venda de entrades.',
+  motiu_data_limit: 'El termini de compra per a aquest esdeveniment ha finalitzat.',
+  motiu_aforament: "Les entrades per a aquest esdeveniment s'han esgotat.",
+  motiu_default: 'La compra no està disponible ara mateix.',
+  sense_places: 'Sense places disponibles',
+  evento_default_desc: 'Torna aviat per veure el proper esdeveniment.',
+  suffix_entrada: ' / entrada',
+  places_disponibles: 'places disponibles',
+  error_connexio: "No s'ha pogut connectar amb el servidor. Torna-ho a provar.",
+  error_inesperat: 'Error inesperat.',
+  btn_comprar: 'Pagar i reservar entrada',
+  btn_comprar_processant: 'Processant…',
+};
+
+function t(clau) {
+  return TEXTOS[clau] || clau;
 }
 
 /** Uneix el prefix de país triat amb el número, en un sol camp de text
@@ -143,8 +156,8 @@ function inicialitzarPrefixTelefon() {
 
 async function carregarEvento(eventoId) {
   const url = eventoId
-    ? `/api/evento/actual?id=${eventoId}&lang=${localeActual().slice(0, 2)}`
-    : `/api/evento/actual?lang=${localeActual().slice(0, 2)}`;
+    ? `/api/evento/actual?id=${eventoId}`
+    : `/api/evento/actual`;
   const res = await fetch(url);
   const data = await res.json();
 
@@ -186,7 +199,7 @@ async function carregarEvento(eventoId) {
   eventoSeleccionatId = ev.id;
   document.getElementById('evento-nombre').textContent = ev.nombre;
   document.getElementById('evento-descripcio').textContent = ev.descripcion || '';
-  document.getElementById('evento-data').textContent = '📅 ' + new Date(ev.fecha).toLocaleString(localeActual());
+  document.getElementById('evento-data').textContent = '📅 ' + new Date(ev.fecha).toLocaleString(LOCALE);
   document.getElementById('evento-preu').textContent = '💶 ' + (ev.precio / 100).toFixed(2) + ' €' + t('suffix_entrada');
   document.getElementById('evento-aforo').textContent = '🎟️ ' + ev.aforo_disponible + ' ' + t('places_disponibles');
   actualitzarBarraAforo(ev.aforo_disponible, ev.aforo_total);
@@ -352,7 +365,7 @@ function renderSelectorEsdeveniments(eventos) {
     btn.style.setProperty('--i', i);
     btn.innerHTML = `
       <span class="selector-btn-nom">${escapeHtml(ev.nombre)}</span>
-      <span class="selector-btn-data"><span aria-hidden="true">📅</span> ${escapeHtml(new Date(ev.fecha).toLocaleString(localeActual()))}</span>
+      <span class="selector-btn-data"><span aria-hidden="true">📅</span> ${escapeHtml(new Date(ev.fecha).toLocaleString(LOCALE))}</span>
       <div class="aforo-bar aforo-bar--selector">
         <div class="aforo-bar-fill ${classe}" style="width:${percentOcupat}%"></div>
       </div>
@@ -375,7 +388,7 @@ function renderSelectorEsdeveniments(eventos) {
 }
 
 async function iniciar() {
-  const res = await fetch(`/api/evento/actius?lang=${localeActual().slice(0, 2)}`);
+  const res = await fetch(`/api/evento/actius`);
   const eventos = await res.json();
 
   if (eventos.length > 1) {
@@ -443,16 +456,4 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-comprar').addEventListener('click', comprovarAccesAdmin, true);
   document.getElementById('form-compra').addEventListener('submit', enviarFormulari);
   document.getElementById('btn-tornar-selector').addEventListener('click', tornarAlSelector);
-});
-
-document.addEventListener('idiomaCanviat', async () => {
-  if (!document.getElementById('selector-esdeveniments').classList.contains('hidden')) {
-    // Es torna a demanar la llista (no només re-renderitzar la memòria
-    // cau) perquè el nom de cada esdeveniment arribi ja traduït al nou
-    // idioma.
-    const res = await fetch(`/api/evento/actius?lang=${localeActual().slice(0, 2)}`);
-    renderSelectorEsdeveniments(await res.json());
-  } else if (!document.getElementById('main-card').classList.contains('hidden')) {
-    carregarEvento(eventoSeleccionatId || undefined);
-  }
 });

@@ -1,29 +1,6 @@
 const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
 
-const IDIOMES_SUPORTATS = ['ca', 'es', 'en'];
-
-/** Tria la variant en l'idioma demanat (?lang=es|en) d'un camp traduït, amb
- * el català com a origen i valor de reserva si encara no hi ha traducció. */
-function textSegonsIdioma(base, baseEs, baseEn, lang) {
-  if (lang === 'es' && baseEs) return baseEs;
-  if (lang === 'en' && baseEn) return baseEn;
-  return base;
-}
-
-function nomSegonsIdioma(evento, lang) {
-  return textSegonsIdioma(evento.nombre, evento.nombre_es, evento.nombre_en, lang);
-}
-
-function descripcioSegonsIdioma(evento, lang) {
-  return textSegonsIdioma(evento.descripcion, evento.descripcion_es, evento.descripcion_en, lang);
-}
-
-function idiomaSollicitat(req) {
-  const lang = String(req.query.lang || '').toLowerCase();
-  return IDIOMES_SUPORTATS.includes(lang) ? lang : 'ca';
-}
-
 /**
  * GET /api/evento/actual[?id=]
  * Retorna l'esdeveniment obert per a compra, amb l'aforament disponible calculat
@@ -36,7 +13,6 @@ function idiomaSollicitat(req) {
 async function getEventoActual(req, res) {
   const eventoId = req.query.id ? parseInt(req.query.id, 10) : null;
   const evento = eventoId ? await Evento.getById(eventoId) : await Evento.getActivo();
-  const lang = idiomaSollicitat(req);
 
   if (!evento) {
     return res.json({ disponible: false, motiu: 'no_hi_ha_event_actiu' });
@@ -51,9 +27,9 @@ async function getEventoActual(req, res) {
       disponible: false,
       motiu: dataLimitSuperada || evento.estado !== 'abierto' ? 'data_limit_superada' : 'aforament_exhaurit',
       evento: {
-        nombre: nomSegonsIdioma(evento, lang),
+        nombre: evento.nombre,
         fecha: evento.fecha,
-        descripcion: descripcioSegonsIdioma(evento, lang),
+        descripcion: evento.descripcion,
       },
     });
   }
@@ -62,9 +38,9 @@ async function getEventoActual(req, res) {
     disponible: true,
     evento: {
       id: evento.id,
-      nombre: nomSegonsIdioma(evento, lang),
+      nombre: evento.nombre,
       fecha: evento.fecha,
-      descripcion: descripcioSegonsIdioma(evento, lang),
+      descripcion: evento.descripcion,
       precio: evento.precio,
       fecha_limite_compra: evento.fecha_limite_compra,
       aforo_disponible: disponibles,
@@ -85,15 +61,14 @@ async function getEventoActual(req, res) {
  */
 async function getEventosActius(req, res) {
   const eventos = await Evento.listActivos();
-  const lang = idiomaSollicitat(req);
   const ambAforo = await Promise.all(
     eventos.map(async (ev) => {
       const ocupades = await Compra.cantidadOcupada(ev.id);
       return {
         id: ev.id,
-        nombre: nomSegonsIdioma(ev, lang),
+        nombre: ev.nombre,
         fecha: ev.fecha,
-        descripcion: descripcioSegonsIdioma(ev, lang),
+        descripcion: ev.descripcion,
         aforo_total: ev.aforo_total,
         aforo_disponible: ev.aforo_total - ocupades,
       };

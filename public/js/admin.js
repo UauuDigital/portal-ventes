@@ -197,72 +197,6 @@ if (document.getElementById('btn-logout') && !document.getElementById('form-even
   document.addEventListener('DOMContentLoaded', aplicarRestriccionsPerRol);
 }
 
-const ICONA_CADENAT_TANCAT =
-  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
-const ICONA_CADENAT_OBERT =
-  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.75-3.5"/></svg>';
-
-// Cadenats de bloqueig de traducció: quan un camp ES/CA/EN es marca com a
-// bloquejat, la traducció automàtica del blur d'un altre idioma ja no el
-// pot sobreescriure, però l'admin el pot continuar editant a mà sense
-// problema.
-function inicialitzarBloquejosTraduccio() {
-  document.querySelectorAll('.btn-bloqueig-traduccio').forEach((btn) => {
-    if (btn.dataset.bloquejInicialitzat) return;
-    btn.dataset.bloquejInicialitzat = '1';
-    btn.innerHTML = ICONA_CADENAT_OBERT;
-    btn.addEventListener('click', () => {
-      const bloquejat = btn.getAttribute('aria-pressed') === 'true';
-      btn.setAttribute('aria-pressed', String(!bloquejat));
-      btn.innerHTML = bloquejat ? ICONA_CADENAT_OBERT : ICONA_CADENAT_TANCAT;
-      btn.setAttribute(
-        'aria-label',
-        bloquejat
-          ? 'Bloqueja aquesta traducció perquè no es sobreescrigui automàticament'
-          : 'Desbloqueja aquesta traducció'
-      );
-    });
-  });
-}
-
-function campTraduccioBloquejat(input) {
-  const camp = input.closest('.camp-traduccio');
-  const btn = camp && camp.querySelector('.btn-bloqueig-traduccio');
-  return !!btn && btn.getAttribute('aria-pressed') === 'true';
-}
-
-// Traducció en viu del "Nom" de l'esdeveniment: es pot escriure en
-// qualsevol dels 3 idiomes i, en sortir del camp, es completen sols els
-// altres dos (que després es poden editar sense problema, com qualsevol
-// altre camp de text, o bloquejar amb el cadenat perquè no es tornin a
-// sobreescriure).
-function configurarTraduccioNom(camps) {
-  inicialitzarBloquejosTraduccio();
-  Object.entries(camps).forEach(([idioma, input]) => {
-    if (!input) return;
-    input.addEventListener('blur', async () => {
-      const text = input.value.trim();
-      if (!text) return;
-      const res = await apiFetch('/api/admin/traduir-nom', {
-        method: 'POST',
-        body: JSON.stringify({ nombre: text, idioma }),
-      });
-      if (!res || !res.ok) return;
-      const traduccions = await res.json();
-      Object.entries(camps).forEach(([altreIdioma, altreInput]) => {
-        if (
-          altreIdioma !== idioma &&
-          altreInput &&
-          traduccions[altreIdioma] &&
-          !campTraduccioBloquejat(altreInput)
-        ) {
-          altreInput.value = traduccions[altreIdioma];
-        }
-      });
-    });
-  });
-}
-
 function formatEuros(centims) {
   return (centims / 100).toFixed(2) + ' €';
 }
@@ -671,16 +605,6 @@ if (taulaEventos) {
   }
 
   const formEvento = document.getElementById('form-evento');
-  configurarTraduccioNom({
-    ca: document.getElementById('nombre'),
-    es: document.getElementById('nombre_es'),
-    en: document.getElementById('nombre_en'),
-  });
-  configurarTraduccioNom({
-    ca: document.getElementById('descripcion'),
-    es: document.getElementById('descripcion_es'),
-    en: document.getElementById('descripcion_en'),
-  });
 
   const gestorInvitatsCrear = crearGestorInvitados('llista-invitats');
   document.getElementById('btn-afegir-invitat').addEventListener('click', () => gestorInvitatsCrear.afegir());
@@ -706,12 +630,8 @@ if (taulaEventos) {
 
     const body = {
       nombre: document.getElementById('nombre').value,
-      nombre_es: document.getElementById('nombre_es').value,
-      nombre_en: document.getElementById('nombre_en').value,
       fecha: new Date(fechaEventoInput.dataset.valor || fechaEventoInput.value).toISOString(),
       descripcion: document.getElementById('descripcion').value,
-      descripcion_es: document.getElementById('descripcion_es').value,
-      descripcion_en: document.getElementById('descripcion_en').value,
       precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
       aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
       fecha_limite_compra: fechaLimite.toISOString(),
@@ -947,17 +867,6 @@ if (formEventoEditar) {
 
   document.getElementById('link-export-csv').href = `/api/admin/eventos/${eventoId}/compras/export.csv`;
 
-  configurarTraduccioNom({
-    ca: document.getElementById('nombre'),
-    es: document.getElementById('nombre_es'),
-    en: document.getElementById('nombre_en'),
-  });
-  configurarTraduccioNom({
-    ca: document.getElementById('descripcion'),
-    es: document.getElementById('descripcion_es'),
-    en: document.getElementById('descripcion_en'),
-  });
-
   const btnEliminar = document.getElementById('btn-eliminar-evento');
   btnEliminar.addEventListener('click', async () => {
     const errorEl = document.getElementById('error-evento-editar');
@@ -1153,12 +1062,8 @@ if (formEventoEditar) {
     const evento = await res.json();
     document.getElementById('titol-evento').textContent = evento.nombre;
     document.getElementById('nombre').value = evento.nombre;
-    document.getElementById('nombre_es').value = evento.nombre_es || '';
-    document.getElementById('nombre_en').value = evento.nombre_en || '';
     document.getElementById('fecha').value = aInputDatetimeLocal(evento.fecha);
     document.getElementById('descripcion').value = evento.descripcion || '';
-    document.getElementById('descripcion_es').value = evento.descripcion_es || '';
-    document.getElementById('descripcion_en').value = evento.descripcion_en || '';
     document.getElementById('precio').value = (evento.precio / 100).toFixed(2);
     document.getElementById('aforo_total').value = evento.aforo_total;
     document.getElementById('fecha_limite_compra').value = aInputDatetimeLocal(evento.fecha_limite_compra);
@@ -1183,12 +1088,8 @@ if (formEventoEditar) {
 
     const body = {
       nombre: document.getElementById('nombre').value,
-      nombre_es: document.getElementById('nombre_es').value,
-      nombre_en: document.getElementById('nombre_en').value,
       fecha: new Date(document.getElementById('fecha').value).toISOString(),
       descripcion: document.getElementById('descripcion').value,
-      descripcion_es: document.getElementById('descripcion_es').value,
-      descripcion_en: document.getElementById('descripcion_en').value,
       precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
       aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
       fecha_limite_compra: new Date(document.getElementById('fecha_limite_compra').value).toISOString(),

@@ -41,8 +41,8 @@ if (llistaHistorial) {
   // Etiquetes llegibles per als noms de camp guardats a dades_abans/dades_despres
   // (coincideixen amb les columnes de eventos/compras a config/schema.sql).
   const ETIQUETES_CAMP = {
-    nombre: 'Nom', nombre_es: 'Nom (castellà)', nombre_en: 'Nom (anglès)',
-    fecha: 'Data', descripcion: 'Descripció', descripcion_es: 'Descripció (castellà)', descripcion_en: 'Descripció (anglès)',
+    nombre: 'Nom',
+    fecha: 'Data', descripcion: 'Descripció',
     precio: 'Preu', aforo_total: 'Aforament total', fecha_limite_compra: 'Data límit de compra',
     estado: 'Estat', nombre_invitado: 'Nom del convidat', cargo_invitado: 'Càrrec del convidat',
     campos_formulario: 'Camps del formulari', email_asunto: 'Assumpte de l\'email', email_html: 'HTML de l\'email',

@@ -188,10 +188,9 @@ body:has(> .admin-shell) {
   background: rgba(34, 31, 30, 0.4);
 }
 
-/* Amb els 3 idiomes en columnes (.camps-traduccio), 420px queda massa
-   estret un cop es treu el padding: cada textarea es queda amb ~110px i
-   el formulari sencer es veu apretat. A partir d'on hi ha marge de
-   sobres a la pantalla, s'eixampla el modal perquè cada columna respiri. */
+/* 420px queda massa estret un cop es treu el padding per a un formulari
+   amb diversos camps llargs. A partir d'on hi ha marge de sobres a la
+   pantalla, s'eixampla el modal perquè el formulari respiri. */
 @media (min-width: 860px) {
   .admin-modal {
     max-width: 760px;
@@ -1156,73 +1155,6 @@ body:has(> .admin-shell) {
   background: var(--white);
 }
 
-/* Els 3 idiomes del Nom/Descripció en columnes, no un sota l'altre. Amb
-   textarea (en lloc d'input) el text llarg salta de línia dins del propi
-   camp en comptes de desbordar-lo horitzontalment. */
-.camps-traduccio {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 6px;
-}
-
-.camp-traduccio {
-  position: relative;
-  min-width: 0;
-}
-
-.camp-traduccio label {
-  padding-right: 22px;
-}
-
-.camps-traduccio textarea {
-  resize: vertical;
-  min-height: 72px;
-}
-
-/* Cadenat de bloqueig de traducció, a l'extrem superior dret de cada
-   camp (fora del flux, així no toca el selector d'asterisc obligatori
-   "label:has(+ textarea[required])", que necessita label i textarea
-   com a germans immediats). Estat per defecte discret; en bloquejar es
-   fon amb el mateix to fosc que la resta de botons de l'admin. */
-.btn-bloqueig-traduccio {
-  position: absolute;
-  top: -3px;
-  right: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: rgba(34, 31, 30, 0.3);
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.btn-bloqueig-traduccio:hover {
-  background: rgba(34, 31, 30, 0.08);
-  color: var(--dark);
-}
-
-.btn-bloqueig-traduccio[aria-pressed="true"] {
-  color: var(--light);
-  background: var(--dark);
-}
-
-.btn-bloqueig-traduccio[aria-pressed="true"]:hover {
-  background: #3a3532;
-}
-
-@media (max-width: 640px) {
-  .camps-traduccio {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* Mateix patró que .admin-col-title-row del modal principal: títol i
    creu centrats junts com una sola unitat (no el títol tot sol forçat
    dins d'una columna estreta), perquè el text tingui la seva amplada
@@ -1445,8 +1377,7 @@ body:has(> .admin-shell) {
   background: rgba(179, 38, 30, 0.08);
 }
 
-/* Toggle "Obligatori": buit quan el camp és opcional, ple (mateix
-   tractament que .btn-bloqueig-traduccio en estat actiu) quan és
+/* Toggle "Obligatori": buit quan el camp és opcional, ple quan és
    obligatori — es pot canviar directament des de la fila. */
 .fila-camp-formulari button[data-accio="requerido"] {
   font-weight: 700;

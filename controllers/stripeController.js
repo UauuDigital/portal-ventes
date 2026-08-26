@@ -5,7 +5,24 @@ const { enviarEmailConfirmacio } = require('../utils/mailer');
 const { validarRespuestas } = require('../utils/camposFormulario');
 const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
 
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+// Client de Stripe perezós: abans es creava a nivell de mòdul
+// (Stripe(process.env.STRIPE_SECRET_KEY) just en fer require d'aquest
+// fitxer), cosa que impedia fer require('../controllers/stripeController')
+// en un test sense una clau vàlida, i que un desplegament sense
+// STRIPE_SECRET_KEY arrenqués igualment sense cap error fins al primer
+// intent real de cobrar (Stripe('') no llança res en aquesta versió de
+// l'SDK). Ara el client només es crea — i la clau només es valida — la
+// primera vegada que de veritat fa falta.
+let stripe = null;
+function stripeClient() {
+  if (!stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('Falta STRIPE_SECRET_KEY a l\'entorn.');
+    }
+    stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripe;
+}
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Telèfon: accepta prefix internacional opcional, espais, guions i parèntesis,
@@ -106,7 +123,7 @@ async function crearCheckoutSession(req, res) {
     // pagament associada (mai arribaria cap webhook que la desbloqués).
     let session;
     try {
-      session = await stripe.checkout.sessions.create({
+      session = await stripeClient().checkout.sessions.create({
         mode: 'payment',
         payment_method_types: ['card'],
         customer_email: compra.email,
@@ -174,7 +191,7 @@ async function webhook(req, res) {
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripeClient().webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error('Signatura de webhook invàlida:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);

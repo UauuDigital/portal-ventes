@@ -1,6 +1,4 @@
-function localeActual() {
-  return window.i18n ? window.i18n.localeActual() : 'ca-ES';
-}
+const LOCALE = 'ca-ES';
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -15,7 +13,7 @@ function renderitzarConfirmacio() {
   if (!contenidor || !dadesConfirmacio) return;
 
   const data = dadesConfirmacio;
-  const dataText = new Date(data.evento.fecha).toLocaleString(localeActual());
+  const dataText = new Date(data.evento.fecha).toLocaleString(LOCALE);
   const importText = (data.compra.importe_total / 100).toFixed(2) + ' €';
 
   contenidor.innerHTML = `
@@ -49,4 +47,3 @@ async function carregarConfirmacio() {
 }
 
 document.addEventListener('DOMContentLoaded', carregarConfirmacio);
-document.addEventListener('idiomaCanviat', renderitzarConfirmacio);

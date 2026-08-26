@@ -24,5 +24,29 @@ services:
       timeout: 3s
       retries: 20
 
+  # BD de test, completament separada de "db" (contenidor, port i volum
+  # propis): els tests (npm test, .env.test) hi apunten en lloc d'a "db"
+  # perquè es pugui truncar/recrear sense por entre execucions sense tocar
+  # mai les dades de desenvolupament manual. Mateixes credencials que "db"
+  # per simplicitat (l'aïllament és a nivell d'infraestructura, no de nom
+  # d'usuari).
+  db-test:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: portal_ventes
+      POSTGRES_PASSWORD: portal_ventes_local
+      POSTGRES_DB: portal_ventes
+    ports:
+      - "55433:5432"
+    volumes:
+      - portal_ventes_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal_ventes -d portal_ventes"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
 volumes:
   portal_ventes_local_data:
+  portal_ventes_test_data:

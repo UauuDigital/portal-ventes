@@ -230,19 +230,6 @@
   .panel {
     padding: 32px 24px;
   }
-
-  /* A mòbil, el selector d'idioma només s'ha de veure mentre s'està triant
-     entre diversos esdeveniments actius (#selector-esdeveniments), no un
-     cop ja s'ha entrat al formulari de compra. Si només hi ha un
-     esdeveniment, el selector mai apareix i aquesta regla no s'activa —
-     el switch es queda visible com sempre.
-     #selector-grid conserva els botons encara que el selector quedi
-     amagat (només es torna a buidar si es refresca la llista), així que
-     "el grid té un segon .selector-btn" és un senyal fiable que hi havia
-     més d'un esdeveniment, sense necessitat de marcar-ho des del JS. */
-  body:has(#selector-grid > .selector-btn:nth-child(2)):has(#main-card:not(.hidden)) .menu-idioma {
-    display: none;
-  }
 }
 
 /* Selector d'esdeveniment: quan hi ha diversos esdeveniments actius alhora,

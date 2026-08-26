@@ -12,7 +12,7 @@
     "dev": "node --watch server.js",
     "seed": "node scripts/seed.js",
     "migrar-invitados": "node scripts/migrar-invitados.js",
-    "test": "node --test"
+    "test": "node --env-file=.env.test --experimental-test-module-mocks --test"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

@@ -12,6 +12,13 @@ require('dotenv').config();
 const db = require('../config/db');
 
 async function migrarInvitados() {
+  // require('../config/db') ja no aplica l'esquema sol (vegeu el comentari
+  // d'aplicarSchema() a config/db.js): cal fer-ho explícitament aquí perquè
+  // el script segueixi funcionant igual encara que es cridi contra una BD
+  // on el servidor no s'hagi arrencat mai. Idempotent, sense cost real si
+  // ja estava aplicat.
+  await db.aplicarSchema();
+
   const eventos = await db
     .prepare(
       `SELECT id, nombre, nombre_invitado, cargo_invitado
