@@ -1,0 +1,441 @@
+diff --git a/config/schema.sql b/config/schema.sql
+index 2b47ed2..414fd57 100644
+--- a/config/schema.sql
++++ b/config/schema.sql
+@@ -18,8 +18,9 @@ ALTER TABLE eventos ADD COLUMN IF NOT EXISTS nombre_en TEXT;
+ ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion_es TEXT;
+ ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion_en TEXT;
+ 
+--- Camps informatius que introdueix l'admin a la fitxa de l'esdeveniment
+--- (no els respon el comprador al formulari de compra).
++-- OBSOLETO: sustituït per evento_invitados (vegeu més avall, permet més d'un
++-- convidat per esdeveniment). Pendent d'eliminar un cop verificat en
++-- producció que la migració de dades i el sistema nou funcionen bé.
+ ALTER TABLE eventos ADD COLUMN IF NOT EXISTS nombre_invitado TEXT;
+ ALTER TABLE eventos ADD COLUMN IF NOT EXISTS cargo_invitado TEXT;
+ 
+@@ -57,6 +58,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_compras_edit_token ON compras(edit_token)
+ ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_asunto TEXT;
+ ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_html TEXT;
+ 
++-- Convidats/ponents de l'esdeveniment: dada informativa que introdueix
++-- l'admin (no la respon el comprador), substitueix eventos.nombre_invitado/
++-- cargo_invitado de dalt perquè ara n'hi pot haver més d'un. Sempre almenys
++-- un (validat a l'admin, no amb una constraint de BD). L'admin edita la
++-- llista sencera de cop en desar l'esdeveniment: per això no hi ha CRUD
++-- granular per invitat individual, es reemplaça tota la llista cada vegada.
++CREATE TABLE IF NOT EXISTS evento_invitados (
++  id SERIAL PRIMARY KEY,
++  evento_id INTEGER NOT NULL REFERENCES eventos(id) ON DELETE CASCADE,
++  nombre TEXT NOT NULL,
++  cargo TEXT,
++  orden INTEGER NOT NULL DEFAULT 1,
++  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
++);
++
++CREATE INDEX IF NOT EXISTS idx_evento_invitados_evento ON evento_invitados(evento_id);
++
+ -- Historial/auditoria: registre de creacions, modificacions (manuals o
+ -- automàtiques), compres, pagaments i cancel·lacions d'entrades. Es
+ -- consulta des de l'admin (admin i viewer, només lectura).
+@@ -83,3 +101,4 @@ CREATE INDEX IF NOT EXISTS idx_historial_created ON historial(created_at DESC);
+ ALTER TABLE eventos ENABLE ROW LEVEL SECURITY;
+ ALTER TABLE compras ENABLE ROW LEVEL SECURITY;
+ ALTER TABLE historial ENABLE ROW LEVEL SECURITY;
++ALTER TABLE evento_invitados ENABLE ROW LEVEL SECURITY;
+diff --git a/controllers/adminController.js b/controllers/adminController.js
+index 6755bbd..15de2c3 100644
+--- a/controllers/adminController.js
++++ b/controllers/adminController.js
+@@ -4,6 +4,7 @@ const Historial = require('../models/Historial');
+ const { toCsv } = require('../utils/csv');
+ const { traduirNomEsdeveniment, traduirATotsIdiomes } = require('../utils/traduccio');
+ const { validarDefinicionCampos } = require('../utils/camposFormulario');
++const { validarInvitados } = require('../utils/validarInvitados');
+ const { enviarEmailPrueba } = require('../utils/mailer');
+ 
+ const IDIOMES_NOM = ['ca', 'es', 'en'];
+@@ -101,6 +102,8 @@ async function crearEvento(req, res) {
+   const errors = validarEvento(req.body);
+   const camposFormulario = Array.isArray(req.body.campos_formulario) ? req.body.campos_formulario : [];
+   errors.push(...validarDefinicionCampos(camposFormulario));
++  const invitados = Array.isArray(req.body.invitados) ? req.body.invitados : [];
++  errors.push(...validarInvitados(invitados));
+   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
+ 
+   const nombre = String(req.body.nombre).trim();
+@@ -131,8 +134,10 @@ async function crearEvento(req, res) {
+     aforo_total: parseInt(req.body.aforo_total, 10),
+     fecha_limite_compra: new Date(req.body.fecha_limite_compra).toISOString(),
+     estado: req.body.estado || 'abierto',
+-    nombre_invitado: req.body.nombre_invitado ? String(req.body.nombre_invitado).trim() : null,
+-    cargo_invitado: req.body.cargo_invitado ? String(req.body.cargo_invitado).trim() : null,
++    invitados: invitados.map((inv) => ({
++      nombre: String(inv.nombre).trim(),
++      cargo: inv.cargo ? String(inv.cargo).trim() : null,
++    })),
+     campos_formulario: camposFormulario,
+     email_asunto: req.body.email_asunto ? String(req.body.email_asunto).trim() : null,
+     email_html: req.body.email_html ? String(req.body.email_html).trim() : null,
+@@ -149,12 +154,15 @@ async function actualitzarEvento(req, res) {
+   if (req.body.campos_formulario !== undefined) {
+     errors.push(...validarDefinicionCampos(req.body.campos_formulario));
+   }
++  if (req.body.invitados !== undefined) {
++    errors.push(...validarInvitados(req.body.invitados));
++  }
+   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
+ 
+   const canvis = {};
+   [
+     'nombre', 'nombre_es', 'nombre_en', 'descripcion', 'descripcion_es', 'descripcion_en', 'estado',
+-    'nombre_invitado', 'cargo_invitado', 'email_asunto', 'email_html',
++    'email_asunto', 'email_html',
+   ].forEach((camp) => {
+     if (req.body[camp] !== undefined) canvis[camp] = String(req.body[camp]).trim();
+   });
+@@ -187,6 +195,12 @@ async function actualitzarEvento(req, res) {
+   if (req.body.campos_formulario !== undefined) {
+     canvis.campos_formulario = req.body.campos_formulario;
+   }
++  if (req.body.invitados !== undefined) {
++    canvis.invitados = req.body.invitados.map((inv) => ({
++      nombre: String(inv.nombre).trim(),
++      cargo: inv.cargo ? String(inv.cargo).trim() : null,
++    }));
++  }
+ 
+   const evento = await Evento.update(id, canvis, { origen: 'manual', usuari: req.adminUser });
+   res.json(evento);
+diff --git a/controllers/eventoController.js b/controllers/eventoController.js
+index f3db1a1..b10d1a1 100644
+--- a/controllers/eventoController.js
++++ b/controllers/eventoController.js
+@@ -70,6 +70,8 @@ async function getEventoActual(req, res) {
+       aforo_disponible: disponibles,
+       aforo_total: evento.aforo_total,
+       campos_formulario: Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [],
++      invitados: (Array.isArray(evento.invitados) ? evento.invitados : [])
++        .map(({ nombre, cargo }) => ({ nombre, cargo })),
+     },
+   });
+ }
+diff --git a/models/Evento.js b/models/Evento.js
+index f634cf1..25c870a 100644
+--- a/models/Evento.js
++++ b/models/Evento.js
+@@ -3,9 +3,53 @@ const Historial = require('./Historial');
+ 
+ const CAMPS_AUDITABLES = [
+   'nombre', 'nombre_es', 'nombre_en', 'fecha', 'descripcion', 'descripcion_es', 'descripcion_en',
+-  'precio', 'aforo_total', 'fecha_limite_compra', 'estado', 'nombre_invitado', 'cargo_invitado',
++  'precio', 'aforo_total', 'fecha_limite_compra', 'estado',
+   'campos_formulario', 'email_asunto', 'email_html',
+ ];
++// nombre_invitado/cargo_invitado ja no hi són: obsoletes, substituïdes per
++// evento_invitados (vegeu config/schema.sql). Els seus canvis es tracten a
++// part a create()/update() perquè no són columnes d'eventos.
++
++/**
++ * Retorna els convidats/ponents d'un esdeveniment, en l'ordre en què s'han
++ * de mostrar.
++ */
++async function getInvitados(eventoId) {
++  return db
++    .prepare('SELECT id, nombre, cargo, orden FROM evento_invitados WHERE evento_id = ? ORDER BY orden ASC, id ASC')
++    .all(eventoId);
++}
++
++/**
++ * Substitueix tota la llista de convidats d'un esdeveniment (esborra els
++ * existents i insereix els nous, en l'ordre rebut). No hi ha CRUD granular
++ * per convidat individual: l'admin sempre desa la llista sencera de cop.
++ */
++async function setInvitados(eventoId, invitados) {
++  await db.prepare('DELETE FROM evento_invitados WHERE evento_id = ?').run(eventoId);
++  let orden = 1;
++  for (const inv of invitados) {
++    await db
++      .prepare(
++        `INSERT INTO evento_invitados (evento_id, nombre, cargo, orden)
++         VALUES (@evento_id, @nombre, @cargo, @orden)`
++      )
++      .run({ evento_id: eventoId, nombre: inv.nombre, cargo: inv.cargo || null, orden: orden++ });
++  }
++}
++
++/** Compara dues llistes d'invitats només pel contingut (nom/càrrec), sense
++ * els id/orden que genera la BD en cada reemplaçament — evita falsos
++ * positius a l'historial quan es desa la mateixa llista dues vegades. */
++function invitadosPerComparar(llista) {
++  return (llista || []).map(({ nombre, cargo }) => ({ nombre, cargo: cargo || null }));
++}
++
++/** Afegeix `invitados` a un esdeveniment (o retorna null si no existeix). */
++async function ambInvitados(evento) {
++  if (!evento) return evento;
++  return { ...evento, invitados: await getInvitados(evento.id) };
++}
+ 
+ /**
+  * Tanca automàticament els esdeveniments oberts la data límit de compra dels
+@@ -49,7 +93,7 @@ async function tancarExpirats() {
+ async function getActivo() {
+   await tancarExpirats();
+   const now = new Date().toISOString();
+-  return db
++  const evento = await db
+     .prepare(
+       `SELECT * FROM eventos
+        WHERE estado = 'abierto' AND fecha_limite_compra > ?
+@@ -57,6 +101,7 @@ async function getActivo() {
+        LIMIT 1`
+     )
+     .get(now);
++  return ambInvitados(evento);
+ }
+ 
+ /**
+@@ -79,13 +124,14 @@ async function listActivos() {
+ 
+ async function getById(id) {
+   await tancarExpirats();
+-  return db.prepare('SELECT * FROM eventos WHERE id = ?').get(id);
++  const evento = await db.prepare('SELECT * FROM eventos WHERE id = ?').get(id);
++  return ambInvitados(evento);
+ }
+ 
+ async function create(data, meta = {}) {
+   const stmt = db.prepare(
+-    `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado, nombre_invitado, cargo_invitado, campos_formulario, email_asunto, email_html)
+-     VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado, @nombre_invitado, @cargo_invitado, @campos_formulario, @email_asunto, @email_html)
++    `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado, campos_formulario, email_asunto, email_html)
++     VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado, @campos_formulario, @email_asunto, @email_html)
+      RETURNING id`
+   );
+   const info = await stmt.run({
+@@ -95,14 +141,13 @@ async function create(data, meta = {}) {
+     descripcion_en: null,
+     nombre_es: null,
+     nombre_en: null,
+-    nombre_invitado: null,
+-    cargo_invitado: null,
+     campos_formulario: JSON.stringify([]),
+     email_asunto: null,
+     email_html: null,
+     ...data,
+     campos_formulario: JSON.stringify(data.campos_formulario || []),
+   });
++  await setInvitados(info.lastInsertRowid, Array.isArray(data.invitados) ? data.invitados : []);
+   const evento = await getById(info.lastInsertRowid);
+   await Historial.registrar({
+     tipus_entitat: 'evento',
+@@ -124,8 +169,7 @@ async function update(id, data, meta = {}) {
+     nombre, nombre_es, nombre_en, fecha,
+     descripcion, descripcion_es, descripcion_en,
+     precio, aforo_total, fecha_limite_compra, estado,
+-    nombre_invitado, cargo_invitado, campos_formulario,
+-    email_asunto, email_html,
++    campos_formulario, email_asunto, email_html,
+   } = { ...actual, ...data };
+   await db
+     .prepare(
+@@ -133,7 +177,6 @@ async function update(id, data, meta = {}) {
+          descripcion=@descripcion, descripcion_es=@descripcion_es, descripcion_en=@descripcion_en,
+          precio=@precio, aforo_total=@aforo_total,
+          fecha_limite_compra=@fecha_limite_compra, estado=@estado,
+-         nombre_invitado=@nombre_invitado, cargo_invitado=@cargo_invitado,
+          campos_formulario=@campos_formulario,
+          email_asunto=@email_asunto, email_html=@email_html
+        WHERE id=@id`
+@@ -142,14 +185,31 @@ async function update(id, data, meta = {}) {
+       nombre, nombre_es, nombre_en, fecha,
+       descripcion, descripcion_es, descripcion_en,
+       precio, aforo_total, fecha_limite_compra, estado, id,
+-      nombre_invitado, cargo_invitado,
+       campos_formulario: JSON.stringify(campos_formulario || []),
+       email_asunto: email_asunto || null,
+       email_html: email_html || null,
+     });
++
++  // Els invitats no són una columna d'eventos: es tracten a part i només es
++  // toquen si venen explícitament (igual que campos_formulario, permet
++  // editar la resta de l'esdeveniment sense reenviar sempre la llista).
++  let invitadosAbans;
++  let invitadosDespres;
++  let invitadosCanviats = false;
++  if (data.invitados !== undefined) {
++    invitadosAbans = invitadosPerComparar(actual.invitados);
++    await setInvitados(id, data.invitados);
++    invitadosDespres = invitadosPerComparar(data.invitados);
++    invitadosCanviats = JSON.stringify(invitadosAbans) !== JSON.stringify(invitadosDespres);
++  }
++
+   const nou = await getById(id);
+   const { abans, despres, hiHaCanvis } = Historial.diffCamps(actual, nou, CAMPS_AUDITABLES);
+-  if (hiHaCanvis) {
++  if (invitadosCanviats) {
++    abans.invitados = invitadosAbans;
++    despres.invitados = invitadosDespres;
++  }
++  if (hiHaCanvis || invitadosCanviats) {
+     await Historial.registrar({
+       tipus_entitat: 'evento',
+       entitat_id: id,
+@@ -187,4 +247,7 @@ async function remove(id, meta = {}) {
+   }
+ }
+ 
+-module.exports = { getActivo, listActivos, getById, create, update, listAll, remove };
++module.exports = {
++  getActivo, listActivos, getById, create, update, listAll, remove,
++  getInvitados, setInvitados,
++};
+diff --git a/scripts/migrar-invitados.js b/scripts/migrar-invitados.js
+new file mode 100644
+index 0000000..15bfd52
+--- /dev/null
++++ b/scripts/migrar-invitados.js
+@@ -0,0 +1,54 @@
++// Migra els invitats "únics" antics (eventos.nombre_invitado/cargo_invitado)
++// a la taula nova evento_invitados, que permet més d'un invitat per
++// esdeveniment. Idempotent: si un esdeveniment ja té files a
++// evento_invitados (d'una execució prèvia d'aquest script, o perquè ja s'ha
++// editat amb el sistema nou), es salta sense tocar-hi res.
++//
++// Ús: node scripts/migrar-invitados.js
++require('dotenv').config();
++const db = require('../config/db');
++
++(async () => {
++  const eventos = await db
++    .prepare(
++      `SELECT id, nombre, nombre_invitado, cargo_invitado
++       FROM eventos
++       WHERE nombre_invitado IS NOT NULL AND trim(nombre_invitado) <> ''`
++    )
++    .all();
++
++  let migrats = 0;
++  let saltats = 0;
++
++  for (const ev of eventos) {
++    const jaTeInvitados = await db
++      .prepare('SELECT id FROM evento_invitados WHERE evento_id = ? LIMIT 1')
++      .get(ev.id);
++
++    if (jaTeInvitados) {
++      saltats++;
++      console.log(`- Esdeveniment ${ev.id} ("${ev.nombre}"): ja té invitats a evento_invitados, es salta.`);
++      continue;
++    }
++
++    await db
++      .prepare(
++        `INSERT INTO evento_invitados (evento_id, nombre, cargo, orden)
++         VALUES (@evento_id, @nombre, @cargo, 1)`
++      )
++      .run({
++        evento_id: ev.id,
++        nombre: ev.nombre_invitado.trim(),
++        cargo: ev.cargo_invitado ? ev.cargo_invitado.trim() : null,
++      });
++    migrats++;
++    console.log(`- Esdeveniment ${ev.id} ("${ev.nombre}"): migrat ("${ev.nombre_invitado.trim()}").`);
++  }
++
++  console.log('');
++  console.log(`Resum: ${migrats} esdeveniment(s) migrat(s), ${saltats} ja tenien invitats i s'han saltat.`);
++  process.exit(0);
++})().catch((err) => {
++  console.error('Error migrant invitats:', err);
++  process.exit(1);
++});
+diff --git a/tests/validarInvitados.test.js b/tests/validarInvitados.test.js
+new file mode 100644
+index 0000000..5ca0236
+--- /dev/null
++++ b/tests/validarInvitados.test.js
+@@ -0,0 +1,46 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++
++const { validarInvitados } = require('../utils/validarInvitados');
++
++test('validarInvitados rebutja qualsevol cosa que no sigui una llista', () => {
++  assert.deepEqual(validarInvitados(undefined), ['invitados ha de ser una llista']);
++  assert.deepEqual(validarInvitados(null), ['invitados ha de ser una llista']);
++  assert.deepEqual(validarInvitados('no'), ['invitados ha de ser una llista']);
++});
++
++test('validarInvitados rebutja una llista buida (cal almenys un convidat)', () => {
++  assert.deepEqual(validarInvitados([]), ['cal almenys un convidat amb nom']);
++});
++
++test('validarInvitados accepta un convidat amb nom i sense càrrec', () => {
++  assert.deepEqual(validarInvitados([{ nombre: 'Joana Puig' }]), []);
++});
++
++test('validarInvitados accepta diversos convidats vàlids', () => {
++  assert.deepEqual(
++    validarInvitados([
++      { nombre: 'Joana Puig', cargo: 'Consellera' },
++      { nombre: 'Marc Serra' },
++    ]),
++    []
++  );
++});
++
++test('validarInvitados rebutja un convidat sense nom (buit o només espais)', () => {
++  assert.deepEqual(validarInvitados([{ nombre: '' }]), ['convidat 1: falta el nom']);
++  assert.deepEqual(validarInvitados([{ nombre: '   ' }]), ['convidat 1: falta el nom']);
++  assert.deepEqual(validarInvitados([{ cargo: 'Consellera' }]), ['convidat 1: falta el nom']);
++});
++
++test('validarInvitados rebutja una entrada que no és un objecte', () => {
++  assert.deepEqual(validarInvitados([null]), ['convidat 1: falta el nom']);
++  assert.deepEqual(validarInvitados(['Joana Puig']), ['convidat 1: falta el nom']);
++});
++
++test('validarInvitados assenyala només l\'índex del convidat invàlid entre diversos', () => {
++  assert.deepEqual(
++    validarInvitados([{ nombre: 'Joana Puig' }, { nombre: '' }, { nombre: 'Marc Serra' }]),
++    ['convidat 2: falta el nom']
++  );
++});
+diff --git a/utils/validarInvitados.js b/utils/validarInvitados.js
+new file mode 100644
+index 0000000..600dd7f
+--- /dev/null
++++ b/utils/validarInvitados.js
+@@ -0,0 +1,30 @@
++function esStringNoBuit(v) {
++  return typeof v === 'string' && v.trim().length > 0;
++}
++
++/**
++ * Valida la llista de convidats/ponents d'un esdeveniment (dada informativa
++ * que introdueix l'admin, substitueix les antigues eventos.nombre_invitado/
++ * cargo_invitado — vegeu evento_invitados a config/schema.sql). Cal almenys
++ * un convidat amb nom; el càrrec és opcional. No té res a veure amb
++ * utils/camposFormulario.js, que valida el formulari dinàmic que respon el
++ * comprador.
++ */
++function validarInvitados(invitados) {
++  if (!Array.isArray(invitados)) {
++    return ['invitados ha de ser una llista'];
++  }
++  if (invitados.length === 0) {
++    return ['cal almenys un convidat amb nom'];
++  }
++
++  const errors = [];
++  invitados.forEach((inv, i) => {
++    if (!inv || typeof inv !== 'object' || !esStringNoBuit(inv.nombre)) {
++      errors.push(`convidat ${i + 1}: falta el nom`);
++    }
++  });
++  return errors;
++}
++
++module.exports = { validarInvitados };

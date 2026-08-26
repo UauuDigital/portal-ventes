@@ -18,8 +18,9 @@ ALTER TABLE eventos ADD COLUMN IF NOT EXISTS nombre_en TEXT;
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion_es TEXT;
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion_en TEXT;
 
--- Camps informatius que introdueix l'admin a la fitxa de l'esdeveniment
--- (no els respon el comprador al formulari de compra).
+-- OBSOLETO: sustituït per evento_invitados (vegeu més avall, permet més d'un
+-- convidat per esdeveniment). Pendent d'eliminar un cop verificat en
+-- producció que la migració de dades i el sistema nou funcionen bé.
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS nombre_invitado TEXT;
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS cargo_invitado TEXT;
 
@@ -57,6 +58,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_compras_edit_token ON compras(edit_token) 
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_asunto TEXT;
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_html TEXT;
 
+-- Convidats/ponents de l'esdeveniment: dada informativa que introdueix
+-- l'admin (no la respon el comprador), substitueix eventos.nombre_invitado/
+-- cargo_invitado de dalt perquè ara n'hi pot haver més d'un. Sempre almenys
+-- un (validat a l'admin, no amb una constraint de BD). L'admin edita la
+-- llista sencera de cop en desar l'esdeveniment: per això no hi ha CRUD
+-- granular per invitat individual, es reemplaça tota la llista cada vegada.
+CREATE TABLE IF NOT EXISTS evento_invitados (
+  id SERIAL PRIMARY KEY,
+  evento_id INTEGER NOT NULL REFERENCES eventos(id) ON DELETE CASCADE,
+  nombre TEXT NOT NULL,
+  cargo TEXT,
+  orden INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_evento_invitados_evento ON evento_invitados(evento_id);
+
 -- Historial/auditoria: registre de creacions, modificacions (manuals o
 -- automàtiques), compres, pagaments i cancel·lacions d'entrades. Es
 -- consulta des de l'admin (admin i viewer, només lectura).
@@ -83,3 +101,4 @@ CREATE INDEX IF NOT EXISTS idx_historial_created ON historial(created_at DESC);
 ALTER TABLE eventos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE compras ENABLE ROW LEVEL SECURITY;
 ALTER TABLE historial ENABLE ROW LEVEL SECURITY;
+ALTER TABLE evento_invitados ENABLE ROW LEVEL SECURITY;

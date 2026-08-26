@@ -4,6 +4,7 @@ const Historial = require('../models/Historial');
 const { toCsv } = require('../utils/csv');
 const { traduirNomEsdeveniment, traduirATotsIdiomes } = require('../utils/traduccio');
 const { validarDefinicionCampos } = require('../utils/camposFormulario');
+const { validarInvitados } = require('../utils/validarInvitados');
 const { enviarEmailPrueba } = require('../utils/mailer');
 
 const IDIOMES_NOM = ['ca', 'es', 'en'];
@@ -101,6 +102,8 @@ async function crearEvento(req, res) {
   const errors = validarEvento(req.body);
   const camposFormulario = Array.isArray(req.body.campos_formulario) ? req.body.campos_formulario : [];
   errors.push(...validarDefinicionCampos(camposFormulario));
+  const invitados = Array.isArray(req.body.invitados) ? req.body.invitados : [];
+  errors.push(...validarInvitados(invitados));
   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
 
   const nombre = String(req.body.nombre).trim();
@@ -131,8 +134,10 @@ async function crearEvento(req, res) {
     aforo_total: parseInt(req.body.aforo_total, 10),
     fecha_limite_compra: new Date(req.body.fecha_limite_compra).toISOString(),
     estado: req.body.estado || 'abierto',
-    nombre_invitado: req.body.nombre_invitado ? String(req.body.nombre_invitado).trim() : null,
-    cargo_invitado: req.body.cargo_invitado ? String(req.body.cargo_invitado).trim() : null,
+    invitados: invitados.map((inv) => ({
+      nombre: String(inv.nombre).trim(),
+      cargo: inv.cargo ? String(inv.cargo).trim() : null,
+    })),
     campos_formulario: camposFormulario,
     email_asunto: req.body.email_asunto ? String(req.body.email_asunto).trim() : null,
     email_html: req.body.email_html ? String(req.body.email_html).trim() : null,
@@ -149,12 +154,15 @@ async function actualitzarEvento(req, res) {
   if (req.body.campos_formulario !== undefined) {
     errors.push(...validarDefinicionCampos(req.body.campos_formulario));
   }
+  if (req.body.invitados !== undefined) {
+    errors.push(...validarInvitados(req.body.invitados));
+  }
   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
 
   const canvis = {};
   [
     'nombre', 'nombre_es', 'nombre_en', 'descripcion', 'descripcion_es', 'descripcion_en', 'estado',
-    'nombre_invitado', 'cargo_invitado', 'email_asunto', 'email_html',
+    'email_asunto', 'email_html',
   ].forEach((camp) => {
     if (req.body[camp] !== undefined) canvis[camp] = String(req.body[camp]).trim();
   });
@@ -186,6 +194,12 @@ async function actualitzarEvento(req, res) {
 
   if (req.body.campos_formulario !== undefined) {
     canvis.campos_formulario = req.body.campos_formulario;
+  }
+  if (req.body.invitados !== undefined) {
+    canvis.invitados = req.body.invitados.map((inv) => ({
+      nombre: String(inv.nombre).trim(),
+      cargo: inv.cargo ? String(inv.cargo).trim() : null,
+    }));
   }
 
   const evento = await Evento.update(id, canvis, { origen: 'manual', usuari: req.adminUser });

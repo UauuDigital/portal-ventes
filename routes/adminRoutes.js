@@ -4,6 +4,7 @@ const router = express.Router();
 const asyncHandler = require('../utils/asyncHandler');
 const { login, logout } = require('../controllers/authController');
 const { requireAuth, requireRole } = require('../middleware/authMiddleware');
+const { loginLimiter } = require('../middleware/rateLimiter');
 const {
   llistarEventos,
   obtenirEvento,
@@ -18,7 +19,7 @@ const {
   llistarHistorial,
 } = require('../controllers/adminController');
 
-router.post('/admin/login', login);
+router.post('/admin/login', loginLimiter, login);
 router.post('/admin/logout', logout);
 
 router.get('/api/admin/me', requireAuth, (req, res) => {

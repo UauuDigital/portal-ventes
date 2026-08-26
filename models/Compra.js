@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const db = require('../config/db');
 const Historial = require('./Historial');
+const Evento = require('./Evento');
+const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
 
 // Estats que encara ocupen aforament: pagades + pendents que no han expirat
 // (les pendents expirades es marquen 'cancelado' des del webhook checkout.session.expired)
@@ -8,15 +10,19 @@ const ESTATS_OCUPEN_AFORO = ['pendiente', 'pagado'];
 
 // Temps que una reserva 'pendiente' compta com a ocupada encara que el
 // webhook (o l'usuari tornant per cancel_url) no l'hagi marcada 'cancelado'.
-// Independent del temps de vida real de la sessió de Stripe (EXPIRA_MINUTS a
-// stripeController.js, que ha de ser >= 30 min per exigència de Stripe): quan
-// l'usuari torna amb les fletxes del navegador (sense passar per cancel_url
-// ni per cap redirecció), no hi ha manera de saber-ho al moment, així que
-// aquest marge és el que decideix com de ràpid es torna a alliberar la plaça.
-// Compensació acceptada: si algú triga més de MINUTS_RESERVA a completar el
-// pagament mentre un altre compra la plaça "alliberada", hi ha risc de
-// sobrevenda puntual (s'hauria de resoldre manualment si passa).
-const MINUTS_RESERVA = parseInt(process.env.RESERVA_MINUTES || '15', 10);
+// Quan l'usuari torna amb les fletxes del navegador (sense passar per
+// cancel_url ni per cap redirecció), no hi ha manera de saber-ho al moment,
+// així que aquest marge és el que decideix com de ràpid es torna a alliberar
+// la plaça.
+//
+// Ha de ser sempre >= EXPIRA_MINUTS (el temps que la sessió de Stripe segueix
+// viva i pagable, utils/checkoutConfig.js): si RESERVA_MINUTES fos més curt,
+// la reserva deixaria de comptar com a ocupada abans que la sessió de Stripe
+// hagués pogut expirar, i algú altre podria comprar la plaça "alliberada"
+// mentre el primer comprador encara la pot pagar — sobrevenda determinista,
+// no una condició de carrera rara. Per això es deriva amb Math.max enlloc de
+// llegir-se com un valor solt que es pogués desincronitzar.
+const MINUTS_RESERVA = Math.max(EXPIRA_MINUTS, parseInt(process.env.RESERVA_MINUTES || '15', 10));
 
 async function create(data, meta = {}) {
   const stmt = db.prepare(
@@ -41,6 +47,10 @@ async function create(data, meta = {}) {
     edit_token: crypto.randomBytes(24).toString('hex'),
   });
   const compra = await getById(info.lastInsertRowid);
+  // edit_token dona accés directe (sense login) a editar les dades del
+  // comprador: no es desa a l'historial perquè el rol viewer hi té accés de
+  // només lectura i no ha de poder veure ni reutilitzar aquest token.
+  const { edit_token: _editToken, ...compraPerHistorial } = compra;
   await Historial.registrar({
     tipus_entitat: 'compra',
     entitat_id: compra.id,
@@ -49,7 +59,7 @@ async function create(data, meta = {}) {
     origen: meta.origen || 'client',
     usuari: meta.usuari || compra.email,
     descripcio: `Compra #${compra.id} creada per ${compra.nombre_comprador} (${compra.cantidad} entrades)`,
-    dades_despres: compra,
+    dades_despres: compraPerHistorial,
   });
   return compra;
 }
@@ -77,6 +87,36 @@ async function setSessionId(id, sessionId) {
   await db.prepare('UPDATE compras SET stripe_checkout_session_id = ? WHERE id = ?').run(sessionId, id);
 }
 
+/**
+ * Comprovació de sobrevenda posterior al pagament: només detecta i deixa
+ * rastre, MAI bloqueja. Quan es crida, Stripe ja ha cobrat el comprador —
+ * rebutjar o desfer el pagament aquí no és una opció, l'única resposta és
+ * alertar l'equip perquè ho resolgui manualment (contactar el comprador,
+ * ampliar l'aforament, etc.). El risc real que això detecta és la
+ * comprovació d'aforament sense transacció a crearCheckoutSession
+ * (stripeController.js): dues peticions concurrents pel darrer seient poden
+ * passar totes dues la comprovació abans que cap hagi inserit la compra.
+ */
+async function comprovarSobrevenda(eventoId) {
+  const evento = await Evento.getById(eventoId);
+  if (!evento) return;
+  const ocupades = await cantidadOcupada(eventoId);
+  if (ocupades <= evento.aforo_total) return;
+
+  const descripcio = `Sobrevenda detectada a "${evento.nombre}": ${ocupades}/${evento.aforo_total} places ocupades`;
+  console.error(descripcio);
+  await Historial.registrar({
+    tipus_entitat: 'evento',
+    entitat_id: eventoId,
+    evento_id: eventoId,
+    accio: 'sobrevenda',
+    origen: 'automatic',
+    usuari: 'sistema',
+    descripcio,
+    dades_despres: { ocupades, aforo_total: evento.aforo_total },
+  });
+}
+
 async function marcarPagado(id, meta = {}) {
   const abans = await getById(id);
   if (!abans || abans.estado_pago === 'pagado') return;
@@ -92,6 +132,7 @@ async function marcarPagado(id, meta = {}) {
     dades_abans: { estado_pago: abans.estado_pago },
     dades_despres: { estado_pago: 'pagado' },
   });
+  await comprovarSobrevenda(abans.evento_id);
 }
 
 const DESCRIPCIONS_CANCELACIO = {

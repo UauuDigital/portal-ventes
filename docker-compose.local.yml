@@ -1,0 +1,28 @@
+# Postgres local per a desenvolupament/verificació. NO és el Postgres de
+# Supabase: aïllat en un contenidor propi, dades efímeres, port propi perquè
+# no xoqui amb res que ja escolti al 5432 de la màquina.
+#
+# Ús:
+#   docker compose -f docker-compose.local.yml up -d
+#   docker compose -f docker-compose.local.yml down       # atura, conserva el volum
+#   docker compose -f docker-compose.local.yml down -v    # atura i esborra les dades
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: portal_ventes
+      POSTGRES_PASSWORD: portal_ventes_local
+      POSTGRES_DB: portal_ventes
+    ports:
+      - "55432:5432"
+    volumes:
+      - portal_ventes_local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal_ventes -d portal_ventes"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  portal_ventes_local_data:

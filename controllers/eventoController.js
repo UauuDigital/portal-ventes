@@ -70,6 +70,8 @@ async function getEventoActual(req, res) {
       aforo_disponible: disponibles,
       aforo_total: evento.aforo_total,
       campos_formulario: Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [],
+      invitados: (Array.isArray(evento.invitados) ? evento.invitados : [])
+        .map(({ nombre, cargo }) => ({ nombre, cargo })),
     },
   });
 }

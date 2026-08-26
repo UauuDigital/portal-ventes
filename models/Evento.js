@@ -3,9 +3,53 @@ const Historial = require('./Historial');
 
 const CAMPS_AUDITABLES = [
   'nombre', 'nombre_es', 'nombre_en', 'fecha', 'descripcion', 'descripcion_es', 'descripcion_en',
-  'precio', 'aforo_total', 'fecha_limite_compra', 'estado', 'nombre_invitado', 'cargo_invitado',
+  'precio', 'aforo_total', 'fecha_limite_compra', 'estado',
   'campos_formulario', 'email_asunto', 'email_html',
 ];
+// nombre_invitado/cargo_invitado ja no hi són: obsoletes, substituïdes per
+// evento_invitados (vegeu config/schema.sql). Els seus canvis es tracten a
+// part a create()/update() perquè no són columnes d'eventos.
+
+/**
+ * Retorna els convidats/ponents d'un esdeveniment, en l'ordre en què s'han
+ * de mostrar.
+ */
+async function getInvitados(eventoId) {
+  return db
+    .prepare('SELECT id, nombre, cargo, orden FROM evento_invitados WHERE evento_id = ? ORDER BY orden ASC, id ASC')
+    .all(eventoId);
+}
+
+/**
+ * Substitueix tota la llista de convidats d'un esdeveniment (esborra els
+ * existents i insereix els nous, en l'ordre rebut). No hi ha CRUD granular
+ * per convidat individual: l'admin sempre desa la llista sencera de cop.
+ */
+async function setInvitados(eventoId, invitados) {
+  await db.prepare('DELETE FROM evento_invitados WHERE evento_id = ?').run(eventoId);
+  let orden = 1;
+  for (const inv of invitados) {
+    await db
+      .prepare(
+        `INSERT INTO evento_invitados (evento_id, nombre, cargo, orden)
+         VALUES (@evento_id, @nombre, @cargo, @orden)`
+      )
+      .run({ evento_id: eventoId, nombre: inv.nombre, cargo: inv.cargo || null, orden: orden++ });
+  }
+}
+
+/** Compara dues llistes d'invitats només pel contingut (nom/càrrec), sense
+ * els id/orden que genera la BD en cada reemplaçament — evita falsos
+ * positius a l'historial quan es desa la mateixa llista dues vegades. */
+function invitadosPerComparar(llista) {
+  return (llista || []).map(({ nombre, cargo }) => ({ nombre, cargo: cargo || null }));
+}
+
+/** Afegeix `invitados` a un esdeveniment (o retorna null si no existeix). */
+async function ambInvitados(evento) {
+  if (!evento) return evento;
+  return { ...evento, invitados: await getInvitados(evento.id) };
+}
 
 /**
  * Tanca automàticament els esdeveniments oberts la data límit de compra dels
@@ -49,7 +93,7 @@ async function tancarExpirats() {
 async function getActivo() {
   await tancarExpirats();
   const now = new Date().toISOString();
-  return db
+  const evento = await db
     .prepare(
       `SELECT * FROM eventos
        WHERE estado = 'abierto' AND fecha_limite_compra > ?
@@ -57,6 +101,7 @@ async function getActivo() {
        LIMIT 1`
     )
     .get(now);
+  return ambInvitados(evento);
 }
 
 /**
@@ -79,13 +124,14 @@ async function listActivos() {
 
 async function getById(id) {
   await tancarExpirats();
-  return db.prepare('SELECT * FROM eventos WHERE id = ?').get(id);
+  const evento = await db.prepare('SELECT * FROM eventos WHERE id = ?').get(id);
+  return ambInvitados(evento);
 }
 
 async function create(data, meta = {}) {
   const stmt = db.prepare(
-    `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado, nombre_invitado, cargo_invitado, campos_formulario, email_asunto, email_html)
-     VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado, @nombre_invitado, @cargo_invitado, @campos_formulario, @email_asunto, @email_html)
+    `INSERT INTO eventos (nombre, nombre_es, nombre_en, fecha, descripcion, descripcion_es, descripcion_en, precio, aforo_total, fecha_limite_compra, estado, campos_formulario, email_asunto, email_html)
+     VALUES (@nombre, @nombre_es, @nombre_en, @fecha, @descripcion, @descripcion_es, @descripcion_en, @precio, @aforo_total, @fecha_limite_compra, @estado, @campos_formulario, @email_asunto, @email_html)
      RETURNING id`
   );
   const info = await stmt.run({
@@ -95,14 +141,13 @@ async function create(data, meta = {}) {
     descripcion_en: null,
     nombre_es: null,
     nombre_en: null,
-    nombre_invitado: null,
-    cargo_invitado: null,
     campos_formulario: JSON.stringify([]),
     email_asunto: null,
     email_html: null,
     ...data,
     campos_formulario: JSON.stringify(data.campos_formulario || []),
   });
+  await setInvitados(info.lastInsertRowid, Array.isArray(data.invitados) ? data.invitados : []);
   const evento = await getById(info.lastInsertRowid);
   await Historial.registrar({
     tipus_entitat: 'evento',
@@ -124,8 +169,7 @@ async function update(id, data, meta = {}) {
     nombre, nombre_es, nombre_en, fecha,
     descripcion, descripcion_es, descripcion_en,
     precio, aforo_total, fecha_limite_compra, estado,
-    nombre_invitado, cargo_invitado, campos_formulario,
-    email_asunto, email_html,
+    campos_formulario, email_asunto, email_html,
   } = { ...actual, ...data };
   await db
     .prepare(
@@ -133,7 +177,6 @@ async function update(id, data, meta = {}) {
          descripcion=@descripcion, descripcion_es=@descripcion_es, descripcion_en=@descripcion_en,
          precio=@precio, aforo_total=@aforo_total,
          fecha_limite_compra=@fecha_limite_compra, estado=@estado,
-         nombre_invitado=@nombre_invitado, cargo_invitado=@cargo_invitado,
          campos_formulario=@campos_formulario,
          email_asunto=@email_asunto, email_html=@email_html
        WHERE id=@id`
@@ -142,14 +185,31 @@ async function update(id, data, meta = {}) {
       nombre, nombre_es, nombre_en, fecha,
       descripcion, descripcion_es, descripcion_en,
       precio, aforo_total, fecha_limite_compra, estado, id,
-      nombre_invitado, cargo_invitado,
       campos_formulario: JSON.stringify(campos_formulario || []),
       email_asunto: email_asunto || null,
       email_html: email_html || null,
     });
+
+  // Els invitats no són una columna d'eventos: es tracten a part i només es
+  // toquen si venen explícitament (igual que campos_formulario, permet
+  // editar la resta de l'esdeveniment sense reenviar sempre la llista).
+  let invitadosAbans;
+  let invitadosDespres;
+  let invitadosCanviats = false;
+  if (data.invitados !== undefined) {
+    invitadosAbans = invitadosPerComparar(actual.invitados);
+    await setInvitados(id, data.invitados);
+    invitadosDespres = invitadosPerComparar(data.invitados);
+    invitadosCanviats = JSON.stringify(invitadosAbans) !== JSON.stringify(invitadosDespres);
+  }
+
   const nou = await getById(id);
   const { abans, despres, hiHaCanvis } = Historial.diffCamps(actual, nou, CAMPS_AUDITABLES);
-  if (hiHaCanvis) {
+  if (invitadosCanviats) {
+    abans.invitados = invitadosAbans;
+    despres.invitados = invitadosDespres;
+  }
+  if (hiHaCanvis || invitadosCanviats) {
     await Historial.registrar({
       tipus_entitat: 'evento',
       entitat_id: id,
@@ -187,4 +247,7 @@ async function remove(id, meta = {}) {
   }
 }
 
-module.exports = { getActivo, listActivos, getById, create, update, listAll, remove };
+module.exports = {
+  getActivo, listActivos, getById, create, update, listAll, remove,
+  getInvitados, setInvitados,
+};

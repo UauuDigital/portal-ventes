@@ -1,0 +1,290 @@
+diff --git a/.env.example b/.env.example
+index 1d46322..148edf4 100644
+--- a/.env.example
++++ b/.env.example
+@@ -9,7 +9,10 @@ STRIPE_PUBLISHABLE_KEY=pk_test_REPLACA_AQUI_LA_TEVA_CLAU_PUBLICA
+ STRIPE_WEBHOOK_SECRET=whsec_REPLACA_AQUI_EL_TEU_SECRET_DE_WEBHOOK
+ CHECKOUT_EXPIRES_MINUTES=30
+ # Minuts que una compra "pendiente" compta com a plaça ocupada abans
+-# d'alliberar-se sola (encara que ningú confirmi la cancel·lació explícitament)
++# d'alliberar-se sola (encara que ningú confirmi la cancel·lació explícitament).
++# Mai s'aplica per sota de CHECKOUT_EXPIRES_MINUTES (utils/checkoutConfig.js
++# ho garanteix): si es posés un valor més baix, la reserva s'alliberaria
++# abans que la sessió de Stripe hagués pogut expirar i permetria sobrevenda.
+ RESERVA_MINUTES=15
+ 
+ # Base de dades (Supabase / Postgres)
+@@ -17,7 +20,8 @@ RESERVA_MINUTES=15
+ # (recomanat: la "Connection pooling" / Transaction pooler, port 6543, per a connexions externes)
+ DATABASE_URL=postgresql://postgres:LA-TEVA-CONTRASENYA@db.xxxxxxxxxxxx.supabase.co:5432/postgres
+ 
+-# Accés bàsic (reservat per al futur panell d'administració)
++# Accés del panell d'administració. OBLIGATORIES: el servidor no arrenca si
++# falten o estan buides (controllers/authController.js).
+ ADMIN_USER=admin
+ ADMIN_PASS=canvia-aquesta-contrasenya
+ 
+diff --git a/controllers/authController.js b/controllers/authController.js
+index 4e3efb3..cf57f13 100644
+--- a/controllers/authController.js
++++ b/controllers/authController.js
+@@ -3,9 +3,25 @@ const { crearCookieSessio } = require('../utils/sessionCookie');
+ 
+ const VUIT_HORES_MS = 8 * 60 * 60 * 1000;
+ 
++// Sense ADMIN_USER/ADMIN_PASS no hi ha manera de comparar-hi res: fallar aquí
++// (igual que config/db.js amb DATABASE_URL) evita que un desplegament amb
++// aquestes variables oblidades arrenqui igualment i, per culpa del bug que
++// arregla safeEqual just a sota, accepti login com a admin amb usuari i
++// contrasenya buits.
++if (!process.env.ADMIN_USER || !process.env.ADMIN_PASS) {
++  throw new Error(
++    'Falten ADMIN_USER/ADMIN_PASS a l\'entorn: calen credencials d\'administrador no buides per arrencar.'
++  );
++}
++
+ function safeEqual(a, b) {
+   const bufA = Buffer.from(String(a));
+   const bufB = Buffer.from(String(b));
++  // Dos buffers buits són "iguals" per a timingSafeEqual: sense aquest tall,
++  // un usuari/contrasenya buits contra un ADMIN_USER/ADMIN_PASS també buits
++  // autenticarien com a admin. Amb la validació d'arrencada d'aquí dalt ja no
++  // hauria de poder passar mai, però és la comprovació correcta igualment.
++  if (bufA.length === 0 || bufB.length === 0) return false;
+   if (bufA.length !== bufB.length) return false;
+   return crypto.timingSafeEqual(bufA, bufB);
+ }
+@@ -44,4 +60,4 @@ function logout(req, res) {
+   res.json({ ok: true });
+ }
+ 
+-module.exports = { login, logout };
++module.exports = { login, logout, safeEqual };
+diff --git a/controllers/stripeController.js b/controllers/stripeController.js
+index 0c38f48..eef780a 100644
+--- a/controllers/stripeController.js
++++ b/controllers/stripeController.js
+@@ -3,11 +3,9 @@ const Evento = require('../models/Evento');
+ const Compra = require('../models/Compra');
+ const { enviarEmailConfirmacio, enviarNotificacioFactura } = require('../utils/mailer');
+ const { validarRespuestas } = require('../utils/camposFormulario');
++const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
+ 
+ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+-// Stripe exigeix que expires_at sigui com a mínim 30 minuts després de crear
+-// la sessió de Checkout.
+-const EXPIRA_MINUTS = Math.max(30, parseInt(process.env.CHECKOUT_EXPIRES_MINUTES || '30', 10));
+ 
+ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+ // Telèfon: accepta prefix internacional opcional, espais, guions i parèntesis,
+diff --git a/middleware/rateLimiter.js b/middleware/rateLimiter.js
+index c65cad9..5d30cc4 100644
+--- a/middleware/rateLimiter.js
++++ b/middleware/rateLimiter.js
+@@ -13,4 +13,19 @@ const checkoutLimiter = rateLimit({
+   },
+ });
+ 
+-module.exports = { checkoutLimiter };
++// Limita els intents de login de l'admin per frenar força bruta contra
++// ADMIN_USER/ADMIN_PASS i VIEWER_USER/VIEWER_PASS. Més estricte que
++// checkoutLimiter perquè aquí no hi ha cap motiu legítim per fer moltes
++// peticions seguides des de la mateixa IP.
++const loginLimiter = rateLimit({
++  windowMs: 15 * 60 * 1000,
++  max: 10,
++  standardHeaders: true,
++  legacyHeaders: false,
++  message: {
++    error: 'massa_peticions',
++    detalls: 'Has fet massa intents. Torna-ho a provar en uns minuts.',
++  },
++});
++
++module.exports = { checkoutLimiter, loginLimiter };
+diff --git a/models/Compra.js b/models/Compra.js
+index 4aaa47a..e733717 100644
+--- a/models/Compra.js
++++ b/models/Compra.js
+@@ -1,6 +1,8 @@
+ const crypto = require('crypto');
+ const db = require('../config/db');
+ const Historial = require('./Historial');
++const Evento = require('./Evento');
++const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
+ 
+ // Estats que encara ocupen aforament: pagades + pendents que no han expirat
+ // (les pendents expirades es marquen 'cancelado' des del webhook checkout.session.expired)
+@@ -8,15 +10,19 @@ const ESTATS_OCUPEN_AFORO = ['pendiente', 'pagado'];
+ 
+ // Temps que una reserva 'pendiente' compta com a ocupada encara que el
+ // webhook (o l'usuari tornant per cancel_url) no l'hagi marcada 'cancelado'.
+-// Independent del temps de vida real de la sessió de Stripe (EXPIRA_MINUTS a
+-// stripeController.js, que ha de ser >= 30 min per exigència de Stripe): quan
+-// l'usuari torna amb les fletxes del navegador (sense passar per cancel_url
+-// ni per cap redirecció), no hi ha manera de saber-ho al moment, així que
+-// aquest marge és el que decideix com de ràpid es torna a alliberar la plaça.
+-// Compensació acceptada: si algú triga més de MINUTS_RESERVA a completar el
+-// pagament mentre un altre compra la plaça "alliberada", hi ha risc de
+-// sobrevenda puntual (s'hauria de resoldre manualment si passa).
+-const MINUTS_RESERVA = parseInt(process.env.RESERVA_MINUTES || '15', 10);
++// Quan l'usuari torna amb les fletxes del navegador (sense passar per
++// cancel_url ni per cap redirecció), no hi ha manera de saber-ho al moment,
++// així que aquest marge és el que decideix com de ràpid es torna a alliberar
++// la plaça.
++//
++// Ha de ser sempre >= EXPIRA_MINUTS (el temps que la sessió de Stripe segueix
++// viva i pagable, utils/checkoutConfig.js): si RESERVA_MINUTES fos més curt,
++// la reserva deixaria de comptar com a ocupada abans que la sessió de Stripe
++// hagués pogut expirar, i algú altre podria comprar la plaça "alliberada"
++// mentre el primer comprador encara la pot pagar — sobrevenda determinista,
++// no una condició de carrera rara. Per això es deriva amb Math.max enlloc de
++// llegir-se com un valor solt que es pogués desincronitzar.
++const MINUTS_RESERVA = Math.max(EXPIRA_MINUTS, parseInt(process.env.RESERVA_MINUTES || '15', 10));
+ 
+ async function create(data, meta = {}) {
+   const stmt = db.prepare(
+@@ -41,6 +47,10 @@ async function create(data, meta = {}) {
+     edit_token: crypto.randomBytes(24).toString('hex'),
+   });
+   const compra = await getById(info.lastInsertRowid);
++  // edit_token dona accés directe (sense login) a editar les dades del
++  // comprador: no es desa a l'historial perquè el rol viewer hi té accés de
++  // només lectura i no ha de poder veure ni reutilitzar aquest token.
++  const { edit_token: _editToken, ...compraPerHistorial } = compra;
+   await Historial.registrar({
+     tipus_entitat: 'compra',
+     entitat_id: compra.id,
+@@ -49,7 +59,7 @@ async function create(data, meta = {}) {
+     origen: meta.origen || 'client',
+     usuari: meta.usuari || compra.email,
+     descripcio: `Compra #${compra.id} creada per ${compra.nombre_comprador} (${compra.cantidad} entrades)`,
+-    dades_despres: compra,
++    dades_despres: compraPerHistorial,
+   });
+   return compra;
+ }
+@@ -77,6 +87,36 @@ async function setSessionId(id, sessionId) {
+   await db.prepare('UPDATE compras SET stripe_checkout_session_id = ? WHERE id = ?').run(sessionId, id);
+ }
+ 
++/**
++ * Comprovació de sobrevenda posterior al pagament: només detecta i deixa
++ * rastre, MAI bloqueja. Quan es crida, Stripe ja ha cobrat el comprador —
++ * rebutjar o desfer el pagament aquí no és una opció, l'única resposta és
++ * alertar l'equip perquè ho resolgui manualment (contactar el comprador,
++ * ampliar l'aforament, etc.). El risc real que això detecta és la
++ * comprovació d'aforament sense transacció a crearCheckoutSession
++ * (stripeController.js): dues peticions concurrents pel darrer seient poden
++ * passar totes dues la comprovació abans que cap hagi inserit la compra.
++ */
++async function comprovarSobrevenda(eventoId) {
++  const evento = await Evento.getById(eventoId);
++  if (!evento) return;
++  const ocupades = await cantidadOcupada(eventoId);
++  if (ocupades <= evento.aforo_total) return;
++
++  const descripcio = `Sobrevenda detectada a "${evento.nombre}": ${ocupades}/${evento.aforo_total} places ocupades`;
++  console.error(descripcio);
++  await Historial.registrar({
++    tipus_entitat: 'evento',
++    entitat_id: eventoId,
++    evento_id: eventoId,
++    accio: 'sobrevenda',
++    origen: 'automatic',
++    usuari: 'sistema',
++    descripcio,
++    dades_despres: { ocupades, aforo_total: evento.aforo_total },
++  });
++}
++
+ async function marcarPagado(id, meta = {}) {
+   const abans = await getById(id);
+   if (!abans || abans.estado_pago === 'pagado') return;
+@@ -92,6 +132,7 @@ async function marcarPagado(id, meta = {}) {
+     dades_abans: { estado_pago: abans.estado_pago },
+     dades_despres: { estado_pago: 'pagado' },
+   });
++  await comprovarSobrevenda(abans.evento_id);
+ }
+ 
+ const DESCRIPCIONS_CANCELACIO = {
+diff --git a/routes/adminRoutes.js b/routes/adminRoutes.js
+index 1999fea..3d4fae0 100644
+--- a/routes/adminRoutes.js
++++ b/routes/adminRoutes.js
+@@ -4,6 +4,7 @@ const router = express.Router();
+ const asyncHandler = require('../utils/asyncHandler');
+ const { login, logout } = require('../controllers/authController');
+ const { requireAuth, requireRole } = require('../middleware/authMiddleware');
++const { loginLimiter } = require('../middleware/rateLimiter');
+ const {
+   llistarEventos,
+   obtenirEvento,
+@@ -18,7 +19,7 @@ const {
+   llistarHistorial,
+ } = require('../controllers/adminController');
+ 
+-router.post('/admin/login', login);
++router.post('/admin/login', loginLimiter, login);
+ router.post('/admin/logout', logout);
+ 
+ router.get('/api/admin/me', requireAuth, (req, res) => {
+diff --git a/tests/authController.test.js b/tests/authController.test.js
+new file mode 100644
+index 0000000..040f9c4
+--- /dev/null
++++ b/tests/authController.test.js
+@@ -0,0 +1,31 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++
++// authController.js exigeix ADMIN_USER/ADMIN_PASS a l'arrencada (llança si
++// falten): cal definir-les abans del require, igual que sessionCookie.test.js
++// fa amb SESSION_SECRET.
++process.env.ADMIN_USER = 'admin-de-proves';
++process.env.ADMIN_PASS = 'contrasenya-de-proves';
++
++const { safeEqual } = require('../controllers/authController');
++
++test('safeEqual accepta dos valors idèntics', () => {
++  assert.equal(safeEqual('abc123', 'abc123'), true);
++});
++
++test('safeEqual rebutja valors diferents de la mateixa longitud', () => {
++  assert.equal(safeEqual('abc123', 'xyz789'), false);
++});
++
++test('safeEqual rebutja valors de longitud diferent', () => {
++  assert.equal(safeEqual('abc', 'abcd'), false);
++});
++
++test('safeEqual rebutja dos valors buits (bypass amb credencials buides)', () => {
++  assert.equal(safeEqual('', ''), false);
++});
++
++test('safeEqual rebutja un valor buit contra un de no buit', () => {
++  assert.equal(safeEqual('', 'abc'), false);
++  assert.equal(safeEqual('abc', ''), false);
++});
+diff --git a/utils/checkoutConfig.js b/utils/checkoutConfig.js
+new file mode 100644
+index 0000000..19b36f4
+--- /dev/null
++++ b/utils/checkoutConfig.js
+@@ -0,0 +1,15 @@
++// Minuts d'expiració de la sessió de Checkout de Stripe. Es defineix aquí,
++// enlloc de duplicar la fórmula a stripeController.js i a Compra.js per
++// separat, perquè RESERVA_MINUTES (Compra.js) ha de ser sempre >= aquest
++// valor: si es desincronitzessin (com passava abans, amb RESERVA_MINUTES=15
++// per defecte i una sessió de Stripe vigent fins als 30 minuts), una reserva
++// "pendiente" deixaria de comptar com a ocupada abans que la seva sessió de
++// Stripe hagués pogut expirar, permetent sobrevenda determinista: algú altre
++// compra la plaça "alliberada" mentre el primer comprador encara pot pagar
++// la seva.
++//
++// Stripe exigeix que expires_at sigui com a mínim 30 minuts després de crear
++// la sessió de Checkout.
++const EXPIRA_MINUTS = Math.max(30, parseInt(process.env.CHECKOUT_EXPIRES_MINUTES || '30', 10));
++
++module.exports = { EXPIRA_MINUTS };
