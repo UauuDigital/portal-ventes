@@ -1170,6 +1170,10 @@ if (formEventoEditar) {
     const compras = await res.json();
     actualitzarCapsaleraCompras();
     taulaCompras.innerHTML = '';
+    // Nombre de columnes de la taula (per al colspan de la fila de detall
+    // dels acompanyants): comprador/email/telèfon/quantitat/import/data (6)
+    // + un th dinàmic per camp de campos_formulario + la columna d'accions.
+    const numColumnes = 6 + camposFormularioActuals.length + 1;
     compras.forEach((c) => {
       const potCancelar = ['pendiente', 'pagado'].includes(c.estado_pago) && rolActual !== 'viewer';
       const respuestas = c.respuestas_campos || {};
@@ -1178,24 +1182,60 @@ if (formEventoEditar) {
         const text = Array.isArray(valor) ? valor.join(', ') : (valor ?? '');
         return `<td>${escapeHtml(text)}</td>`;
       }).join('');
+      const teAcompanyants = Array.isArray(c.acompanyants) && c.acompanyants.length > 0;
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escapeHtml(c.nombre_comprador)}</td>
         <td>${escapeHtml(c.email)}</td>
         <td>${escapeHtml(c.telefono || '—')}</td>
-        <td>${c.cantidad}</td>
+        <td>${teAcompanyants
+          ? `<button type="button" class="btn-veure-acompanyants" data-id="${c.id}" aria-expanded="false" aria-controls="acompanyants-detall-${c.id}">${c.cantidad} <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+          : c.cantidad}</td>
         <td>${formatEuros(c.importe_total)}</td>
         <td>${formatData(c.created_at)}</td>
         ${tdsCamps}
         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
       `;
       taulaCompras.appendChild(tr);
+
+      // Fila de detall amagada, plegada per defecte: només informativa
+      // (nom/email/telèfon de cada acompanyant), no editable des d'aquí.
+      if (teAcompanyants) {
+        const trDetall = document.createElement('tr');
+        trDetall.className = 'fila-acompanyants hidden';
+        trDetall.id = `acompanyants-detall-${c.id}`;
+        trDetall.innerHTML = `
+          <td colspan="${numColumnes}">
+            <div class="acompanyants-detall">
+              <p class="acompanyants-detall-titol">Acompanyants</p>
+              ${c.acompanyants.map((ac) => `
+                <p class="acompanyants-detall-fila">
+                  <strong>${escapeHtml(ac.nombre)}</strong>
+                  <span>${escapeHtml(ac.email)}</span>
+                  ${ac.telefono ? `<span>${escapeHtml(ac.telefono)}</span>` : ''}
+                </p>
+              `).join('')}
+            </div>
+          </td>
+        `;
+        taulaCompras.appendChild(trDetall);
+      }
     });
 
     taulaCompras.querySelectorAll('.btn-cancelar-compra').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const res2 = await apiFetch(`/api/admin/compras/${btn.dataset.id}/cancelar`, { method: 'POST' });
         if (res2 && res2.ok) carregarCompras();
+      });
+    });
+
+    taulaCompras.querySelectorAll('.btn-veure-acompanyants').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const fila = document.getElementById(`acompanyants-detall-${btn.dataset.id}`);
+        if (!fila) return;
+        const obert = !fila.classList.contains('hidden');
+        fila.classList.toggle('hidden');
+        btn.setAttribute('aria-expanded', String(!obert));
       });
     });
   }

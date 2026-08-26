@@ -366,3 +366,38 @@ input[type="checkbox"]:focus-visible {
 .camp-dinamic label:has(+ input[required])::after {
   content: none;
 }
+
+/* Formulari dinàmic d'acompanyants (checkout.js): apareix/creix segons
+   "Nombre de places". Cada acompanyant és un bloc amb els mateixos tres
+   camps que el comprador principal (nom/email/telèfon), separat amb una
+   vora fina superior perquè es llegeixin com a fitxes diferents quan n'hi
+   ha diverses — el primer bloc no en porta, no cal separar-lo de res. */
+.acompanyants-titol {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dark-muted-text);
+  margin: 4px 0 12px;
+}
+
+.acompanyant-bloc {
+  padding-top: 16px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(34, 31, 30, 0.1);
+}
+
+.acompanyant-bloc:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.acompanyant-subtitol {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dark);
+  margin: 0 0 10px;
+}

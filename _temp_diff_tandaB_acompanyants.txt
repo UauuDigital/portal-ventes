@@ -1,0 +1,387 @@
+diff --git a/public/admin/evento.html b/public/admin/evento.html
+index 78e6609..fa24dd9 100644
+--- a/public/admin/evento.html
++++ b/public/admin/evento.html
+@@ -7,7 +7,7 @@
+ <link rel="icon" href="/assets/favicon.ico">
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="/css/style.css">
+-<link rel="stylesheet" href="/css/admin.css?v=90">
++<link rel="stylesheet" href="/css/admin.css?v=93">
+ </head>
+ <body>
+ <div class="admin-shell">
+@@ -146,6 +146,6 @@
+     </table>
+   </div>
+ </div>
+-<script src="/js/admin.js?v=62"></script>
++<script src="/js/admin.js?v=64"></script>
+ </body>
+ </html>
+diff --git a/public/admin/index.html b/public/admin/index.html
+index 5d77ff0..3bf608f 100644
+--- a/public/admin/index.html
++++ b/public/admin/index.html
+@@ -7,7 +7,7 @@
+ <link rel="icon" href="/assets/favicon.ico">
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="/css/style.css">
+-<link rel="stylesheet" href="/css/admin.css?v=90">
++<link rel="stylesheet" href="/css/admin.css?v=93">
+ </head>
+ <body>
+ <div class="admin-shell">
+@@ -152,7 +152,7 @@
+     </div>
+   </div>
+ </div>
+-<script src="/js/admin.js?v=62"></script>
++<script src="/js/admin.js?v=64"></script>
+ <script src="/js/admin-historial.js?v=3"></script>
+ </body>
+ </html>
+diff --git a/public/admin/login.html b/public/admin/login.html
+index d71a091..588c437 100644
+--- a/public/admin/login.html
++++ b/public/admin/login.html
+@@ -7,7 +7,7 @@
+ <link rel="icon" href="/assets/favicon.ico">
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="/css/style.css">
+-<link rel="stylesheet" href="/css/admin.css?v=90">
++<link rel="stylesheet" href="/css/admin.css?v=93">
+ </head>
+ <body>
+ <main class="admin-login-card">
+@@ -22,6 +22,6 @@
+   </form>
+   <a href="/index.html" class="admin-link-back">← Torna a l'inici</a>
+ </main>
+-<script src="/js/admin.js?v=62"></script>
++<script src="/js/admin.js?v=64"></script>
+ </body>
+ </html>
+diff --git a/public/css/admin.css b/public/css/admin.css
+index d0ebacd..7ae14c1 100644
+--- a/public/css/admin.css
++++ b/public/css/admin.css
+@@ -1550,3 +1550,64 @@ body:has(> .admin-shell) {
+ #email-prova-missatge.email-prova-ok {
+   color: #1e7a34;
+ }
++
++/* Quantitat de la taula de compres: si la compra té acompanyants, la xifra
++   és un botó que desplega/plega la fila de detall just a sota — sense
++   pes visual de botó normal, es llegeix com el número amb un indicador
++   discret. Si cantidad=1 (sense acompanyants) queda com a text pla, sense
++   cap control. */
++.btn-veure-acompanyants {
++  display: inline-flex;
++  align-items: center;
++  gap: 4px;
++  white-space: nowrap;
++  background: none;
++  border: none;
++  padding: 0;
++  font: inherit;
++  color: var(--dark);
++  cursor: pointer;
++  text-decoration: underline;
++  text-decoration-style: dotted;
++  text-underline-offset: 3px;
++}
++
++.btn-veure-acompanyants svg {
++  flex-shrink: 0;
++}
++
++.btn-veure-acompanyants:hover {
++  color: var(--dark-hover);
++}
++
++.fila-acompanyants td {
++  background: rgba(34, 31, 30, 0.03);
++  padding: 12px 16px;
++}
++
++.acompanyants-detall-titol {
++  font-family: var(--font-ui);
++  font-size: 11px;
++  font-weight: 500;
++  letter-spacing: 0.06em;
++  text-transform: uppercase;
++  color: var(--admin-muted-text);
++  margin: 0 0 8px;
++}
++
++.acompanyants-detall-fila {
++  display: flex;
++  gap: 16px;
++  font-family: var(--font-ui);
++  font-size: 13px;
++  color: var(--dark);
++  margin: 0 0 4px;
++}
++
++.acompanyants-detall-fila:last-child {
++  margin-bottom: 0;
++}
++
++.acompanyants-detall-fila span {
++  color: var(--admin-muted-text);
++}
+diff --git a/public/css/forms.css b/public/css/forms.css
+index bbb8b32..c628f64 100644
+--- a/public/css/forms.css
++++ b/public/css/forms.css
+@@ -366,3 +366,38 @@ input[type="checkbox"]:focus-visible {
+ .camp-dinamic label:has(+ input[required])::after {
+   content: none;
+ }
++
++/* Formulari dinàmic d'acompanyants (checkout.js): apareix/creix segons
++   "Nombre de places". Cada acompanyant és un bloc amb els mateixos tres
++   camps que el comprador principal (nom/email/telèfon), separat amb una
++   vora fina superior perquè es llegeixin com a fitxes diferents quan n'hi
++   ha diverses — el primer bloc no en porta, no cal separar-lo de res. */
++.acompanyants-titol {
++  font-family: var(--font-ui);
++  font-size: 11px;
++  font-weight: 500;
++  letter-spacing: 0.06em;
++  text-transform: uppercase;
++  color: var(--dark-muted-text);
++  margin: 4px 0 12px;
++}
++
++.acompanyant-bloc {
++  padding-top: 16px;
++  margin-top: 4px;
++  border-top: 1px solid rgba(34, 31, 30, 0.1);
++}
++
++.acompanyant-bloc:first-of-type {
++  border-top: none;
++  padding-top: 0;
++  margin-top: 0;
++}
++
++.acompanyant-subtitol {
++  font-family: var(--font-ui);
++  font-size: 13px;
++  font-weight: 500;
++  color: var(--dark);
++  margin: 0 0 10px;
++}
+diff --git a/public/css/style.css b/public/css/style.css
+index 7442ea3..78021b7 100644
+--- a/public/css/style.css
++++ b/public/css/style.css
+@@ -3,4 +3,4 @@
+ @import url('variables.css?v=4');
+ @import url('legal-modal.css?v=2');
+ @import url('layout.css?v=20');
+-@import url('forms.css?v=10');
++@import url('forms.css?v=11');
+diff --git a/public/index.html b/public/index.html
+index 827d321..8b6a0b3 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -10,7 +10,7 @@
+ <!-- Inter via Google Fonts (Ogg és una tipografia amb llicència pròpia de UAUU:
+      veure comentari a css/style.css sobre com afegir-la a public/fonts/) -->
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+-<link rel="stylesheet" href="/css/style.css?v=14">
++<link rel="stylesheet" href="/css/style.css?v=15">
+ </head>
+ <body class="pagina-principal">
+ 
+@@ -80,6 +80,8 @@
+         <input type="tel" id="telefono" name="telefono">
+       </div>
+ 
++      <div id="acompanyants-dinamics"></div>
++
+       <p class="factura-avis">En cas de necessitar factura, escriure un correu a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a>.</p>
+ 
+       <div id="camps-formulari-dinamics"></div>
+@@ -118,7 +120,7 @@
+   </div>
+ </div>
+ 
+-<script src="/js/checkout.js?v=20"></script>
++<script src="/js/checkout.js?v=21"></script>
+ <script src="/js/legal-modal.js?v=2"></script>
+ </body>
+ </html>
+diff --git a/public/js/admin.js b/public/js/admin.js
+index a82aeb9..80b017f 100644
+--- a/public/js/admin.js
++++ b/public/js/admin.js
+@@ -1170,6 +1170,10 @@ if (formEventoEditar) {
+     const compras = await res.json();
+     actualitzarCapsaleraCompras();
+     taulaCompras.innerHTML = '';
++    // Nombre de columnes de la taula (per al colspan de la fila de detall
++    // dels acompanyants): comprador/email/telèfon/quantitat/import/data (6)
++    // + un th dinàmic per camp de campos_formulario + la columna d'accions.
++    const numColumnes = 6 + camposFormularioActuals.length + 1;
+     compras.forEach((c) => {
+       const potCancelar = ['pendiente', 'pagado'].includes(c.estado_pago) && rolActual !== 'viewer';
+       const respuestas = c.respuestas_campos || {};
+@@ -1178,18 +1182,44 @@ if (formEventoEditar) {
+         const text = Array.isArray(valor) ? valor.join(', ') : (valor ?? '');
+         return `<td>${escapeHtml(text)}</td>`;
+       }).join('');
++      const teAcompanyants = Array.isArray(c.acompanyants) && c.acompanyants.length > 0;
+       const tr = document.createElement('tr');
+       tr.innerHTML = `
+         <td>${escapeHtml(c.nombre_comprador)}</td>
+         <td>${escapeHtml(c.email)}</td>
+         <td>${escapeHtml(c.telefono || '—')}</td>
+-        <td>${c.cantidad}</td>
++        <td>${teAcompanyants
++          ? `<button type="button" class="btn-veure-acompanyants" data-id="${c.id}" aria-expanded="false" aria-controls="acompanyants-detall-${c.id}">${c.cantidad} <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
++          : c.cantidad}</td>
+         <td>${formatEuros(c.importe_total)}</td>
+         <td>${formatData(c.created_at)}</td>
+         ${tdsCamps}
+         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
+       `;
+       taulaCompras.appendChild(tr);
++
++      // Fila de detall amagada, plegada per defecte: només informativa
++      // (nom/email/telèfon de cada acompanyant), no editable des d'aquí.
++      if (teAcompanyants) {
++        const trDetall = document.createElement('tr');
++        trDetall.className = 'fila-acompanyants hidden';
++        trDetall.id = `acompanyants-detall-${c.id}`;
++        trDetall.innerHTML = `
++          <td colspan="${numColumnes}">
++            <div class="acompanyants-detall">
++              <p class="acompanyants-detall-titol">Acompanyants</p>
++              ${c.acompanyants.map((ac) => `
++                <p class="acompanyants-detall-fila">
++                  <strong>${escapeHtml(ac.nombre)}</strong>
++                  <span>${escapeHtml(ac.email)}</span>
++                  ${ac.telefono ? `<span>${escapeHtml(ac.telefono)}</span>` : ''}
++                </p>
++              `).join('')}
++            </div>
++          </td>
++        `;
++        taulaCompras.appendChild(trDetall);
++      }
+     });
+ 
+     taulaCompras.querySelectorAll('.btn-cancelar-compra').forEach((btn) => {
+@@ -1198,6 +1228,16 @@ if (formEventoEditar) {
+         if (res2 && res2.ok) carregarCompras();
+       });
+     });
++
++    taulaCompras.querySelectorAll('.btn-veure-acompanyants').forEach((btn) => {
++      btn.addEventListener('click', () => {
++        const fila = document.getElementById(`acompanyants-detall-${btn.dataset.id}`);
++        if (!fila) return;
++        const obert = !fila.classList.contains('hidden');
++        fila.classList.toggle('hidden');
++        btn.setAttribute('aria-expanded', String(!obert));
++      });
++    });
+   }
+ 
+   // Espera a conèixer el rol abans de pintar les compres, perquè el botó
+diff --git a/public/js/checkout.js b/public/js/checkout.js
+index 0cc0a2e..6b91b26 100644
+--- a/public/js/checkout.js
++++ b/public/js/checkout.js
+@@ -267,6 +267,54 @@ function renderCampsFormulariDinamics(campos) {
+   });
+ }
+ 
++// Acompanyants: apareixen/creixen quan "Nombre de places" (cantidad) és
++// més gran d'1 — cal exactament cantidad - 1 (el comprador principal ja
++// compta com a 1 plaça, ell no s'hi repeteix). L'array es manté persistent
++// entre canvis de cantidad: si es puja de 2 a 3 s'afegeix una fila buida
++// al final; si es baixa de 3 a 2 es descarta només l'última, sense tocar
++// les dades ja escrites a les que es mantenen. Validació de nom/email
++// obligatoris via els mateixos atributs HTML natius (required, type=email)
++// que ja fa servir la resta del formulari — sense JS addicional.
++let acompanyantsActuals = [];
++
++function renderAcompanyants(n) {
++  const cont = document.getElementById('acompanyants-dinamics');
++
++  while (acompanyantsActuals.length < n) acompanyantsActuals.push({ nombre: '', email: '', telefono: '' });
++  acompanyantsActuals.length = n;
++
++  if (n === 0) {
++    cont.innerHTML = '';
++    return;
++  }
++
++  cont.innerHTML = `
++    <p class="acompanyants-titol">Dades dels acompanyants</p>
++    ${acompanyantsActuals.map((ac, i) => `
++      <div class="acompanyant-bloc">
++        <p class="acompanyant-subtitol">Acompanyant ${i + 1}</p>
++        <label for="acompanyant_nom_${i}">Nom i cognoms</label>
++        <input type="text" id="acompanyant_nom_${i}" data-i="${i}" data-camp="nombre" value="${escapeAttr(ac.nombre)}" required>
++        <label for="acompanyant_email_${i}">Email</label>
++        <input type="email" id="acompanyant_email_${i}" data-i="${i}" data-camp="email" value="${escapeAttr(ac.email)}" required>
++        <label for="acompanyant_telefon_${i}">Telèfon</label>
++        <input type="tel" id="acompanyant_telefon_${i}" data-i="${i}" data-camp="telefono" value="${escapeAttr(ac.telefono)}">
++      </div>
++    `).join('')}
++  `;
++
++  cont.querySelectorAll('input[data-camp]').forEach((input) => {
++    input.addEventListener('input', () => {
++      acompanyantsActuals[parseInt(input.dataset.i, 10)][input.dataset.camp] = input.value;
++    });
++  });
++}
++
++function actualitzarAcompanyants() {
++  const cantidad = parseInt(document.getElementById('cantidad').value, 10) || 1;
++  renderAcompanyants(Math.max(0, cantidad - 1));
++}
++
+ function llegirRespostesCampsDinamics() {
+   const respostes = {};
+   campsFormulariActuals.forEach((campo) => {
+@@ -395,6 +443,8 @@ async function enviarFormulari(evt) {
+   btn.disabled = true;
+   btn.textContent = t('btn_comprar_processant');
+ 
++  const cantidad = parseInt(document.getElementById('cantidad').value, 10) || 1;
++
+   const body = {
+     evento_id: eventoSeleccionatId,
+     cantidad: document.getElementById('cantidad').value,
+@@ -405,6 +455,16 @@ async function enviarFormulari(evt) {
+     respuestas_campos: llegirRespostesCampsDinamics(),
+   };
+ 
++  // Amb cantidad=1 el cos no porta la clau acompanyants en absolut (el
++  // backend tampoc l'exigeix ni la llegeix en aquest cas).
++  if (cantidad > 1) {
++    body.acompanyants = acompanyantsActuals.slice(0, cantidad - 1).map((ac) => ({
++      nombre: ac.nombre.trim(),
++      email: ac.email.trim(),
++      telefono: ac.telefono.trim(),
++    }));
++  }
++
+   try {
+     const res = await fetch('/api/checkout/crear', {
+       method: 'POST',
+@@ -434,4 +494,6 @@ document.addEventListener('DOMContentLoaded', () => {
+   document.getElementById('btn-comprar').addEventListener('click', comprovarAccesAdmin, true);
+   document.getElementById('form-compra').addEventListener('submit', enviarFormulari);
+   document.getElementById('btn-tornar-selector').addEventListener('click', tornarAlSelector);
++  document.getElementById('cantidad').addEventListener('input', actualitzarAcompanyants);
++  actualitzarAcompanyants();
+ });

@@ -267,6 +267,54 @@ function renderCampsFormulariDinamics(campos) {
   });
 }
 
+// Acompanyants: apareixen/creixen quan "Nombre de places" (cantidad) és
+// més gran d'1 — cal exactament cantidad - 1 (el comprador principal ja
+// compta com a 1 plaça, ell no s'hi repeteix). L'array es manté persistent
+// entre canvis de cantidad: si es puja de 2 a 3 s'afegeix una fila buida
+// al final; si es baixa de 3 a 2 es descarta només l'última, sense tocar
+// les dades ja escrites a les que es mantenen. Validació de nom/email
+// obligatoris via els mateixos atributs HTML natius (required, type=email)
+// que ja fa servir la resta del formulari — sense JS addicional.
+let acompanyantsActuals = [];
+
+function renderAcompanyants(n) {
+  const cont = document.getElementById('acompanyants-dinamics');
+
+  while (acompanyantsActuals.length < n) acompanyantsActuals.push({ nombre: '', email: '', telefono: '' });
+  acompanyantsActuals.length = n;
+
+  if (n === 0) {
+    cont.innerHTML = '';
+    return;
+  }
+
+  cont.innerHTML = `
+    <p class="acompanyants-titol">Dades dels acompanyants</p>
+    ${acompanyantsActuals.map((ac, i) => `
+      <div class="acompanyant-bloc">
+        <p class="acompanyant-subtitol">Acompanyant ${i + 1}</p>
+        <label for="acompanyant_nom_${i}">Nom i cognoms</label>
+        <input type="text" id="acompanyant_nom_${i}" data-i="${i}" data-camp="nombre" value="${escapeAttr(ac.nombre)}" required>
+        <label for="acompanyant_email_${i}">Email</label>
+        <input type="email" id="acompanyant_email_${i}" data-i="${i}" data-camp="email" value="${escapeAttr(ac.email)}" required>
+        <label for="acompanyant_telefon_${i}">Telèfon</label>
+        <input type="tel" id="acompanyant_telefon_${i}" data-i="${i}" data-camp="telefono" value="${escapeAttr(ac.telefono)}">
+      </div>
+    `).join('')}
+  `;
+
+  cont.querySelectorAll('input[data-camp]').forEach((input) => {
+    input.addEventListener('input', () => {
+      acompanyantsActuals[parseInt(input.dataset.i, 10)][input.dataset.camp] = input.value;
+    });
+  });
+}
+
+function actualitzarAcompanyants() {
+  const cantidad = parseInt(document.getElementById('cantidad').value, 10) || 1;
+  renderAcompanyants(Math.max(0, cantidad - 1));
+}
+
 function llegirRespostesCampsDinamics() {
   const respostes = {};
   campsFormulariActuals.forEach((campo) => {
@@ -395,6 +443,8 @@ async function enviarFormulari(evt) {
   btn.disabled = true;
   btn.textContent = t('btn_comprar_processant');
 
+  const cantidad = parseInt(document.getElementById('cantidad').value, 10) || 1;
+
   const body = {
     evento_id: eventoSeleccionatId,
     cantidad: document.getElementById('cantidad').value,
@@ -404,6 +454,16 @@ async function enviarFormulari(evt) {
     accepta_condicions: document.getElementById('accepta_condicions').checked,
     respuestas_campos: llegirRespostesCampsDinamics(),
   };
+
+  // Amb cantidad=1 el cos no porta la clau acompanyants en absolut (el
+  // backend tampoc l'exigeix ni la llegeix en aquest cas).
+  if (cantidad > 1) {
+    body.acompanyants = acompanyantsActuals.slice(0, cantidad - 1).map((ac) => ({
+      nombre: ac.nombre.trim(),
+      email: ac.email.trim(),
+      telefono: ac.telefono.trim(),
+    }));
+  }
 
   try {
     const res = await fetch('/api/checkout/crear', {
@@ -434,4 +494,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-comprar').addEventListener('click', comprovarAccesAdmin, true);
   document.getElementById('form-compra').addEventListener('submit', enviarFormulari);
   document.getElementById('btn-tornar-selector').addEventListener('click', tornarAlSelector);
+  document.getElementById('cantidad').addEventListener('input', actualitzarAcompanyants);
+  actualitzarAcompanyants();
 });
