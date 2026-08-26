@@ -4,11 +4,14 @@
 // evento_invitados (d'una execució prèvia d'aquest script, o perquè ja s'ha
 // editat amb el sistema nou), es salta sense tocar-hi res.
 //
-// Ús: node scripts/migrar-invitados.js
+// Ús per CLI: node scripts/migrar-invitados.js (o npm run migrar-invitados)
+// També s'exporta migrarInvitados() perquè es pugui cridar des d'un altre
+// procés que ja tingui l'entorn carregat (vegeu la ruta temporal
+// POST /admin/migrar-invitados-temp a routes/adminRoutes.js).
 require('dotenv').config();
 const db = require('../config/db');
 
-(async () => {
+async function migrarInvitados() {
   const eventos = await db
     .prepare(
       `SELECT id, nombre, nombre_invitado, cargo_invitado
@@ -19,6 +22,7 @@ const db = require('../config/db');
 
   let migrats = 0;
   let saltats = 0;
+  const detalls = [];
 
   for (const ev of eventos) {
     const jaTeInvitados = await db
@@ -27,7 +31,7 @@ const db = require('../config/db');
 
     if (jaTeInvitados) {
       saltats++;
-      console.log(`- Esdeveniment ${ev.id} ("${ev.nombre}"): ja té invitats a evento_invitados, es salta.`);
+      detalls.push(`Esdeveniment ${ev.id} ("${ev.nombre}"): ja té invitats a evento_invitados, es salta.`);
       continue;
     }
 
@@ -42,13 +46,26 @@ const db = require('../config/db');
         cargo: ev.cargo_invitado ? ev.cargo_invitado.trim() : null,
       });
     migrats++;
-    console.log(`- Esdeveniment ${ev.id} ("${ev.nombre}"): migrat ("${ev.nombre_invitado.trim()}").`);
+    detalls.push(`Esdeveniment ${ev.id} ("${ev.nombre}"): migrat ("${ev.nombre_invitado.trim()}").`);
   }
 
-  console.log('');
-  console.log(`Resum: ${migrats} esdeveniment(s) migrat(s), ${saltats} ja tenien invitats i s'han saltat.`);
-  process.exit(0);
-})().catch((err) => {
-  console.error('Error migrant invitats:', err);
-  process.exit(1);
-});
+  return { migrats, saltats, detalls };
+}
+
+// Permet seguir executant-lo per CLI exactament igual que abans, sense
+// afectar qui l'importi com a mòdul (p. ex. la ruta admin temporal).
+if (require.main === module) {
+  migrarInvitados()
+    .then(({ migrats, saltats, detalls }) => {
+      detalls.forEach((linia) => console.log(`- ${linia}`));
+      console.log('');
+      console.log(`Resum: ${migrats} esdeveniment(s) migrat(s), ${saltats} ja tenien invitats i s'han saltat.`);
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error('Error migrant invitats:', err);
+      process.exit(1);
+    });
+}
+
+module.exports = { migrarInvitados };
