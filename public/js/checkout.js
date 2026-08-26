@@ -178,6 +178,7 @@ async function carregarEvento(eventoId) {
       document.getElementById('evento-nombre').textContent = 'Espai Econòmic';
       document.getElementById('evento-descripcio').textContent = t('evento_default_desc');
     }
+    renderConvidats([]);
     return null;
   }
 
@@ -190,8 +191,33 @@ async function carregarEvento(eventoId) {
   document.getElementById('evento-aforo').textContent = '🎟️ ' + ev.aforo_disponible + ' ' + t('places_disponibles');
   actualitzarBarraAforo(ev.aforo_disponible, ev.aforo_total);
   renderCampsFormulariDinamics(ev.campos_formulario || []);
+  renderConvidats(ev.invitados || []);
 
   return ev;
+}
+
+// Ficha de convidats/ponents de l'esdeveniment (informatiu, no res que
+// respongui el comprador). Sense numerar-los: un de sol es llegeix com una
+// simple fitxa; el separador entre files (CSS, selector `+`) només apareix
+// quan n'hi ha més d'un, per aportar aire sense fer-ho artificialment.
+function renderConvidats(invitados) {
+  const bloc = document.getElementById('evento-convidats');
+  const cont = document.getElementById('evento-convidats-llista');
+  const llista = (invitados || []).filter((inv) => inv && inv.nombre);
+
+  if (llista.length === 0) {
+    bloc.classList.add('hidden');
+    cont.innerHTML = '';
+    return;
+  }
+
+  cont.innerHTML = llista.map((inv) => `
+    <p class="evento-convidat">
+      <span class="evento-convidat-nom">${escapeHtml(inv.nombre)}</span>
+      ${inv.cargo ? `<span class="evento-convidat-carrec">${escapeHtml(inv.cargo)}</span>` : ''}
+    </p>
+  `).join('');
+  bloc.classList.remove('hidden');
 }
 
 let campsFormulariActuals = [];

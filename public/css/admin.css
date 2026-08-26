@@ -1537,6 +1537,59 @@ body:has(> .admin-shell) {
   color: var(--dark);
 }
 
+/* Llista de convidats/ponents (nom + càrrec): mateix patró de fila que
+   .fila-opcio-camp (input(s) en línia + botó circular d'eliminar), amb
+   dos inputs en lloc d'un. */
+.invitats-seccio {
+  margin: 20px 0;
+}
+
+.invitats-ajuda {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--admin-muted-text);
+  margin: -4px 0 12px;
+}
+
+.fila-invitat {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.fila-invitat input { flex: 1; margin-bottom: 0; }
+
+.fila-invitat button {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--white);
+  border: 1px solid rgba(179, 38, 30, 0.4);
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--error);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.fila-invitat button:hover:not(:disabled) {
+  background: rgba(179, 38, 30, 0.08);
+}
+
+.fila-invitat button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+#btn-afegir-invitat {
+  margin-top: 4px;
+}
+
 #email_html {
   font-family: monospace;
   font-size: 12px;

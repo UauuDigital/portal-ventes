@@ -149,6 +149,40 @@
   color: var(--light-muted);
 }
 
+/* Convidats/ponents de l'esdeveniment (evento.invitados): sol ser-ne un,
+   però pot haver-n'hi diversos. Sense numerar-los ("Convidat 1"...): un de
+   sol s'ha de llegir net, com una simple fitxa; amb més d'un, un separador
+   prim entre files hi aporta l'aire que li falta sense necessitar-lo. */
+.evento-convidats {
+  margin: 4px 0 24px;
+}
+
+.evento-convidat {
+  margin: 0;
+  padding: 8px 0;
+}
+
+.evento-convidat + .evento-convidat {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.evento-convidat-nom {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--white);
+}
+
+.evento-convidat-carrec {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--light-muted);
+  margin-top: 2px;
+}
+
 /* Indicador visual del nivell d'aforament ocupat: barra clara sobre el fons
    fosc, amb el farciment que canvia de to segons quedin poques places. */
 .aforo-bar {

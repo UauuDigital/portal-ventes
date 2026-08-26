@@ -309,6 +309,71 @@ function escapeAttr(text) {
   return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Llista dinàmica de convidats/ponents d'un esdeveniment (nom + càrrec,
+// sense límit, cal almenys un amb nom per poder desar). S'usa tant al
+// formulari de creació (index.html) com al d'edició (evento.html) — per
+// això és una funció reutilitzable en lloc de duplicar-la. Mateix patró
+// visual/interacció que la llista d'opcions d'un camp de campos_formulario
+// (fila-opcio-camp): input(s) en línia + botó circular d'eliminar,
+// re-renderitzat sencer a cada canvi. Sempre hi ha almenys una fila
+// visible (el botó d'eliminar es desactiva a l'última): la validació de
+// "cal almenys un" es fa igualment abans d'enviar, per si l'única fila es
+// deixa sense nom.
+function crearGestorInvitados(idContenidor) {
+  const cont = document.getElementById(idContenidor);
+  let invitados = [{ nombre: '', cargo: '' }];
+
+  function render() {
+    cont.innerHTML = '';
+    invitados.forEach((inv, i) => {
+      const fila = document.createElement('div');
+      fila.className = 'fila-invitat';
+      fila.innerHTML = `
+        <input type="text" placeholder="Nom" aria-label="Nom del convidat" value="${escapeAttr(inv.nombre)}" data-camp="nombre" data-i="${i}">
+        <input type="text" placeholder="Càrrec (opcional)" aria-label="Càrrec del convidat" value="${escapeAttr(inv.cargo)}" data-camp="cargo" data-i="${i}">
+        <button type="button" data-i="${i}" aria-label="Elimina aquest convidat" ${invitados.length === 1 ? 'disabled' : ''}>✕</button>
+      `;
+      cont.appendChild(fila);
+    });
+
+    cont.querySelectorAll('input').forEach((input) => {
+      input.addEventListener('input', () => {
+        invitados[parseInt(input.dataset.i, 10)][input.dataset.camp] = input.value;
+      });
+    });
+    cont.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (invitados.length <= 1) return;
+        invitados.splice(parseInt(btn.dataset.i, 10), 1);
+        render();
+      });
+    });
+  }
+
+  render();
+
+  return {
+    afegir() {
+      invitados.push({ nombre: '', cargo: '' });
+      render();
+    },
+    // Carrega una llista existent (edició) o la reinicialitza a una fila
+    // buida (formulari nou / després de crear amb èxit).
+    carregar(llista) {
+      invitados = Array.isArray(llista) && llista.length
+        ? llista.map((inv) => ({ nombre: inv.nombre || '', cargo: inv.cargo || '' }))
+        : [{ nombre: '', cargo: '' }];
+      render();
+    },
+    // Només els que tenen nom (les files buides s'ignoren), retallats d'espais.
+    obtenirValid() {
+      return invitados
+        .map((inv) => ({ nombre: inv.nombre.trim(), cargo: inv.cargo.trim() }))
+        .filter((inv) => inv.nombre);
+    },
+  };
+}
+
 // Formulari de login
 const formLogin = document.getElementById('form-login');
 if (formLogin) {
@@ -616,6 +681,10 @@ if (taulaEventos) {
     es: document.getElementById('descripcion_es'),
     en: document.getElementById('descripcion_en'),
   });
+
+  const gestorInvitatsCrear = crearGestorInvitados('llista-invitats');
+  document.getElementById('btn-afegir-invitat').addEventListener('click', () => gestorInvitatsCrear.afegir());
+
   formEvento.addEventListener('submit', async (e) => {
     e.preventDefault();
     const errorEl = document.getElementById('error-evento');
@@ -626,6 +695,12 @@ if (taulaEventos) {
     const fechaLimite = new Date(fechaLimiteInput.dataset.valor || fechaLimiteInput.value);
     if (fechaLimite < new Date()) {
       errorEl.textContent = 'La data límit de compra no pot ser una data ja passada.';
+      return;
+    }
+
+    const invitados = gestorInvitatsCrear.obtenirValid();
+    if (invitados.length === 0) {
+      errorEl.textContent = 'Cal almenys un convidat amb nom.';
       return;
     }
 
@@ -640,8 +715,7 @@ if (taulaEventos) {
       precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
       aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
       fecha_limite_compra: fechaLimite.toISOString(),
-      nombre_invitado: document.getElementById('nombre_invitado').value,
-      cargo_invitado: document.getElementById('cargo_invitado').value,
+      invitados,
     };
 
     const res = await apiFetch('/api/admin/eventos', {
@@ -654,6 +728,7 @@ if (taulaEventos) {
       formEvento.reset();
       delete fechaEventoInput.dataset.valor;
       delete fechaLimiteInput.dataset.valor;
+      gestorInvitatsCrear.carregar([]);
       carregarEventos();
       renderCalendariLimit();
       if (modalCrearEvento) tancarModalCrear();
@@ -917,6 +992,9 @@ if (formEventoEditar) {
   let indexCampEditant = null;
   let opcionsModalActuals = [];
 
+  const gestorInvitatsEditar = crearGestorInvitados('llista-invitats');
+  document.getElementById('btn-afegir-invitat').addEventListener('click', () => gestorInvitatsEditar.afegir());
+
   function generarIdCamp() {
     return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   }
@@ -1085,8 +1163,7 @@ if (formEventoEditar) {
     document.getElementById('aforo_total').value = evento.aforo_total;
     document.getElementById('fecha_limite_compra').value = aInputDatetimeLocal(evento.fecha_limite_compra);
     document.getElementById('estado').value = evento.estado;
-    document.getElementById('nombre_invitado').value = evento.nombre_invitado || '';
-    document.getElementById('cargo_invitado').value = evento.cargo_invitado || '';
+    gestorInvitatsEditar.carregar(evento.invitados);
     document.getElementById('email_asunto').value = evento.email_asunto || '';
     document.getElementById('email_html').value = evento.email_html || '';
     camposFormularioActuals = Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [];
@@ -1097,6 +1174,12 @@ if (formEventoEditar) {
     e.preventDefault();
     const errorEl = document.getElementById('error-evento-editar');
     errorEl.textContent = '';
+
+    const invitados = gestorInvitatsEditar.obtenirValid();
+    if (invitados.length === 0) {
+      errorEl.textContent = 'Cal almenys un convidat amb nom.';
+      return;
+    }
 
     const body = {
       nombre: document.getElementById('nombre').value,
@@ -1110,8 +1193,7 @@ if (formEventoEditar) {
       aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
       fecha_limite_compra: new Date(document.getElementById('fecha_limite_compra').value).toISOString(),
       estado: document.getElementById('estado').value,
-      nombre_invitado: document.getElementById('nombre_invitado').value,
-      cargo_invitado: document.getElementById('cargo_invitado').value,
+      invitados,
       campos_formulario: camposFormularioActuals,
       email_asunto: document.getElementById('email_asunto').value,
       email_html: document.getElementById('email_html').value,

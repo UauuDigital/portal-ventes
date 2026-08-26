@@ -10,7 +10,7 @@
 <!-- Inter via Google Fonts (Ogg és una tipografia amb llicència pròpia de UAUU:
      veure comentari a css/style.css sobre com afegir-la a public/fonts/) -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css?v=9">
+<link rel="stylesheet" href="/css/style.css?v=10">
 </head>
 <body class="pagina-principal">
 
@@ -42,6 +42,10 @@
       <button type="button" class="breadcrumb-tornar hidden" id="btn-tornar-selector" data-i18n="breadcrumb_tornar">‹ Tots els esdeveniments</button>
       <h1 id="evento-nombre">Carregant l'esdeveniment…</h1>
       <p id="evento-descripcio"></p>
+    </div>
+    <div class="evento-convidats hidden" id="evento-convidats">
+      <span class="eyebrow" data-i18n="evento_convidats_titol">Ponents</span>
+      <div id="evento-convidats-llista"></div>
     </div>
     <div class="evento-meta">
       <span id="evento-data"></span>
@@ -133,8 +137,8 @@
   </div>
 </div>
 
-<script src="/js/i18n.js?v=2"></script>
-<script src="/js/checkout.js?v=17"></script>
+<script src="/js/i18n.js?v=3"></script>
+<script src="/js/checkout.js?v=18"></script>
 <script src="/js/legal-modal.js?v=2"></script>
 </body>
 </html>

@@ -7,7 +7,7 @@
 <link rel="icon" href="/assets/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css?v=88">
+<link rel="stylesheet" href="/css/admin.css?v=89">
 </head>
 <body>
 <div class="admin-shell">
@@ -65,11 +65,12 @@
     <label for="aforo_total">Aforament total</label>
     <input type="number" id="aforo_total" name="aforo_total" min="1" step="1" required>
 
-    <label for="nombre_invitado">Nom del convidat (informatiu, opcional)</label>
-    <input type="text" id="nombre_invitado" name="nombre_invitado">
-
-    <label for="cargo_invitado">Càrrec del convidat (informatiu, opcional)</label>
-    <input type="text" id="cargo_invitado" name="cargo_invitado">
+    <div class="invitats-seccio">
+      <label>Convidats / ponents</label>
+      <p class="invitats-ajuda">Persona o persones que fan la ponència abans del dinar. Cal almenys una.</p>
+      <div id="llista-invitats"></div>
+      <button type="button" id="btn-afegir-invitat" class="btn-secundari">+ Afegir convidat</button>
+    </div>
 
     <label for="fecha_limite_compra">Data límit de compra</label>
     <input type="datetime-local" id="fecha_limite_compra" name="fecha_limite_compra" required>
@@ -179,6 +180,6 @@
     </table>
   </div>
 </div>
-<script src="/js/admin.js?v=60"></script>
+<script src="/js/admin.js?v=61"></script>
 </body>
 </html>

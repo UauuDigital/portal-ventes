@@ -1,0 +1,492 @@
+diff --git a/public/admin/evento.html b/public/admin/evento.html
+index 4239868..732aacc 100644
+--- a/public/admin/evento.html
++++ b/public/admin/evento.html
+@@ -7,7 +7,7 @@
+ <link rel="icon" href="/assets/favicon.ico">
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="/css/style.css">
+-<link rel="stylesheet" href="/css/admin.css?v=88">
++<link rel="stylesheet" href="/css/admin.css?v=89">
+ </head>
+ <body>
+ <div class="admin-shell">
+@@ -65,11 +65,12 @@
+     <label for="aforo_total">Aforament total</label>
+     <input type="number" id="aforo_total" name="aforo_total" min="1" step="1" required>
+ 
+-    <label for="nombre_invitado">Nom del convidat (informatiu, opcional)</label>
+-    <input type="text" id="nombre_invitado" name="nombre_invitado">
+-
+-    <label for="cargo_invitado">Càrrec del convidat (informatiu, opcional)</label>
+-    <input type="text" id="cargo_invitado" name="cargo_invitado">
++    <div class="invitats-seccio">
++      <label>Convidats / ponents</label>
++      <p class="invitats-ajuda">Persona o persones que fan la ponència abans del dinar. Cal almenys una.</p>
++      <div id="llista-invitats"></div>
++      <button type="button" id="btn-afegir-invitat" class="btn-secundari">+ Afegir convidat</button>
++    </div>
+ 
+     <label for="fecha_limite_compra">Data límit de compra</label>
+     <input type="datetime-local" id="fecha_limite_compra" name="fecha_limite_compra" required>
+@@ -179,6 +180,6 @@
+     </table>
+   </div>
+ </div>
+-<script src="/js/admin.js?v=60"></script>
++<script src="/js/admin.js?v=61"></script>
+ </body>
+ </html>
+diff --git a/public/admin/index.html b/public/admin/index.html
+index 88c073c..c3b751d 100644
+--- a/public/admin/index.html
++++ b/public/admin/index.html
+@@ -7,7 +7,7 @@
+ <link rel="icon" href="/assets/favicon.ico">
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="/css/style.css">
+-<link rel="stylesheet" href="/css/admin.css?v=88">
++<link rel="stylesheet" href="/css/admin.css?v=89">
+ </head>
+ <body>
+ <div class="admin-shell">
+@@ -169,11 +169,12 @@
+         <label for="aforo_total">Aforament total</label>
+         <input type="number" id="aforo_total" name="aforo_total" min="1" step="1" required>
+ 
+-        <label for="nombre_invitado">Nom del convidat (informatiu, opcional)</label>
+-        <input type="text" id="nombre_invitado" name="nombre_invitado">
+-
+-        <label for="cargo_invitado">Càrrec del convidat (informatiu, opcional)</label>
+-        <input type="text" id="cargo_invitado" name="cargo_invitado">
++        <div class="invitats-seccio">
++          <label>Convidats / ponents</label>
++          <p class="invitats-ajuda">Persona o persones que fan la ponència abans del dinar. Cal almenys una.</p>
++          <div id="llista-invitats"></div>
++          <button type="button" id="btn-afegir-invitat" class="btn-secundari">+ Afegir convidat</button>
++        </div>
+ 
+         <button type="submit" class="btn-primary">Crear esdeveniment</button>
+         <p id="error-evento" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-ui);"></p>
+@@ -181,7 +182,7 @@
+     </div>
+   </div>
+ </div>
+-<script src="/js/admin.js?v=60"></script>
++<script src="/js/admin.js?v=61"></script>
+ <script src="/js/admin-historial.js?v=3"></script>
+ </body>
+ </html>
+diff --git a/public/admin/login.html b/public/admin/login.html
+index 876a00f..ac270b0 100644
+--- a/public/admin/login.html
++++ b/public/admin/login.html
+@@ -7,7 +7,7 @@
+ <link rel="icon" href="/assets/favicon.ico">
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="/css/style.css">
+-<link rel="stylesheet" href="/css/admin.css?v=88">
++<link rel="stylesheet" href="/css/admin.css?v=89">
+ </head>
+ <body>
+ <main class="admin-login-card">
+@@ -22,6 +22,6 @@
+   </form>
+   <a href="/index.html" class="admin-link-back">← Torna a l'inici</a>
+ </main>
+-<script src="/js/admin.js?v=60"></script>
++<script src="/js/admin.js?v=61"></script>
+ </body>
+ </html>
+diff --git a/public/css/admin.css b/public/css/admin.css
+index 13851a8..8b2c2a6 100644
+--- a/public/css/admin.css
++++ b/public/css/admin.css
+@@ -1537,6 +1537,59 @@ body:has(> .admin-shell) {
+   color: var(--dark);
+ }
+ 
++/* Llista de convidats/ponents (nom + càrrec): mateix patró de fila que
++   .fila-opcio-camp (input(s) en línia + botó circular d'eliminar), amb
++   dos inputs en lloc d'un. */
++.invitats-seccio {
++  margin: 20px 0;
++}
++
++.invitats-ajuda {
++  font-family: var(--font-ui);
++  font-size: 13px;
++  color: var(--admin-muted-text);
++  margin: -4px 0 12px;
++}
++
++.fila-invitat {
++  display: flex;
++  gap: 8px;
++  align-items: center;
++  margin-bottom: 8px;
++}
++
++.fila-invitat input { flex: 1; margin-bottom: 0; }
++
++.fila-invitat button {
++  width: 26px;
++  height: 26px;
++  flex-shrink: 0;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  background: var(--white);
++  border: 1px solid rgba(179, 38, 30, 0.4);
++  border-radius: 50%;
++  font-size: 12px;
++  line-height: 1;
++  color: var(--error);
++  cursor: pointer;
++  transition: background 0.2s ease;
++}
++
++.fila-invitat button:hover:not(:disabled) {
++  background: rgba(179, 38, 30, 0.08);
++}
++
++.fila-invitat button:disabled {
++  opacity: 0.3;
++  cursor: default;
++}
++
++#btn-afegir-invitat {
++  margin-top: 4px;
++}
++
+ #email_html {
+   font-family: monospace;
+   font-size: 12px;
+diff --git a/public/css/layout.css b/public/css/layout.css
+index 8df7dff..f64992f 100644
+--- a/public/css/layout.css
++++ b/public/css/layout.css
+@@ -149,6 +149,40 @@
+   color: var(--light-muted);
+ }
+ 
++/* Convidats/ponents de l'esdeveniment (evento.invitados): sol ser-ne un,
++   però pot haver-n'hi diversos. Sense numerar-los ("Convidat 1"...): un de
++   sol s'ha de llegir net, com una simple fitxa; amb més d'un, un separador
++   prim entre files hi aporta l'aire que li falta sense necessitar-lo. */
++.evento-convidats {
++  margin: 4px 0 24px;
++}
++
++.evento-convidat {
++  margin: 0;
++  padding: 8px 0;
++}
++
++.evento-convidat + .evento-convidat {
++  border-top: 1px solid rgba(255, 255, 255, 0.12);
++}
++
++.evento-convidat-nom {
++  display: block;
++  font-family: var(--font-ui);
++  font-size: 14px;
++  font-weight: 500;
++  color: var(--white);
++}
++
++.evento-convidat-carrec {
++  display: block;
++  font-family: var(--font-ui);
++  font-size: 13px;
++  font-weight: 300;
++  color: var(--light-muted);
++  margin-top: 2px;
++}
++
+ /* Indicador visual del nivell d'aforament ocupat: barra clara sobre el fons
+    fosc, amb el farciment que canvia de to segons quedin poques places. */
+ .aforo-bar {
+diff --git a/public/css/style.css b/public/css/style.css
+index afbc328..14d0c0d 100644
+--- a/public/css/style.css
++++ b/public/css/style.css
+@@ -2,5 +2,5 @@
+    No afegir regles directament aquí; veure /public/css/*.css */
+ @import url('variables.css?v=4');
+ @import url('legal-modal.css?v=2');
+-@import url('layout.css?v=16');
++@import url('layout.css?v=17');
+ @import url('forms.css?v=9');
+diff --git a/public/index.html b/public/index.html
+index 4789610..12cd96c 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -10,7 +10,7 @@
+ <!-- Inter via Google Fonts (Ogg és una tipografia amb llicència pròpia de UAUU:
+      veure comentari a css/style.css sobre com afegir-la a public/fonts/) -->
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+-<link rel="stylesheet" href="/css/style.css?v=9">
++<link rel="stylesheet" href="/css/style.css?v=10">
+ </head>
+ <body class="pagina-principal">
+ 
+@@ -43,6 +43,10 @@
+       <h1 id="evento-nombre">Carregant l'esdeveniment…</h1>
+       <p id="evento-descripcio"></p>
+     </div>
++    <div class="evento-convidats hidden" id="evento-convidats">
++      <span class="eyebrow" data-i18n="evento_convidats_titol">Ponents</span>
++      <div id="evento-convidats-llista"></div>
++    </div>
+     <div class="evento-meta">
+       <span id="evento-data"></span>
+       <span id="evento-preu"></span>
+@@ -133,8 +137,8 @@
+   </div>
+ </div>
+ 
+-<script src="/js/i18n.js?v=2"></script>
+-<script src="/js/checkout.js?v=17"></script>
++<script src="/js/i18n.js?v=3"></script>
++<script src="/js/checkout.js?v=18"></script>
+ <script src="/js/legal-modal.js?v=2"></script>
+ </body>
+ </html>
+diff --git a/public/js/admin.js b/public/js/admin.js
+index 11dd04e..cbe23a4 100644
+--- a/public/js/admin.js
++++ b/public/js/admin.js
+@@ -309,6 +309,71 @@ function escapeAttr(text) {
+   return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+ }
+ 
++// Llista dinàmica de convidats/ponents d'un esdeveniment (nom + càrrec,
++// sense límit, cal almenys un amb nom per poder desar). S'usa tant al
++// formulari de creació (index.html) com al d'edició (evento.html) — per
++// això és una funció reutilitzable en lloc de duplicar-la. Mateix patró
++// visual/interacció que la llista d'opcions d'un camp de campos_formulario
++// (fila-opcio-camp): input(s) en línia + botó circular d'eliminar,
++// re-renderitzat sencer a cada canvi. Sempre hi ha almenys una fila
++// visible (el botó d'eliminar es desactiva a l'última): la validació de
++// "cal almenys un" es fa igualment abans d'enviar, per si l'única fila es
++// deixa sense nom.
++function crearGestorInvitados(idContenidor) {
++  const cont = document.getElementById(idContenidor);
++  let invitados = [{ nombre: '', cargo: '' }];
++
++  function render() {
++    cont.innerHTML = '';
++    invitados.forEach((inv, i) => {
++      const fila = document.createElement('div');
++      fila.className = 'fila-invitat';
++      fila.innerHTML = `
++        <input type="text" placeholder="Nom" aria-label="Nom del convidat" value="${escapeAttr(inv.nombre)}" data-camp="nombre" data-i="${i}">
++        <input type="text" placeholder="Càrrec (opcional)" aria-label="Càrrec del convidat" value="${escapeAttr(inv.cargo)}" data-camp="cargo" data-i="${i}">
++        <button type="button" data-i="${i}" aria-label="Elimina aquest convidat" ${invitados.length === 1 ? 'disabled' : ''}>✕</button>
++      `;
++      cont.appendChild(fila);
++    });
++
++    cont.querySelectorAll('input').forEach((input) => {
++      input.addEventListener('input', () => {
++        invitados[parseInt(input.dataset.i, 10)][input.dataset.camp] = input.value;
++      });
++    });
++    cont.querySelectorAll('button').forEach((btn) => {
++      btn.addEventListener('click', () => {
++        if (invitados.length <= 1) return;
++        invitados.splice(parseInt(btn.dataset.i, 10), 1);
++        render();
++      });
++    });
++  }
++
++  render();
++
++  return {
++    afegir() {
++      invitados.push({ nombre: '', cargo: '' });
++      render();
++    },
++    // Carrega una llista existent (edició) o la reinicialitza a una fila
++    // buida (formulari nou / després de crear amb èxit).
++    carregar(llista) {
++      invitados = Array.isArray(llista) && llista.length
++        ? llista.map((inv) => ({ nombre: inv.nombre || '', cargo: inv.cargo || '' }))
++        : [{ nombre: '', cargo: '' }];
++      render();
++    },
++    // Només els que tenen nom (les files buides s'ignoren), retallats d'espais.
++    obtenirValid() {
++      return invitados
++        .map((inv) => ({ nombre: inv.nombre.trim(), cargo: inv.cargo.trim() }))
++        .filter((inv) => inv.nombre);
++    },
++  };
++}
++
+ // Formulari de login
+ const formLogin = document.getElementById('form-login');
+ if (formLogin) {
+@@ -616,6 +681,10 @@ if (taulaEventos) {
+     es: document.getElementById('descripcion_es'),
+     en: document.getElementById('descripcion_en'),
+   });
++
++  const gestorInvitatsCrear = crearGestorInvitados('llista-invitats');
++  document.getElementById('btn-afegir-invitat').addEventListener('click', () => gestorInvitatsCrear.afegir());
++
+   formEvento.addEventListener('submit', async (e) => {
+     e.preventDefault();
+     const errorEl = document.getElementById('error-evento');
+@@ -629,6 +698,12 @@ if (taulaEventos) {
+       return;
+     }
+ 
++    const invitados = gestorInvitatsCrear.obtenirValid();
++    if (invitados.length === 0) {
++      errorEl.textContent = 'Cal almenys un convidat amb nom.';
++      return;
++    }
++
+     const body = {
+       nombre: document.getElementById('nombre').value,
+       nombre_es: document.getElementById('nombre_es').value,
+@@ -640,8 +715,7 @@ if (taulaEventos) {
+       precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
+       aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
+       fecha_limite_compra: fechaLimite.toISOString(),
+-      nombre_invitado: document.getElementById('nombre_invitado').value,
+-      cargo_invitado: document.getElementById('cargo_invitado').value,
++      invitados,
+     };
+ 
+     const res = await apiFetch('/api/admin/eventos', {
+@@ -654,6 +728,7 @@ if (taulaEventos) {
+       formEvento.reset();
+       delete fechaEventoInput.dataset.valor;
+       delete fechaLimiteInput.dataset.valor;
++      gestorInvitatsCrear.carregar([]);
+       carregarEventos();
+       renderCalendariLimit();
+       if (modalCrearEvento) tancarModalCrear();
+@@ -917,6 +992,9 @@ if (formEventoEditar) {
+   let indexCampEditant = null;
+   let opcionsModalActuals = [];
+ 
++  const gestorInvitatsEditar = crearGestorInvitados('llista-invitats');
++  document.getElementById('btn-afegir-invitat').addEventListener('click', () => gestorInvitatsEditar.afegir());
++
+   function generarIdCamp() {
+     return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+   }
+@@ -1085,8 +1163,7 @@ if (formEventoEditar) {
+     document.getElementById('aforo_total').value = evento.aforo_total;
+     document.getElementById('fecha_limite_compra').value = aInputDatetimeLocal(evento.fecha_limite_compra);
+     document.getElementById('estado').value = evento.estado;
+-    document.getElementById('nombre_invitado').value = evento.nombre_invitado || '';
+-    document.getElementById('cargo_invitado').value = evento.cargo_invitado || '';
++    gestorInvitatsEditar.carregar(evento.invitados);
+     document.getElementById('email_asunto').value = evento.email_asunto || '';
+     document.getElementById('email_html').value = evento.email_html || '';
+     camposFormularioActuals = Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [];
+@@ -1098,6 +1175,12 @@ if (formEventoEditar) {
+     const errorEl = document.getElementById('error-evento-editar');
+     errorEl.textContent = '';
+ 
++    const invitados = gestorInvitatsEditar.obtenirValid();
++    if (invitados.length === 0) {
++      errorEl.textContent = 'Cal almenys un convidat amb nom.';
++      return;
++    }
++
+     const body = {
+       nombre: document.getElementById('nombre').value,
+       nombre_es: document.getElementById('nombre_es').value,
+@@ -1110,8 +1193,7 @@ if (formEventoEditar) {
+       aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
+       fecha_limite_compra: new Date(document.getElementById('fecha_limite_compra').value).toISOString(),
+       estado: document.getElementById('estado').value,
+-      nombre_invitado: document.getElementById('nombre_invitado').value,
+-      cargo_invitado: document.getElementById('cargo_invitado').value,
++      invitados,
+       campos_formulario: camposFormularioActuals,
+       email_asunto: document.getElementById('email_asunto').value,
+       email_html: document.getElementById('email_html').value,
+diff --git a/public/js/checkout.js b/public/js/checkout.js
+index 0cf7b89..a96efe6 100644
+--- a/public/js/checkout.js
++++ b/public/js/checkout.js
+@@ -178,6 +178,7 @@ async function carregarEvento(eventoId) {
+       document.getElementById('evento-nombre').textContent = 'Espai Econòmic';
+       document.getElementById('evento-descripcio').textContent = t('evento_default_desc');
+     }
++    renderConvidats([]);
+     return null;
+   }
+ 
+@@ -190,10 +191,35 @@ async function carregarEvento(eventoId) {
+   document.getElementById('evento-aforo').textContent = '🎟️ ' + ev.aforo_disponible + ' ' + t('places_disponibles');
+   actualitzarBarraAforo(ev.aforo_disponible, ev.aforo_total);
+   renderCampsFormulariDinamics(ev.campos_formulario || []);
++  renderConvidats(ev.invitados || []);
+ 
+   return ev;
+ }
+ 
++// Ficha de convidats/ponents de l'esdeveniment (informatiu, no res que
++// respongui el comprador). Sense numerar-los: un de sol es llegeix com una
++// simple fitxa; el separador entre files (CSS, selector `+`) només apareix
++// quan n'hi ha més d'un, per aportar aire sense fer-ho artificialment.
++function renderConvidats(invitados) {
++  const bloc = document.getElementById('evento-convidats');
++  const cont = document.getElementById('evento-convidats-llista');
++  const llista = (invitados || []).filter((inv) => inv && inv.nombre);
++
++  if (llista.length === 0) {
++    bloc.classList.add('hidden');
++    cont.innerHTML = '';
++    return;
++  }
++
++  cont.innerHTML = llista.map((inv) => `
++    <p class="evento-convidat">
++      <span class="evento-convidat-nom">${escapeHtml(inv.nombre)}</span>
++      ${inv.cargo ? `<span class="evento-convidat-carrec">${escapeHtml(inv.cargo)}</span>` : ''}
++    </p>
++  `).join('');
++  bloc.classList.remove('hidden');
++}
++
+ let campsFormulariActuals = [];
+ 
+ function renderCampsFormulariDinamics(campos) {
+diff --git a/public/js/i18n.js b/public/js/i18n.js
+index a061bab..721f539 100644
+--- a/public/js/i18n.js
++++ b/public/js/i18n.js
+@@ -48,6 +48,7 @@
+       motiu_default: 'La compra no està disponible ara mateix.',
+       sense_places: 'Sense places disponibles',
+       evento_default_desc: 'Torna aviat per veure el proper esdeveniment.',
++      evento_convidats_titol: 'Ponents',
+       suffix_entrada: ' / entrada',
+       places_disponibles: 'places disponibles',
+       error_connexio: "No s'ha pogut connectar amb el servidor. Torna-ho a provar.",
+@@ -181,6 +182,7 @@
+       motiu_default: 'La compra no está disponible ahora mismo.',
+       sense_places: 'Sin plazas disponibles',
+       evento_default_desc: 'Vuelve pronto para ver el próximo evento.',
++      evento_convidats_titol: 'Ponentes',
+       suffix_entrada: ' / entrada',
+       places_disponibles: 'plazas disponibles',
+       error_connexio: 'No se ha podido conectar con el servidor. Vuelve a intentarlo.',
+@@ -314,6 +316,7 @@
+       motiu_default: 'Purchases are not available right now.',
+       sense_places: 'No spots available',
+       evento_default_desc: 'Check back soon for the next event.',
++      evento_convidats_titol: 'Speakers',
+       suffix_entrada: ' / ticket',
+       places_disponibles: 'spots available',
+       error_connexio: 'Could not connect to the server. Please try again.',
