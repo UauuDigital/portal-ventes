@@ -28,21 +28,15 @@ async function create(data, meta = {}) {
   const stmt = db.prepare(
     `INSERT INTO compras (
        evento_id, nombre_comprador, email, telefono, cantidad, importe_total,
-       quiere_factura, nif, nombre_fiscal, direccion_fiscal, estado_pago,
-       respuestas_campos, edit_token
+       estado_pago, respuestas_campos, edit_token
      ) VALUES (
        @evento_id, @nombre_comprador, @email, @telefono, @cantidad, @importe_total,
-       @quiere_factura, @nif, @nombre_fiscal, @direccion_fiscal, 'pendiente',
-       @respuestas_campos, @edit_token
+       'pendiente', @respuestas_campos, @edit_token
      ) RETURNING id`
   );
   const info = await stmt.run({
-    nif: null,
-    nombre_fiscal: null,
-    direccion_fiscal: null,
     telefono: null,
     ...data,
-    quiere_factura: !!data.quiere_factura,
     respuestas_campos: JSON.stringify(data.respuestas_campos || {}),
     edit_token: crypto.randomBytes(24).toString('hex'),
   });

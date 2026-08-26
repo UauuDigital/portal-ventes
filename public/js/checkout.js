@@ -387,15 +387,6 @@ async function iniciar() {
   await carregarEvento(eventos.length === 1 ? eventos[0].id : undefined);
 }
 
-function toggleCampsFiscals() {
-  const checked = document.getElementById('quiere_factura').checked;
-  const camps = document.getElementById('camps-fiscals');
-  camps.classList.toggle('hidden', !checked);
-  ['nif', 'nombre_fiscal', 'direccion_fiscal'].forEach((id) => {
-    document.getElementById(id).required = checked;
-  });
-}
-
 function comprovarAccesAdmin(evt) {
   if (document.getElementById('nombre_comprador').value.trim().toLowerCase() === 'admin') {
     evt.preventDefault();
@@ -419,10 +410,6 @@ async function enviarFormulari(evt) {
     nombre_comprador: document.getElementById('nombre_comprador').value,
     email: document.getElementById('email').value,
     telefono: combinarTelefonAmbPrefix(),
-    quiere_factura: document.getElementById('quiere_factura').checked,
-    nif: document.getElementById('nif').value,
-    nombre_fiscal: document.getElementById('nombre_fiscal').value,
-    direccion_fiscal: document.getElementById('direccion_fiscal').value,
     accepta_condicions: document.getElementById('accepta_condicions').checked,
     respuestas_campos: llegirRespostesCampsDinamics(),
   };
@@ -453,7 +440,6 @@ async function enviarFormulari(evt) {
 document.addEventListener('DOMContentLoaded', () => {
   iniciar();
   inicialitzarPrefixTelefon();
-  document.getElementById('quiere_factura').addEventListener('change', toggleCampsFiscals);
   document.getElementById('btn-comprar').addEventListener('click', comprovarAccesAdmin, true);
   document.getElementById('form-compra').addEventListener('submit', enviarFormulari);
   document.getElementById('btn-tornar-selector').addEventListener('click', tornarAlSelector);

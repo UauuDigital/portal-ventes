@@ -301,10 +301,6 @@ const COLUMNES_CSV = [
   { clau: 'telefono', capsalera: 'Telèfon' },
   { clau: 'cantidad', capsalera: 'Quantitat' },
   { clau: 'importe_total_eur', capsalera: 'Import total (€)' },
-  { clau: 'quiere_factura_text', capsalera: 'Factura' },
-  { clau: 'nif', capsalera: 'NIF' },
-  { clau: 'nombre_fiscal', capsalera: 'Nom fiscal' },
-  { clau: 'direccion_fiscal', capsalera: 'Adreça fiscal' },
   { clau: 'estado_pago', capsalera: 'Estat pagament' },
   { clau: 'created_at', capsalera: 'Data compra' },
 ];
@@ -333,7 +329,6 @@ async function exportarComprasCsv(req, res) {
       ...c,
       ...filaCampos,
       importe_total_eur: (c.importe_total / 100).toFixed(2),
-      quiere_factura_text: c.quiere_factura ? 'Sí' : 'No',
     };
   });
 

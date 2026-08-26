@@ -1284,10 +1284,6 @@ if (formEventoEditar) {
         <td>${escapeHtml(c.telefono || '—')}</td>
         <td>${c.cantidad}</td>
         <td>${formatEuros(c.importe_total)}</td>
-        <td>${c.quiere_factura ? 'Sí' : 'No'}</td>
-        <td>${escapeHtml(c.nif || '—')}</td>
-        <td>${escapeHtml(c.nombre_fiscal || '—')}</td>
-        <td>${escapeHtml(c.direccion_fiscal || '—')}</td>
         <td>${formatData(c.created_at)}</td>
         ${tdsCamps}
         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>

@@ -10,7 +10,7 @@
 <!-- Inter via Google Fonts (Ogg és una tipografia amb llicència pròpia de UAUU:
      veure comentari a css/style.css sobre com afegir-la a public/fonts/) -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css?v=11">
+<link rel="stylesheet" href="/css/style.css?v=12">
 </head>
 <body class="pagina-principal">
 
@@ -83,21 +83,9 @@
         <input type="tel" id="telefono" name="telefono">
       </div>
 
-      <div class="checkbox-row">
-        <input type="checkbox" id="quiere_factura" name="quiere_factura">
-        <label for="quiere_factura" data-i18n="checkbox_factura">Vull factura amb dades fiscals</label>
-      </div>
+      <p class="factura-avis" data-i18n-html="factura_avis">En cas de necessitar factura, escriure un correu a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a>.</p>
 
       <div id="camps-formulari-dinamics"></div>
-
-      <div id="camps-fiscals" class="fiscal-fields hidden">
-        <label for="nif" data-i18n="label_nif">NIF / CIF</label>
-        <input type="text" id="nif" name="nif">
-        <label for="nombre_fiscal" data-i18n="label_nom_fiscal">Nom fiscal</label>
-        <input type="text" id="nombre_fiscal" name="nombre_fiscal">
-        <label for="direccion_fiscal" data-i18n="label_direccio_fiscal">Adreça fiscal</label>
-        <input type="text" id="direccion_fiscal" name="direccion_fiscal">
-      </div>
 
       <div class="checkbox-row">
         <input type="checkbox" id="accepta_condicions" name="accepta_condicions" required>
@@ -133,8 +121,8 @@
   </div>
 </div>
 
-<script src="/js/i18n.js?v=3"></script>
-<script src="/js/checkout.js?v=18"></script>
+<script src="/js/i18n.js?v=4"></script>
+<script src="/js/checkout.js?v=19"></script>
 <script src="/js/legal-modal.js?v=2"></script>
 </body>
 </html>

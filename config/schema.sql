@@ -32,10 +32,6 @@ CREATE TABLE IF NOT EXISTS compras (
   telefono TEXT,
   cantidad INTEGER NOT NULL,
   importe_total INTEGER NOT NULL,       -- en cèntims
-  quiere_factura BOOLEAN NOT NULL DEFAULT false,
-  nif TEXT,
-  nombre_fiscal TEXT,
-  direccion_fiscal TEXT,
   stripe_checkout_session_id TEXT,
   estado_pago TEXT NOT NULL DEFAULT 'pendiente', -- pendiente | pagado | cancelado | reembolsado
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()

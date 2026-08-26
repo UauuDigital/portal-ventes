@@ -1,7 +1,7 @@
 const Stripe = require('stripe');
 const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
-const { enviarEmailConfirmacio, enviarNotificacioFactura } = require('../utils/mailer');
+const { enviarEmailConfirmacio } = require('../utils/mailer');
 const { validarRespuestas } = require('../utils/camposFormulario');
 const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
 
@@ -11,17 +11,6 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Telèfon: accepta prefix internacional opcional, espais, guions i parèntesis,
 // entre 9 i 15 dígits en total (suficient per a fixos/mòbils ES i estrangers).
 const TELEFON_REGEX = /^\+?[\d\s().-]{9,20}$/;
-// NIF (DNI + lletra), NIE (X/Y/Z + 7 dígits + lletra) i CIF (lletra + 7 dígits + lletra/dígit).
-// Valida format, no el dígit de control — suficient per detectar errors de picada
-// sense necessitat d'una llibreria externa.
-const NIF_REGEX = /^[0-9]{8}[A-Za-z]$/;
-const NIE_REGEX = /^[XYZxyz][0-9]{7}[A-Za-z]$/;
-const CIF_REGEX = /^[A-Za-z][0-9]{7}[A-Za-z0-9]$/;
-
-function nifValid(value) {
-  const v = String(value || '').trim().toUpperCase();
-  return NIF_REGEX.test(v) || NIE_REGEX.test(v) || CIF_REGEX.test(v);
-}
 
 function validarBody(body) {
   const errors = [];
@@ -46,14 +35,6 @@ function validarBody(body) {
 
   if (!body.accepta_condicions) {
     errors.push('cal acceptar les condicions de venda');
-  }
-
-  if (body.quiere_factura) {
-    if (!body.nif || !body.nombre_fiscal || !body.direccion_fiscal) {
-      errors.push('dades fiscals incompletes');
-    } else if (!nifValid(body.nif)) {
-      errors.push('nif invàlid');
-    }
   }
 
   return errors;
@@ -113,10 +94,6 @@ async function crearCheckoutSession(req, res) {
       telefono: telefono || null,
       cantidad,
       importe_total: importeTotal,
-      quiere_factura: !!req.body.quiere_factura,
-      nif: req.body.quiere_factura ? String(req.body.nif).trim().toUpperCase() : null,
-      nombre_fiscal: req.body.quiere_factura ? String(req.body.nombre_fiscal).trim() : null,
-      direccion_fiscal: req.body.quiere_factura ? String(req.body.direccion_fiscal).trim() : null,
       respuestas_campos: respuestasNormalizadas,
     }, { origen: 'client', usuari: req.body.email.trim().toLowerCase() });
 
@@ -214,9 +191,6 @@ async function webhook(req, res) {
         if (evento) {
           const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
           await enviarEmailConfirmacio({ compra: { ...compra, estado_pago: 'pagado' }, evento, baseUrl });
-          if (compra.quiere_factura) {
-            await enviarNotificacioFactura({ compra, evento });
-          }
         }
       }
       break;
@@ -257,7 +231,6 @@ async function obtenerConfirmacion(req, res) {
       nombre_comprador: compra.nombre_comprador,
       cantidad: compra.cantidad,
       importe_total: compra.importe_total,
-      quiere_factura: compra.quiere_factura,
     },
   });
 }

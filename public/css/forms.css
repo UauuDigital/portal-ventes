@@ -290,10 +290,17 @@ input[type="checkbox"]:focus-visible {
   display: none !important;
 }
 
-.fiscal-fields {
-  border-top: 1px dashed rgba(34, 31, 30, 0.15);
-  padding-top: 12px;
-  margin-top: -4px;
+.factura-avis {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--dark-muted-text);
+  margin: 0 0 16px;
+}
+
+.factura-avis a {
+  color: var(--dark);
+  font-weight: 500;
 }
 
 .form-error {

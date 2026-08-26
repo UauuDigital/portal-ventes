@@ -1,0 +1,539 @@
+diff --git a/config/schema.sql b/config/schema.sql
+index 414fd57..139c5ce 100644
+--- a/config/schema.sql
++++ b/config/schema.sql
+@@ -32,10 +32,6 @@ CREATE TABLE IF NOT EXISTS compras (
+   telefono TEXT,
+   cantidad INTEGER NOT NULL,
+   importe_total INTEGER NOT NULL,       -- en cèntims
+-  quiere_factura BOOLEAN NOT NULL DEFAULT false,
+-  nif TEXT,
+-  nombre_fiscal TEXT,
+-  direccion_fiscal TEXT,
+   stripe_checkout_session_id TEXT,
+   estado_pago TEXT NOT NULL DEFAULT 'pendiente', -- pendiente | pagado | cancelado | reembolsado
+   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+diff --git a/controllers/adminController.js b/controllers/adminController.js
+index 15de2c3..134c212 100644
+--- a/controllers/adminController.js
++++ b/controllers/adminController.js
+@@ -301,10 +301,6 @@ const COLUMNES_CSV = [
+   { clau: 'telefono', capsalera: 'Telèfon' },
+   { clau: 'cantidad', capsalera: 'Quantitat' },
+   { clau: 'importe_total_eur', capsalera: 'Import total (€)' },
+-  { clau: 'quiere_factura_text', capsalera: 'Factura' },
+-  { clau: 'nif', capsalera: 'NIF' },
+-  { clau: 'nombre_fiscal', capsalera: 'Nom fiscal' },
+-  { clau: 'direccion_fiscal', capsalera: 'Adreça fiscal' },
+   { clau: 'estado_pago', capsalera: 'Estat pagament' },
+   { clau: 'created_at', capsalera: 'Data compra' },
+ ];
+@@ -333,7 +329,6 @@ async function exportarComprasCsv(req, res) {
+       ...c,
+       ...filaCampos,
+       importe_total_eur: (c.importe_total / 100).toFixed(2),
+-      quiere_factura_text: c.quiere_factura ? 'Sí' : 'No',
+     };
+   });
+ 
+diff --git a/controllers/stripeController.js b/controllers/stripeController.js
+index eef780a..3e3e1e5 100644
+--- a/controllers/stripeController.js
++++ b/controllers/stripeController.js
+@@ -1,7 +1,7 @@
+ const Stripe = require('stripe');
+ const Evento = require('../models/Evento');
+ const Compra = require('../models/Compra');
+-const { enviarEmailConfirmacio, enviarNotificacioFactura } = require('../utils/mailer');
++const { enviarEmailConfirmacio } = require('../utils/mailer');
+ const { validarRespuestas } = require('../utils/camposFormulario');
+ const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
+ 
+@@ -11,17 +11,6 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+ // Telèfon: accepta prefix internacional opcional, espais, guions i parèntesis,
+ // entre 9 i 15 dígits en total (suficient per a fixos/mòbils ES i estrangers).
+ const TELEFON_REGEX = /^\+?[\d\s().-]{9,20}$/;
+-// NIF (DNI + lletra), NIE (X/Y/Z + 7 dígits + lletra) i CIF (lletra + 7 dígits + lletra/dígit).
+-// Valida format, no el dígit de control — suficient per detectar errors de picada
+-// sense necessitat d'una llibreria externa.
+-const NIF_REGEX = /^[0-9]{8}[A-Za-z]$/;
+-const NIE_REGEX = /^[XYZxyz][0-9]{7}[A-Za-z]$/;
+-const CIF_REGEX = /^[A-Za-z][0-9]{7}[A-Za-z0-9]$/;
+-
+-function nifValid(value) {
+-  const v = String(value || '').trim().toUpperCase();
+-  return NIF_REGEX.test(v) || NIE_REGEX.test(v) || CIF_REGEX.test(v);
+-}
+ 
+ function validarBody(body) {
+   const errors = [];
+@@ -48,14 +37,6 @@ function validarBody(body) {
+     errors.push('cal acceptar les condicions de venda');
+   }
+ 
+-  if (body.quiere_factura) {
+-    if (!body.nif || !body.nombre_fiscal || !body.direccion_fiscal) {
+-      errors.push('dades fiscals incompletes');
+-    } else if (!nifValid(body.nif)) {
+-      errors.push('nif invàlid');
+-    }
+-  }
+-
+   return errors;
+ }
+ 
+@@ -113,10 +94,6 @@ async function crearCheckoutSession(req, res) {
+       telefono: telefono || null,
+       cantidad,
+       importe_total: importeTotal,
+-      quiere_factura: !!req.body.quiere_factura,
+-      nif: req.body.quiere_factura ? String(req.body.nif).trim().toUpperCase() : null,
+-      nombre_fiscal: req.body.quiere_factura ? String(req.body.nombre_fiscal).trim() : null,
+-      direccion_fiscal: req.body.quiere_factura ? String(req.body.direccion_fiscal).trim() : null,
+       respuestas_campos: respuestasNormalizadas,
+     }, { origen: 'client', usuari: req.body.email.trim().toLowerCase() });
+ 
+@@ -214,9 +191,6 @@ async function webhook(req, res) {
+         if (evento) {
+           const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+           await enviarEmailConfirmacio({ compra: { ...compra, estado_pago: 'pagado' }, evento, baseUrl });
+-          if (compra.quiere_factura) {
+-            await enviarNotificacioFactura({ compra, evento });
+-          }
+         }
+       }
+       break;
+@@ -257,7 +231,6 @@ async function obtenerConfirmacion(req, res) {
+       nombre_comprador: compra.nombre_comprador,
+       cantidad: compra.cantidad,
+       importe_total: compra.importe_total,
+-      quiere_factura: compra.quiere_factura,
+     },
+   });
+ }
+diff --git a/models/Compra.js b/models/Compra.js
+index e733717..c4592a9 100644
+--- a/models/Compra.js
++++ b/models/Compra.js
+@@ -28,21 +28,15 @@ async function create(data, meta = {}) {
+   const stmt = db.prepare(
+     `INSERT INTO compras (
+        evento_id, nombre_comprador, email, telefono, cantidad, importe_total,
+-       quiere_factura, nif, nombre_fiscal, direccion_fiscal, estado_pago,
+-       respuestas_campos, edit_token
++       estado_pago, respuestas_campos, edit_token
+      ) VALUES (
+        @evento_id, @nombre_comprador, @email, @telefono, @cantidad, @importe_total,
+-       @quiere_factura, @nif, @nombre_fiscal, @direccion_fiscal, 'pendiente',
+-       @respuestas_campos, @edit_token
++       'pendiente', @respuestas_campos, @edit_token
+      ) RETURNING id`
+   );
+   const info = await stmt.run({
+-    nif: null,
+-    nombre_fiscal: null,
+-    direccion_fiscal: null,
+     telefono: null,
+     ...data,
+-    quiere_factura: !!data.quiere_factura,
+     respuestas_campos: JSON.stringify(data.respuestas_campos || {}),
+     edit_token: crypto.randomBytes(24).toString('hex'),
+   });
+diff --git a/public/admin/evento.html b/public/admin/evento.html
+index 732aacc..0a8fd6b 100644
+--- a/public/admin/evento.html
++++ b/public/admin/evento.html
+@@ -7,7 +7,7 @@
+ <link rel="icon" href="/assets/favicon.ico">
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="/css/style.css">
+-<link rel="stylesheet" href="/css/admin.css?v=89">
++<link rel="stylesheet" href="/css/admin.css?v=90">
+ </head>
+ <body>
+ <div class="admin-shell">
+@@ -134,7 +134,7 @@
+ 
+     <div class="camps-formulari-seccio">
+       <h2 class="camps-formulari-titol">Email de confirmació</h2>
+-      <p class="camps-formulari-ajuda">Es fa servir per defecte si es deixa buit. Variables disponibles: <code>{{nom_comprador}}</code>, <code>{{nom_esdeveniment}}</code>, <code>{{data_hora}}</code>, <code>{{quantitat}}</code>, <code>{{import_total}}</code>, <code>{{dades_factura}}</code>, <code>{{enllac_edicio}}</code>.</p>
++      <p class="camps-formulari-ajuda">Es fa servir per defecte si es deixa buit. Variables disponibles: <code>{{nom_comprador}}</code>, <code>{{nom_esdeveniment}}</code>, <code>{{data_hora}}</code>, <code>{{quantitat}}</code>, <code>{{import_total}}</code>, <code>{{enllac_edicio}}</code>.</p>
+ 
+       <label for="email_asunto">Assumpte</label>
+       <input type="text" id="email_asunto" name="email_asunto" placeholder="Confirmació de la teva entrada — {{nom_esdeveniment}}">
+@@ -168,10 +168,6 @@
+           <th>Telèfon</th>
+           <th>Quantitat</th>
+           <th>Import</th>
+-          <th>Factura</th>
+-          <th>NIF</th>
+-          <th>Nom fiscal</th>
+-          <th>Adreça fiscal</th>
+           <th>Data</th>
+           <th></th>
+         </tr>
+@@ -180,6 +176,6 @@
+     </table>
+   </div>
+ </div>
+-<script src="/js/admin.js?v=61"></script>
++<script src="/js/admin.js?v=62"></script>
+ </body>
+ </html>
+diff --git a/public/admin/index.html b/public/admin/index.html
+index c3b751d..92d42d5 100644
+--- a/public/admin/index.html
++++ b/public/admin/index.html
+@@ -7,7 +7,7 @@
+ <link rel="icon" href="/assets/favicon.ico">
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="/css/style.css">
+-<link rel="stylesheet" href="/css/admin.css?v=89">
++<link rel="stylesheet" href="/css/admin.css?v=90">
+ </head>
+ <body>
+ <div class="admin-shell">
+@@ -182,7 +182,7 @@
+     </div>
+   </div>
+ </div>
+-<script src="/js/admin.js?v=61"></script>
++<script src="/js/admin.js?v=62"></script>
+ <script src="/js/admin-historial.js?v=3"></script>
+ </body>
+ </html>
+diff --git a/public/admin/login.html b/public/admin/login.html
+index ac270b0..d71a091 100644
+--- a/public/admin/login.html
++++ b/public/admin/login.html
+@@ -7,7 +7,7 @@
+ <link rel="icon" href="/assets/favicon.ico">
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="/css/style.css">
+-<link rel="stylesheet" href="/css/admin.css?v=89">
++<link rel="stylesheet" href="/css/admin.css?v=90">
+ </head>
+ <body>
+ <main class="admin-login-card">
+@@ -22,6 +22,6 @@
+   </form>
+   <a href="/index.html" class="admin-link-back">← Torna a l'inici</a>
+ </main>
+-<script src="/js/admin.js?v=61"></script>
++<script src="/js/admin.js?v=62"></script>
+ </body>
+ </html>
+diff --git a/public/css/admin.css b/public/css/admin.css
+index 8b2c2a6..a21f792 100644
+--- a/public/css/admin.css
++++ b/public/css/admin.css
+@@ -1344,8 +1344,8 @@ body:has(> .admin-shell) {
+ .calendari-punt--interval { background: rgba(34, 31, 30, 0.2); }
+ 
+ /* Secció "Formulari de compra": subsecció dins .admin-form (ja blanca),
+-   no una targeta pròpia — mateix patró de separador que .fiscal-fields
+-   (forms.css), amb la mateixa vora fina que separa files de taula. */
++   no una targeta pròpia — mateix patró de separador (vora fina) que ja
++   s'usa per separar files de taula. */
+ .camps-formulari-seccio {
+   margin: 28px 0 32px;
+   padding-top: 20px;
+diff --git a/public/css/forms.css b/public/css/forms.css
+index 65ae86d..bbb8b32 100644
+--- a/public/css/forms.css
++++ b/public/css/forms.css
+@@ -290,10 +290,17 @@ input[type="checkbox"]:focus-visible {
+   display: none !important;
+ }
+ 
+-.fiscal-fields {
+-  border-top: 1px dashed rgba(34, 31, 30, 0.15);
+-  padding-top: 12px;
+-  margin-top: -4px;
++.factura-avis {
++  font-family: var(--font-ui);
++  font-size: 12px;
++  font-weight: 300;
++  color: var(--dark-muted-text);
++  margin: 0 0 16px;
++}
++
++.factura-avis a {
++  color: var(--dark);
++  font-weight: 500;
+ }
+ 
+ .form-error {
+diff --git a/public/css/style.css b/public/css/style.css
+index 59c37d1..ffd6c99 100644
+--- a/public/css/style.css
++++ b/public/css/style.css
+@@ -3,4 +3,4 @@
+ @import url('variables.css?v=4');
+ @import url('legal-modal.css?v=2');
+ @import url('layout.css?v=18');
+-@import url('forms.css?v=9');
++@import url('forms.css?v=10');
+diff --git a/public/index.html b/public/index.html
+index cc56f60..8eaab14 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -10,7 +10,7 @@
+ <!-- Inter via Google Fonts (Ogg és una tipografia amb llicència pròpia de UAUU:
+      veure comentari a css/style.css sobre com afegir-la a public/fonts/) -->
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+-<link rel="stylesheet" href="/css/style.css?v=11">
++<link rel="stylesheet" href="/css/style.css?v=12">
+ </head>
+ <body class="pagina-principal">
+ 
+@@ -83,22 +83,10 @@
+         <input type="tel" id="telefono" name="telefono">
+       </div>
+ 
+-      <div class="checkbox-row">
+-        <input type="checkbox" id="quiere_factura" name="quiere_factura">
+-        <label for="quiere_factura" data-i18n="checkbox_factura">Vull factura amb dades fiscals</label>
+-      </div>
++      <p class="factura-avis" data-i18n-html="factura_avis">En cas de necessitar factura, escriure un correu a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a>.</p>
+ 
+       <div id="camps-formulari-dinamics"></div>
+ 
+-      <div id="camps-fiscals" class="fiscal-fields hidden">
+-        <label for="nif" data-i18n="label_nif">NIF / CIF</label>
+-        <input type="text" id="nif" name="nif">
+-        <label for="nombre_fiscal" data-i18n="label_nom_fiscal">Nom fiscal</label>
+-        <input type="text" id="nombre_fiscal" name="nombre_fiscal">
+-        <label for="direccion_fiscal" data-i18n="label_direccio_fiscal">Adreça fiscal</label>
+-        <input type="text" id="direccion_fiscal" name="direccion_fiscal">
+-      </div>
+-
+       <div class="checkbox-row">
+         <input type="checkbox" id="accepta_condicions" name="accepta_condicions" required>
+         <label for="accepta_condicions">
+@@ -133,8 +121,8 @@
+   </div>
+ </div>
+ 
+-<script src="/js/i18n.js?v=3"></script>
+-<script src="/js/checkout.js?v=18"></script>
++<script src="/js/i18n.js?v=4"></script>
++<script src="/js/checkout.js?v=19"></script>
+ <script src="/js/legal-modal.js?v=2"></script>
+ </body>
+ </html>
+diff --git a/public/js/admin.js b/public/js/admin.js
+index cbe23a4..e419db6 100644
+--- a/public/js/admin.js
++++ b/public/js/admin.js
+@@ -1284,10 +1284,6 @@ if (formEventoEditar) {
+         <td>${escapeHtml(c.telefono || '—')}</td>
+         <td>${c.cantidad}</td>
+         <td>${formatEuros(c.importe_total)}</td>
+-        <td>${c.quiere_factura ? 'Sí' : 'No'}</td>
+-        <td>${escapeHtml(c.nif || '—')}</td>
+-        <td>${escapeHtml(c.nombre_fiscal || '—')}</td>
+-        <td>${escapeHtml(c.direccion_fiscal || '—')}</td>
+         <td>${formatData(c.created_at)}</td>
+         ${tdsCamps}
+         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
+diff --git a/public/js/checkout.js b/public/js/checkout.js
+index a96efe6..818f0eb 100644
+--- a/public/js/checkout.js
++++ b/public/js/checkout.js
+@@ -387,15 +387,6 @@ async function iniciar() {
+   await carregarEvento(eventos.length === 1 ? eventos[0].id : undefined);
+ }
+ 
+-function toggleCampsFiscals() {
+-  const checked = document.getElementById('quiere_factura').checked;
+-  const camps = document.getElementById('camps-fiscals');
+-  camps.classList.toggle('hidden', !checked);
+-  ['nif', 'nombre_fiscal', 'direccion_fiscal'].forEach((id) => {
+-    document.getElementById(id).required = checked;
+-  });
+-}
+-
+ function comprovarAccesAdmin(evt) {
+   if (document.getElementById('nombre_comprador').value.trim().toLowerCase() === 'admin') {
+     evt.preventDefault();
+@@ -419,10 +410,6 @@ async function enviarFormulari(evt) {
+     nombre_comprador: document.getElementById('nombre_comprador').value,
+     email: document.getElementById('email').value,
+     telefono: combinarTelefonAmbPrefix(),
+-    quiere_factura: document.getElementById('quiere_factura').checked,
+-    nif: document.getElementById('nif').value,
+-    nombre_fiscal: document.getElementById('nombre_fiscal').value,
+-    direccion_fiscal: document.getElementById('direccion_fiscal').value,
+     accepta_condicions: document.getElementById('accepta_condicions').checked,
+     respuestas_campos: llegirRespostesCampsDinamics(),
+   };
+@@ -453,7 +440,6 @@ async function enviarFormulari(evt) {
+ document.addEventListener('DOMContentLoaded', () => {
+   iniciar();
+   inicialitzarPrefixTelefon();
+-  document.getElementById('quiere_factura').addEventListener('change', toggleCampsFiscals);
+   document.getElementById('btn-comprar').addEventListener('click', comprovarAccesAdmin, true);
+   document.getElementById('form-compra').addEventListener('submit', enviarFormulari);
+   document.getElementById('btn-tornar-selector').addEventListener('click', tornarAlSelector);
+diff --git a/public/js/i18n.js b/public/js/i18n.js
+index 721f539..6705ce8 100644
+--- a/public/js/i18n.js
++++ b/public/js/i18n.js
+@@ -21,10 +21,7 @@
+       label_nom: 'Nom i cognoms',
+       label_email: 'Email',
+       label_telefon: 'Telèfon',
+-      checkbox_factura: 'Vull factura amb dades fiscals',
+-      label_nif: 'NIF / CIF',
+-      label_nom_fiscal: 'Nom fiscal',
+-      label_direccio_fiscal: 'Adreça fiscal',
++      factura_avis: 'En cas de necessitar factura, escriure un correu a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a>.',
+       accepta_pre: 'Accepto les ',
+       accepta_condicions: 'condicions de venda',
+       accepta_i: ' i la ',
+@@ -58,7 +55,6 @@
+       eyebrow_pagament_rebut: 'Pagament rebut',
+       gracies_compra: 'Gràcies per la teva compra!',
+       rebras_confirmacio: 'Rebràs la confirmació de la teva entrada per email en breu.',
+-      avis_dos_correus: 'Com que has demanat factura, rebràs dos correus: la confirmació de la teva entrada i, més endavant, la factura.',
+       reserva_confirmada: 'Reserva confirmada',
+       pots_tancar: "Ja pots tancar aquesta finestra. Ens veiem a l'esdeveniment!",
+       com_cancelar_modificar: 'Si necessites cancel·lar o modificar la teva entrada, escriu-nos a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a> i t\'ajudarem.',
+@@ -155,10 +151,7 @@
+       label_nom: 'Nombre y apellidos',
+       label_email: 'Email',
+       label_telefon: 'Teléfono',
+-      checkbox_factura: 'Quiero factura con datos fiscales',
+-      label_nif: 'NIF / CIF',
+-      label_nom_fiscal: 'Nombre fiscal',
+-      label_direccio_fiscal: 'Dirección fiscal',
++      factura_avis: 'En caso de necesitar factura, escribe un correo a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a>.',
+       accepta_pre: 'Acepto las ',
+       accepta_condicions: 'condiciones de venta',
+       accepta_i: ' y la ',
+@@ -192,7 +185,6 @@
+       eyebrow_pagament_rebut: 'Pago recibido',
+       gracies_compra: '¡Gracias por tu compra!',
+       rebras_confirmacio: 'Recibirás la confirmación de tu entrada por email en breve.',
+-      avis_dos_correus: 'Como has pedido factura, recibirás dos correos: la confirmación de tu entrada y, más adelante, la factura.',
+       reserva_confirmada: 'Reserva confirmada',
+       pots_tancar: 'Ya puedes cerrar esta ventana. ¡Nos vemos en el evento!',
+       com_cancelar_modificar: 'Si necesitas cancelar o modificar tu entrada, escríbenos a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a> y te ayudaremos.',
+@@ -289,10 +281,7 @@
+       label_nom: 'Full name',
+       label_email: 'Email',
+       label_telefon: 'Phone',
+-      checkbox_factura: 'I want an invoice with tax details',
+-      label_nif: 'Tax ID',
+-      label_nom_fiscal: 'Billing name',
+-      label_direccio_fiscal: 'Billing address',
++      factura_avis: 'If you need an invoice, email <a href="mailto:anna@uauu.cat">anna@uauu.cat</a>.',
+       accepta_pre: 'I accept the ',
+       accepta_condicions: 'terms of sale',
+       accepta_i: ' and the ',
+@@ -326,7 +315,6 @@
+       eyebrow_pagament_rebut: 'Payment received',
+       gracies_compra: 'Thank you for your purchase!',
+       rebras_confirmacio: "You'll receive your ticket confirmation by email shortly.",
+-      avis_dos_correus: "Since you requested an invoice, you'll receive two emails: your ticket confirmation and, later on, the invoice.",
+       reserva_confirmada: 'Booking confirmed',
+       pots_tancar: 'You can close this window now. See you at the event!',
+       com_cancelar_modificar: 'If you need to cancel or modify your ticket, email us at <a href="mailto:anna@uauu.cat">anna@uauu.cat</a> and we\'ll help you.',
+diff --git a/public/js/success.js b/public/js/success.js
+index ce851d2..2d0b861 100644
+--- a/public/js/success.js
++++ b/public/js/success.js
+@@ -18,17 +18,12 @@ function renderitzarConfirmacio() {
+   const dataText = new Date(data.evento.fecha).toLocaleString(localeActual());
+   const importText = (data.compra.importe_total / 100).toFixed(2) + ' €';
+ 
+-  const avisFactura = data.compra.quiere_factura
+-    ? `<p class="subtitle">${escapeHtml(window.i18n ? window.i18n.t('avis_dos_correus') : 'Com que has demanat factura, rebràs dos correus: la confirmació de la teva entrada i, més endavant, la factura.')}</p>`
+-    : '';
+-
+   contenidor.innerHTML = `
+     <p class="subtitle">
+       <strong>${escapeHtml(data.evento.nombre)}</strong><br>
+       📅 ${escapeHtml(dataText)}<br>
+       🎟️ ${data.compra.cantidad} entrada(es) — ${escapeHtml(importText)}
+     </p>
+-    ${avisFactura}
+   `;
+ }
+ 
+diff --git a/utils/mailer.js b/utils/mailer.js
+index 4dc5f9d..d2064b2 100644
+--- a/utils/mailer.js
++++ b/utils/mailer.js
+@@ -29,7 +29,6 @@ const HTML_DEFECTE = `
+         <li><strong>Entrades:</strong> {{quantitat}}</li>
+         <li><strong>Import total:</strong> {{import_total}}</li>
+       </ul>
+-      {{dades_factura}}
+       {{enllac_edicio}}
+       <p>Ens veiem a l'esdeveniment!</p>
+     </div>
+@@ -55,13 +54,6 @@ function substituirVariables(text, variables) {
+  * facin servir exactament la mateixa lògica de renderitzat.
+  */
+ function calcularVariables({ compra, evento, baseUrl }) {
+-  const dadesFactura = compra.quiere_factura
+-    ? `<p><strong>Dades de facturació</strong><br>
+-       ${compra.nombre_fiscal}<br>
+-       NIF/CIF: ${compra.nif}<br>
+-       ${compra.direccion_fiscal}</p>`
+-    : '';
+-
+   const enllacEdicio = compra.edit_token && new Date() < new Date(evento.fecha)
+     ? `<p>Pots revisar o modificar les teves dades (com les al·lèrgies) fins al dia de l'esdeveniment des d'aquest enllaç: <br>
+        <a href="${baseUrl}/mis-datos.html?token=${compra.edit_token}">${baseUrl}/mis-datos.html?token=${compra.edit_token}</a></p>`
+@@ -73,7 +65,12 @@ function calcularVariables({ compra, evento, baseUrl }) {
+     data_hora: formatDataHora(evento.fecha),
+     quantitat: String(compra.cantidad),
+     import_total: formatEuros(compra.importe_total),
+-    dades_factura: dadesFactura,
++    // dades_factura ja no es calcula (facturació eliminada del checkout),
++    // però es manté a VARIABLES_DISPONIBLES/substituirVariables perquè un
++    // esdeveniment amb email_html personalitzat que encara contingui
++    // {{dades_factura}} el substitueixi per buit en lloc de deixar-hi el
++    // placeholder literal.
++    dades_factura: '',
+     enllac_edicio: enllacEdicio,
+   };
+ }
+@@ -132,10 +129,6 @@ async function enviarEmailPrueba({ destinatario, asunto, html, evento, baseUrl }
+     nombre_comprador: 'Nom Exemple',
+     cantidad: 2,
+     importe_total: evento.precio ? evento.precio * 2 : 4000,
+-    quiere_factura: true,
+-    nombre_fiscal: 'Nom Exemple SL',
+-    nif: '12345678A',
+-    direccion_fiscal: 'Carrer Exemple, 1, Barcelona',
+     edit_token: 'token-de-prova-no-funcional',
+   };
+ 
+@@ -156,10 +149,19 @@ async function enviarEmailPrueba({ destinatario, asunto, html, evento, baseUrl }
+ }
+ 
+ /**
+- * Notificació interna a digital@uauu.cat quan un comprador demana factura:
+- * inclou les dades fiscals i les dades de l'esdeveniment/compra perquè
+- * l'equip pugui emetre i enviar la factura manualment. Enviament "best
+- * effort", igual que enviarEmailConfirmacio: no ha de fer fallar el webhook.
++ * ÒRFENA des de l'eliminació de la facturació del checkout: cap crida
++ * l'invoca ja enlloc del codi (abans es cridava des de stripeController.js
++ * en marcar una compra com a pagada, si `compra.quiere_factura` era cert;
++ * aquesta columna ja no existeix). Es deixa la funció intacta i exportada
++ * a propòsit — decisió pendent de si s'elimina del tot o es reutilitza per
++ * a una altra notificació interna — en lloc de fer-ho enviar buit o amb
++ * `undefined` allà on abans hi havia dades fiscals.
++ *
++ * Notificació interna a digital@uauu.cat quan un comprador demanava
++ * factura: inclou les dades fiscals i les dades de l'esdeveniment/compra
++ * perquè l'equip pogués emetre i enviar la factura manualment. Enviament
++ * "best effort", igual que enviarEmailConfirmacio: no ha de fer fallar el
++ * webhook.
+  */
+ async function enviarNotificacioFactura({ compra, evento }) {
+   if (!process.env.RESEND_API_KEY) {

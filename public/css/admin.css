@@ -1344,8 +1344,8 @@ body:has(> .admin-shell) {
 .calendari-punt--interval { background: rgba(34, 31, 30, 0.2); }
 
 /* Secció "Formulari de compra": subsecció dins .admin-form (ja blanca),
-   no una targeta pròpia — mateix patró de separador que .fiscal-fields
-   (forms.css), amb la mateixa vora fina que separa files de taula. */
+   no una targeta pròpia — mateix patró de separador (vora fina) que ja
+   s'usa per separar files de taula. */
 .camps-formulari-seccio {
   margin: 28px 0 32px;
   padding-top: 20px;
