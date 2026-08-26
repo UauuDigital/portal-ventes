@@ -281,10 +281,30 @@ function renderCampsFormulariDinamics(campos) {
 // compta com a 1 plaça, ell no s'hi repeteix). L'array es manté persistent
 // entre canvis de cantidad: si es puja de 2 a 3 s'afegeix una fila buida
 // al final; si es baixa de 3 a 2 es descarta només l'última, sense tocar
-// les dades ja escrites a les que es mantenen. Validació de nom/email
-// obligatoris via els mateixos atributs HTML natius (required, type=email)
-// que ja fa servir la resta del formulari — sense JS addicional.
+// les dades ja escrites a les que es mantenen.
+//
+// Es mostren com una única targeta amb pestanyes numerades (1, 2, 3...) en
+// comptes d'apilar-los tots verticalment: només l'acompanyant de la
+// pestanya activa té els seus <input> al DOM en cada moment. Per això,
+// a diferència del comprador principal (que sí és sempre visible i es pot
+// validar només amb required/type=email natius), aquí cal una validació
+// pròpia en JS abans d'enviar — si no, les dades d'una pestanya no visible
+// no es comprovarien mai.
 let acompanyantsActuals = [];
+let acompanyantTabActiva = 0;
+// Es marca a true només després d'un intent d'enviament que ha fallat per
+// dades d'acompanyants invàlides, perquè el punt vermell no aparegui abans
+// que l'usuari hagi ni intentat enviar el formulari.
+let intentAcompanyantsFallit = false;
+
+// Mateixa regex que utils/validacio.js (EMAIL_REGEX) al backend, perquè el
+// criteri de "email vàlid" no divergeixi entre el que s'ensenya aquí i el
+// que de veritat exigeix el servidor.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function acompanyantInvalid(ac) {
+  return !ac.nombre.trim() || !EMAIL_REGEX.test(ac.email.trim());
+}
 
 function renderAcompanyants(n) {
   const cont = document.getElementById('acompanyants-dinamics');
@@ -294,27 +314,52 @@ function renderAcompanyants(n) {
 
   if (n === 0) {
     cont.innerHTML = '';
+    acompanyantTabActiva = 0;
     return;
   }
 
+  // Si la pestanya activa deixa d'existir (p. ex. cantidad baixa estant a
+  // la pestanya 3 i ara només n'hi ha 2), es passa a l'última vàlida.
+  if (acompanyantTabActiva > n - 1) acompanyantTabActiva = n - 1;
+
+  const ac = acompanyantsActuals[acompanyantTabActiva];
   cont.innerHTML = `
     <p class="acompanyants-titol">Dades dels acompanyants</p>
-    ${acompanyantsActuals.map((ac, i) => `
-      <div class="acompanyant-bloc">
-        <p class="acompanyant-subtitol">Acompanyant ${i + 1}</p>
-        <label for="acompanyant_nom_${i}">Nom i cognoms</label>
-        <input type="text" id="acompanyant_nom_${i}" data-i="${i}" data-camp="nombre" value="${escapeAttr(ac.nombre)}" required>
-        <label for="acompanyant_email_${i}">Email</label>
-        <input type="email" id="acompanyant_email_${i}" data-i="${i}" data-camp="email" value="${escapeAttr(ac.email)}" required>
-        <label for="acompanyant_telefon_${i}">Telèfon</label>
-        <input type="tel" id="acompanyant_telefon_${i}" data-i="${i}" data-camp="telefono" value="${escapeAttr(ac.telefono)}">
-      </div>
-    `).join('')}
+    <div class="acompanyants-pestanyes" role="tablist">
+      ${acompanyantsActuals.map((item, i) => `
+        <button type="button" class="acompanyant-pestanya${i === acompanyantTabActiva ? ' acompanyant-pestanya--activa' : ''}${intentAcompanyantsFallit && acompanyantInvalid(item) ? ' acompanyant-pestanya--error' : ''}"
+          role="tab" aria-selected="${i === acompanyantTabActiva}" data-i="${i}">${i + 1}</button>
+      `).join('')}
+    </div>
+    <div class="acompanyant-targeta">
+      <p class="acompanyant-subtitol">Acompanyant ${acompanyantTabActiva + 1}</p>
+      <label for="acompanyant_nom">Nom i cognoms</label>
+      <input type="text" id="acompanyant_nom" data-camp="nombre" value="${escapeAttr(ac.nombre)}" required>
+      <label for="acompanyant_email">Email</label>
+      <input type="email" id="acompanyant_email" data-camp="email" value="${escapeAttr(ac.email)}" required>
+      <label for="acompanyant_telefon">Telèfon</label>
+      <input type="tel" id="acompanyant_telefon" data-camp="telefono" value="${escapeAttr(ac.telefono)}">
+    </div>
   `;
+
+  cont.querySelectorAll('.acompanyant-pestanya').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      acompanyantTabActiva = parseInt(btn.dataset.i, 10);
+      renderAcompanyants(acompanyantsActuals.length);
+    });
+  });
 
   cont.querySelectorAll('input[data-camp]').forEach((input) => {
     input.addEventListener('input', () => {
-      acompanyantsActuals[parseInt(input.dataset.i, 10)][input.dataset.camp] = input.value;
+      acompanyantsActuals[acompanyantTabActiva][input.dataset.camp] = input.value;
+      // Repinta només els indicadors de les pestanyes (no la targeta, per
+      // no perdre el focus/cursor de l'input on l'usuari està escrivint)
+      // perquè el punt vermell desaparegui a l'instant en corregir-se.
+      if (intentAcompanyantsFallit) {
+        cont.querySelectorAll('.acompanyant-pestanya').forEach((btn, i) => {
+          btn.classList.toggle('acompanyant-pestanya--error', acompanyantInvalid(acompanyantsActuals[i]));
+        });
+      }
     });
   });
 }
@@ -462,6 +507,25 @@ async function enviarFormulari(evt) {
   btn.textContent = t('btn_comprar_processant');
 
   const cantidad = parseInt(document.getElementById('cantidad').value, 10) || 1;
+
+  // Amb la targeta única de pestanyes, només l'acompanyant de la pestanya
+  // activa té els inputs al DOM en aquest moment — required/type=email
+  // natius només poden validar-lo a ell. Cal comprovar aquí explícitament
+  // TOTS els acompanyants (incloses les pestanyes no visibles) abans
+  // d'enviar, i si algun falla, saltar a la primera pestanya amb problema
+  // perquè l'usuari sàpiga exactament on tornar.
+  if (cantidad > 1) {
+    const primerInvalid = acompanyantsActuals.slice(0, cantidad - 1).findIndex(acompanyantInvalid);
+    if (primerInvalid !== -1) {
+      intentAcompanyantsFallit = true;
+      acompanyantTabActiva = primerInvalid;
+      renderAcompanyants(cantidad - 1);
+      errorEl.textContent = "Revisa les dades dels acompanyants: falta algun nom o l'email no és vàlid.";
+      btn.disabled = false;
+      btn.textContent = t('btn_comprar');
+      return;
+    }
+  }
 
   const body = {
     evento_id: eventoSeleccionatId,

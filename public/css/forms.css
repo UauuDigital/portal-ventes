@@ -368,10 +368,14 @@ input[type="checkbox"]:focus-visible {
 }
 
 /* Formulari dinàmic d'acompanyants (checkout.js): apareix/creix segons
-   "Nombre de places". Cada acompanyant és un bloc amb els mateixos tres
-   camps que el comprador principal (nom/email/telèfon), separat amb una
-   vora fina superior perquè es llegeixin com a fitxes diferents quan n'hi
-   ha diverses — el primer bloc no en porta, no cal separar-lo de res. */
+   "Nombre de places". Es mostra com una única targeta amb els mateixos
+   tres camps que el comprador principal (nom/email/telèfon), i unes
+   pestanyes numerades a sobre per triar quin acompanyant s'edita — en
+   comptes d'apilar-los tots verticalment, cosa que allargava molt el
+   formulari amb diversos acompanyants. Cap patró de pestanyes existia
+   encara al projecte (ni a l'admin ni aquí), així que es dissenya un de
+   nou coherent amb la resta: cercles petits, farcits de --dark quan
+   estan actius (mateix contrast que .btn-primary). */
 .acompanyants-titol {
   font-family: var(--font-ui);
   font-size: 11px;
@@ -382,16 +386,53 @@ input[type="checkbox"]:focus-visible {
   margin: 4px 0 12px;
 }
 
-.acompanyant-bloc {
-  padding-top: 16px;
-  margin-top: 4px;
-  border-top: 1px solid rgba(34, 31, 30, 0.1);
+.acompanyants-pestanyes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
-.acompanyant-bloc:first-of-type {
-  border-top: none;
-  padding-top: 0;
-  margin-top: 0;
+.acompanyant-pestanya {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(34, 31, 30, 0.2);
+  background: transparent;
+  color: var(--dark-muted-text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.acompanyant-pestanya:hover {
+  border-color: rgba(34, 31, 30, 0.4);
+}
+
+.acompanyant-pestanya--activa {
+  background: var(--dark);
+  border-color: var(--dark);
+  color: var(--white);
+}
+
+/* Punt vermell: només apareix després d'un intent d'enviament fallit, per
+   assenyalar quina pestanya "amagada" té dades invàlides/incompletes —
+   amb el disseny anterior (blocs apilats, tots visibles alhora) no calia
+   cap indicador d'aquest tipus. */
+.acompanyant-pestanya--error::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--error);
+  border: 1.5px solid var(--white);
 }
 
 .acompanyant-subtitol {
