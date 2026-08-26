@@ -7,7 +7,7 @@
 <link rel="icon" href="/assets/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css?v=93">
+<link rel="stylesheet" href="/css/admin.css?v=94">
 </head>
 <body>
 <div class="admin-shell">
@@ -126,7 +126,13 @@
 
   <div class="admin-topbar" style="margin-top:32px;">
     <h2 style="font-family:var(--font-ui); font-size:14px; text-transform:uppercase; letter-spacing:0.05em; color:var(--dark-muted);">Compres</h2>
-    <a id="link-export-csv" class="btn-secundari" href="#">Exportar CSV</a>
+    <div class="compres-accions">
+      <div class="checkbox-row checkbox-row--inline">
+        <input type="checkbox" id="tota-compres-toggle">
+        <label for="tota-compres-toggle">Mostrar totes les compres</label>
+      </div>
+      <a id="link-export-pdf" class="btn-secundari" href="#">Exportar PDF</a>
+    </div>
   </div>
 
   <div class="admin-table-scroll admin-table-scroll--compras">
@@ -146,6 +152,6 @@
     </table>
   </div>
 </div>
-<script src="/js/admin.js?v=64"></script>
+<script src="/js/admin.js?v=65"></script>
 </body>
 </html>

@@ -1,10 +1,11 @@
+const PDFDocument = require('pdfkit');
 const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
 const Historial = require('../models/Historial');
-const { toCsv } = require('../utils/csv');
 const { validarDefinicionCampos } = require('../utils/camposFormulario');
 const { validarInvitados } = require('../utils/validarInvitados');
 const { enviarEmailPrueba } = require('../utils/mailer');
+const { escriureAsistentsPdf } = require('../utils/pdfAsistentes');
 
 function validarEvento(body, { parcial } = {}) {
   const errors = [];
@@ -186,11 +187,21 @@ async function eliminarEvento(req, res) {
   res.status(204).send();
 }
 
+// Filtre per estat de pagament, compartit entre la taula de l'admin i
+// l'exportació a PDF perquè sempre coincideixin: per defecte només
+// compres 'pagado' (l'informe d'auditoria inicial assenyalava que la
+// taula no distingia pagades de pendents/cancel·lades — es soluciona
+// amagant per defecte les que no interessen, amb un toggle exprés al
+// frontend per veure-les totes). `?estado=todas` treu el filtre.
+function resoldreFiltreEstat(req) {
+  return req.query.estado === 'todas' ? undefined : 'pagado';
+}
+
 async function llistarCompresEvento(req, res) {
   const eventoId = parseInt(req.params.id, 10);
   const evento = await Evento.getById(eventoId);
   if (!evento) return res.status(404).json({ error: 'no_trobat' });
-  const compras = await Compra.listByEvento(eventoId);
+  const compras = await Compra.listByEvento(eventoId, { estado: resoldreFiltreEstat(req) });
   const ambAcompanyants = await Promise.all(
     compras.map(async ({ edit_token, ...resta }) => ({
       ...resta,
@@ -225,47 +236,39 @@ async function llistarHistorial(req, res) {
   res.json(entrades);
 }
 
-const COLUMNES_CSV = [
-  { clau: 'nombre_comprador', capsalera: 'Nom' },
-  { clau: 'email', capsalera: 'Email' },
-  { clau: 'telefono', capsalera: 'Telèfon' },
-  { clau: 'cantidad', capsalera: 'Quantitat' },
-  { clau: 'importe_total_eur', capsalera: 'Import total (€)' },
-  { clau: 'estado_pago', capsalera: 'Estat pagament' },
-  { clau: 'created_at', capsalera: 'Data compra' },
-];
-
-async function exportarComprasCsv(req, res) {
+/**
+ * GET /api/admin/eventos/:id/compras/export.pdf
+ * Substitueix l'antiga exportació a CSV de compres per un llistat
+ * d'ASSISTENTS (no de compres): comprador + cada acompanyant de cada
+ * compra, un per fila, sense distingir-los visualment entre ells. Respecta
+ * el mateix filtre d'estat de pagament que la taula (?estado=todas per
+ * incloure-les totes; per defecte, només pagades).
+ */
+async function exportarAsistentesPdf(req, res) {
   const eventoId = parseInt(req.params.id, 10);
   const evento = await Evento.getById(eventoId);
   if (!evento) return res.status(404).json({ error: 'no_trobat' });
 
-  const compres = await Compra.listByEvento(eventoId);
-  const camposEvento = Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [];
+  const filtreEstat = resoldreFiltreEstat(req);
+  const compres = await Compra.listByEvento(eventoId, { estado: filtreEstat });
+  const compresAmbAcompanyants = await Promise.all(
+    compres.map(async (c) => ({ ...c, acompanyants: await Compra.getAcompanyants(c.id) }))
+  );
 
-  const columnesCampos = camposEvento.map((campo) => ({
-    clau: `campo_${campo.id}`,
-    capsalera: campo.etiqueta,
-  }));
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="assistents-evento-${eventoId}.pdf"`);
 
-  const files = compres.map((c) => {
-    const respuestas = c.respuestas_campos || {};
-    const filaCampos = {};
-    camposEvento.forEach((campo) => {
-      const valor = respuestas[campo.id];
-      filaCampos[`campo_${campo.id}`] = Array.isArray(valor) ? valor.join(', ') : (valor ?? '');
-    });
-    return {
-      ...c,
-      ...filaCampos,
-      importe_total_eur: (c.importe_total / 100).toFixed(2),
-    };
+  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+  doc.pipe(res);
+  escriureAsistentsPdf(doc, {
+    evento,
+    compres: compresAmbAcompanyants,
+    // Amb el filtre per defecte totes les files dirien "Pagat" — la
+    // columna només aporta informació quan el llistat pot incloure
+    // compres en altres estats (toggle "totes").
+    incloureEstat: filtreEstat === undefined,
   });
-
-  const csv = toCsv(files, [...COLUMNES_CSV, ...columnesCampos]);
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="compres-evento-${eventoId}.csv"`);
-  res.send(csv);
+  doc.end();
 }
 
 module.exports = {
@@ -276,7 +279,7 @@ module.exports = {
   eliminarEvento,
   llistarCompresEvento,
   cancelarCompra,
-  exportarComprasCsv,
+  exportarAsistentesPdf,
   enviarEmailDePrueba,
   llistarHistorial,
 };

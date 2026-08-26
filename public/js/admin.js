@@ -186,7 +186,7 @@ async function aplicarRestriccionsPerRol() {
       el.disabled = true;
     });
   }
-  const linkExportEl = document.getElementById('link-export-csv');
+  const linkExportEl = document.getElementById('link-export-pdf');
   if (linkExportEl) linkExportEl.style.display = 'none';
   const btnEmailProvaEl = document.getElementById('btn-enviar-email-prova');
   if (btnEmailProvaEl) btnEmailProvaEl.style.display = 'none';
@@ -218,6 +218,22 @@ function badgeEntradesRestants(ev) {
       <span class="entrades-restants-barra"><span class="entrades-restants-barra-fill" style="width:${percentOcupat}%"></span></span>
     </div>
   `;
+}
+
+// Mateixos 4 estats que estado_pago a la BD (config/schema.sql): pendiente
+// | pagado | cancelado | reembolsado. Badge discret (mateix patró que
+// .admin-historial-badge) només visible amb el toggle "Mostrar totes les
+// compres" actiu — amb el filtre per defecte totes dirien "Pagat".
+const ESTATS_PAGAMENT_LLEGIBLES = {
+  pendiente: 'Pendent',
+  pagado: 'Pagat',
+  cancelado: 'Cancel·lat',
+  reembolsado: 'Reemborsat',
+};
+
+function badgeEstatPagament(estat) {
+  const text = ESTATS_PAGAMENT_LLEGIBLES[estat] || estat;
+  return `<span class="estat-pagament-badge estat-pagament-badge--${escapeAttr(estat)}">${escapeHtml(text)}</span>`;
 }
 
 function formatData(isoString) {
@@ -865,8 +881,6 @@ if (formEventoEditar) {
   const params = new URLSearchParams(window.location.search);
   const eventoId = params.get('id');
 
-  document.getElementById('link-export-csv').href = `/api/admin/eventos/${eventoId}/compras/export.csv`;
-
   const btnEliminar = document.getElementById('btn-eliminar-evento');
   btnEliminar.addEventListener('click', async () => {
     const errorEl = document.getElementById('error-evento-editar');
@@ -1151,11 +1165,31 @@ if (formEventoEditar) {
 
   const taulaCompras = document.getElementById('taula-compras');
   const filaCapsaleraCompras = document.getElementById('fila-capsalera-compras');
+  const totaComprasToggle = document.getElementById('tota-compres-toggle');
+  const linkExportPdf = document.getElementById('link-export-pdf');
+
+  // El PDF ha de reflectir sempre el mateix filtre que la taula en aquell
+  // moment (pagades per defecte, totes amb el toggle actiu) — es recalcula
+  // l'enllaç cada cop que el toggle canvia, no només un cop en carregar.
+  function actualitzarLinkExportPdf() {
+    if (!linkExportPdf) return;
+    const estat = totaComprasToggle && totaComprasToggle.checked ? 'todas' : 'pagado';
+    linkExportPdf.href = `/api/admin/eventos/${eventoId}/compras/export.pdf?estado=${estat}`;
+  }
 
   function actualitzarCapsaleraCompras() {
     if (!filaCapsaleraCompras) return;
-    filaCapsaleraCompras.querySelectorAll('th[data-camp-dinamic]').forEach((th) => th.remove());
+    filaCapsaleraCompras.querySelectorAll('th[data-camp-dinamic], th[data-estat-col]').forEach((th) => th.remove());
     const thAccions = filaCapsaleraCompras.querySelector('th:last-child');
+    // La columna d'estat només aporta res quan la taula pot mostrar
+    // compres que no siguin totes "pagado" (toggle "totes" actiu): amb el
+    // filtre per defecte, totes les files dirien el mateix.
+    if (totaComprasToggle && totaComprasToggle.checked) {
+      const thEstat = document.createElement('th');
+      thEstat.dataset.estatCol = '1';
+      thEstat.textContent = 'Estat';
+      filaCapsaleraCompras.insertBefore(thEstat, thAccions);
+    }
     camposFormularioActuals.forEach((campo) => {
       const th = document.createElement('th');
       th.dataset.campDinamic = '1';
@@ -1165,15 +1199,17 @@ if (formEventoEditar) {
   }
 
   async function carregarCompras() {
-    const res = await apiFetch(`/api/admin/eventos/${eventoId}/compras`);
+    const mostrarTotes = !!(totaComprasToggle && totaComprasToggle.checked);
+    const res = await apiFetch(`/api/admin/eventos/${eventoId}/compras?estado=${mostrarTotes ? 'todas' : 'pagado'}`);
     if (!res) return;
     const compras = await res.json();
     actualitzarCapsaleraCompras();
     taulaCompras.innerHTML = '';
     // Nombre de columnes de la taula (per al colspan de la fila de detall
     // dels acompanyants): comprador/email/telèfon/quantitat/import/data (6)
-    // + un th dinàmic per camp de campos_formulario + la columna d'accions.
-    const numColumnes = 6 + camposFormularioActuals.length + 1;
+    // + la columna d'estat (només amb el toggle actiu) + un th dinàmic per
+    // camp de campos_formulario + la columna d'accions.
+    const numColumnes = 6 + (mostrarTotes ? 1 : 0) + camposFormularioActuals.length + 1;
     compras.forEach((c) => {
       const potCancelar = ['pendiente', 'pagado'].includes(c.estado_pago) && rolActual !== 'viewer';
       const respuestas = c.respuestas_campos || {};
@@ -1182,6 +1218,7 @@ if (formEventoEditar) {
         const text = Array.isArray(valor) ? valor.join(', ') : (valor ?? '');
         return `<td>${escapeHtml(text)}</td>`;
       }).join('');
+      const tdEstat = mostrarTotes ? `<td>${badgeEstatPagament(c.estado_pago)}</td>` : '';
       const teAcompanyants = Array.isArray(c.acompanyants) && c.acompanyants.length > 0;
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -1193,6 +1230,7 @@ if (formEventoEditar) {
           : c.cantidad}</td>
         <td>${formatEuros(c.importe_total)}</td>
         <td>${formatData(c.created_at)}</td>
+        ${tdEstat}
         ${tdsCamps}
         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
       `;
@@ -1239,6 +1277,14 @@ if (formEventoEditar) {
       });
     });
   }
+
+  if (totaComprasToggle) {
+    totaComprasToggle.addEventListener('change', () => {
+      actualitzarLinkExportPdf();
+      carregarCompras();
+    });
+  }
+  actualitzarLinkExportPdf();
 
   // Espera a conèixer el rol abans de pintar les compres, perquè el botó
   // "Cancel·lar" no aparegui un instant per després desaparèixer.

@@ -587,6 +587,21 @@ body:has(> .admin-shell) {
   align-items: center;
 }
 
+/* Toggle "Mostrar totes les compres" + botó d'exportar, agrupats al
+   costat dret del topbar de la taula de compres (l'.admin-topbar en si
+   només espera dos fills — capçalera i accions — per l'space-between). */
+.compres-accions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* .checkbox-row (forms.css) porta un margin-bottom pensat per a camps de
+   formulari apilats verticalment; en una barra d'accions inline no cal. */
+.checkbox-row--inline {
+  margin-bottom: 0;
+}
+
 .admin-link-back {
   color: var(--dark);
   font-size: 13px;
@@ -974,6 +989,27 @@ body:has(> .admin-shell) {
 .admin-historial-entrada--verd .admin-historial-badge { background: #C7D9BE; }
 .admin-historial-entrada--vermell .admin-historial-badge { background: #F0C9C4; }
 .admin-historial-entrada--gris .admin-historial-badge { background: #DEDBD8; }
+
+/* Badge de la columna "Estat" a la taula de compres (només visible amb el
+   toggle "Mostrar totes les compres" actiu). Mateixa forma que
+   .admin-historial-badge i mateixa paleta verd/vermell/gris que ja fa
+   servir la resta de l'admin (files de taula, calendari, historial). */
+.estat-pagament-badge {
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  color: var(--dark);
+  white-space: nowrap;
+}
+
+.estat-pagament-badge--pagado { background: #C7D9BE; }
+.estat-pagament-badge--pendiente { background: #DEDBD8; }
+.estat-pagament-badge--cancelado,
+.estat-pagament-badge--reembolsado { background: #F0C9C4; }
 
 .admin-historial-cos {
   min-width: 0;

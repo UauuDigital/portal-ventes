@@ -213,7 +213,18 @@ async function cantidadOcupada(eventoId) {
   return Number(row.total);
 }
 
-async function listByEvento(eventoId) {
+/**
+ * `estado` és opcional i filtra per estado_pago exacte (p. ex. 'pagado').
+ * Sense filtre, retorna totes les compres de l'evento sigui quin sigui el
+ * seu estat — el comportament de sempre, que altres criders (com
+ * eliminarPerEvento més avall) segueixen necessitant sense cap filtre.
+ */
+async function listByEvento(eventoId, { estado } = {}) {
+  if (estado) {
+    return db
+      .prepare('SELECT * FROM compras WHERE evento_id = ? AND estado_pago = ? ORDER BY created_at DESC')
+      .all(eventoId, estado);
+  }
   return db
     .prepare('SELECT * FROM compras WHERE evento_id = ? ORDER BY created_at DESC')
     .all(eventoId);
