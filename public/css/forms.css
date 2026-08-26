@@ -368,14 +368,24 @@ input[type="checkbox"]:focus-visible {
 }
 
 /* Formulari dinàmic d'acompanyants (checkout.js): apareix/creix segons
-   "Nombre de places". Es mostra com una única targeta amb els mateixos
-   tres camps que el comprador principal (nom/email/telèfon), i unes
-   pestanyes numerades a sobre per triar quin acompanyant s'edita — en
-   comptes d'apilar-los tots verticalment, cosa que allargava molt el
-   formulari amb diversos acompanyants. Cap patró de pestanyes existia
-   encara al projecte (ni a l'admin ni aquí), així que es dissenya un de
-   nou coherent amb la resta: cercles petits, farcits de --dark quan
-   estan actius (mateix contrast que .btn-primary). */
+   "Nombre de places". Es mostra com un "mazo" de targetes apilades: la
+   targeta activa (amb els 3 camps editables) ocupa el davant; la resta
+   només s'ensenyen com una franja desplaçada cap avall-dreta darrere
+   seu (efecte pila de cartes, sense contingut llegible). Clic en
+   qualsevol franja visible porta aquella targeta al davant.
+   L'ALÇADA DEL CONTENIDOR (.acompanyants-mazo) ÉS FIXA — substitueix el
+   disseny anterior de pestanyes numerades, que seguia deixant créixer
+   l'alçada total del bloc (i per tant la del panell fosc, que s'estira
+   igual per flexbox `align-items: stretch` per defecte a .card — vegeu
+   _temp_mazo_acompanyants.md). Totes les targetes tenen la mateixa mida
+   (100% del contenidor menys la reserva total de profunditat) i només es
+   desplacen top/left segons --profunditat: com que la reserva és
+   constant (MAX_ACOMPANYANTS_PEEK a checkout.js), l'alçada no depèn mai
+   del nombre real d'acompanyants.
+   El pressupost d'alçada disponible abans de tapar el preu és estret
+   (vegeu _temp_mazo_acompanyants.md), així que la targeta és més compacta
+   que la resta del formulari: camps més petits i labels amagats amb
+   .sr-only (ja existent) enlloc de labels visibles. */
 .acompanyants-titol {
   font-family: var(--font-ui);
   font-size: 11px;
@@ -386,59 +396,71 @@ input[type="checkbox"]:focus-visible {
   margin: 4px 0 12px;
 }
 
-.acompanyants-pestanyes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.acompanyants-mazo {
+  position: relative;
+  height: 150px;
   margin-bottom: 16px;
 }
 
-.acompanyant-pestanya {
-  position: relative;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1px solid rgba(34, 31, 30, 0.2);
-  background: transparent;
-  color: var(--dark-muted-text);
-  font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-}
-
-.acompanyant-pestanya:hover {
-  border-color: rgba(34, 31, 30, 0.4);
-}
-
-.acompanyant-pestanya--activa {
-  background: var(--dark);
-  border-color: var(--dark);
-  color: var(--white);
-}
-
-/* Punt vermell: només apareix després d'un intent d'enviament fallit, per
-   assenyalar quina pestanya "amagada" té dades invàlides/incompletes —
-   amb el disseny anterior (blocs apilats, tots visibles alhora) no calia
-   cap indicador d'aquest tipus. */
-.acompanyant-pestanya--error::after {
-  content: '';
+.acompanyant-carta {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--error);
-  border: 1.5px solid var(--white);
+  top: calc(var(--profunditat, 0) * 6px);
+  left: calc(var(--profunditat, 0) * 6px);
+  width: calc(100% - 12px);
+  height: calc(100% - 12px);
+  padding: 12px;
+  background: var(--white);
+  border: 1px solid rgba(34, 31, 30, 0.12);
+  border-radius: var(--radius-input);
+  box-shadow: 0 6px 16px rgba(34, 31, 30, 0.08);
+  overflow: hidden;
+  cursor: pointer;
+  z-index: calc(10 - var(--profunditat, 0));
 }
 
-.acompanyant-subtitol {
+.acompanyant-carta:focus-visible {
+  outline: 2px solid rgba(34, 31, 30, 0.6);
+  outline-offset: 2px;
+}
+
+.acompanyant-carta--activa {
+  cursor: default;
+  box-shadow: 0 10px 24px rgba(34, 31, 30, 0.12);
+}
+
+/* Vora vermella: només apareix després d'un intent d'enviament fallit,
+   per assenyalar quina targeta (activa o de fons) té dades
+   invàlides/incompletes — amb el disseny apilat anterior (blocs sempre
+   visibles) no calia cap indicador d'aquest tipus. Es veu sencera a la
+   targeta activa i com un traç vermell a la franja de les de fons. */
+.acompanyant-carta--error {
+  border-color: var(--error);
+}
+
+.acompanyants-mazo-comptador {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  z-index: 11;
+  background: var(--dark);
+  color: var(--white);
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
-  color: var(--dark);
-  margin: 0 0 10px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+}
+
+/* Dins la targeta compacta, camps més petits que la resta del formulari
+   (padding i mida de lletra reduïts, marge entre camps menor) perquè els
+   3 camps hi càpiguen sense créixer l'alçada fixa del mazo. */
+.acompanyant-carta input {
+  padding: 7px 10px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.acompanyant-carta input:last-of-type {
+  margin-bottom: 0;
 }

@@ -283,18 +283,18 @@ function renderCampsFormulariDinamics(campos) {
 // al final; si es baixa de 3 a 2 es descarta només l'última, sense tocar
 // les dades ja escrites a les que es mantenen.
 //
-// Es mostren com una única targeta amb pestanyes numerades (1, 2, 3...) en
-// comptes d'apilar-los tots verticalment: només l'acompanyant de la
-// pestanya activa té els seus <input> al DOM en cada moment. Per això,
-// a diferència del comprador principal (que sí és sempre visible i es pot
+// Es mostren com un "mazo" de targetes apilades (vegeu forms.css): només
+// l'acompanyant "actiu" (al davant del mazo) té els seus <input> al DOM en
+// cada moment — la resta són franges de fons sense contingut. Per això, a
+// diferència del comprador principal (que sí és sempre visible i es pot
 // validar només amb required/type=email natius), aquí cal una validació
-// pròpia en JS abans d'enviar — si no, les dades d'una pestanya no visible
-// no es comprovarien mai.
+// pròpia en JS abans d'enviar — si no, les dades d'una targeta de fons no
+// es comprovarien mai.
 let acompanyantsActuals = [];
 let acompanyantTabActiva = 0;
 // Es marca a true només després d'un intent d'enviament que ha fallat per
-// dades d'acompanyants invàlides, perquè el punt vermell no aparegui abans
-// que l'usuari hagi ni intentat enviar el formulari.
+// dades d'acompanyants invàlides, perquè la vora vermella no aparegui
+// abans que l'usuari hagi ni intentat enviar el formulari.
 let intentAcompanyantsFallit = false;
 
 // Mateixa regex que utils/validacio.js (EMAIL_REGEX) al backend, perquè el
@@ -302,8 +302,51 @@ let intentAcompanyantsFallit = false;
 // que de veritat exigeix el servidor.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Nombre màxim de targetes de fons que s'ensenyen amb franja pròpia
+// desplaçada (vegeu _temp_mazo_acompanyants.md per la justificació). Més
+// enllà d'aquest nombre, la resta s'amaguen del tot darrere l'última
+// franja visible i només es reflecteixen al comptador "+N".
+const MAX_ACOMPANYANTS_PEEK = 2;
+
 function acompanyantInvalid(ac) {
   return !ac.nombre.trim() || !EMAIL_REGEX.test(ac.email.trim());
+}
+
+// Genera el HTML d'una targeta del mazo. Només la targeta activa porta els
+// tres camps editables; les de fons són un div buit (només s'hi veu la
+// franja, gràcies al desplaçament per --profunditat en CSS) — no cal
+// pintar-hi contingut que mai s'arribarà a llegir.
+//
+// Els labels de nom/email/telèfon es mantenen (accessibilitat: un lector
+// de pantalla els necessita) però visualment amagats amb .sr-only (ja
+// existent al projecte) enlloc del <label> visible que fa servir la resta
+// del formulari: calia una targeta molt més compacta perquè l'alçada fixa
+// del mazo no faci créixer massa el panell (vegeu _temp_mazo_acompanyants.md
+// — el pressupost d'alçada disponible abans de tapar el preu és estret).
+// El número d'ordre ("acompanyant 2") es trasllada al placeholder del
+// primer camp en lloc d'un subtítol propi, pel mateix motiu d'espai.
+function targetaAcompanyantHtml(i, profunditat) {
+  const ac = acompanyantsActuals[i];
+  const activa = profunditat === 0;
+  const invalida = intentAcompanyantsFallit && acompanyantInvalid(ac);
+  const classes = ['acompanyant-carta'];
+  if (activa) classes.push('acompanyant-carta--activa');
+  if (invalida) classes.push('acompanyant-carta--error');
+  const rolAtributs = activa ? '' : `role="button" tabindex="0" aria-label="Mostrar dades de l'acompanyant ${i + 1}"`;
+  const estil = profunditat > 0 ? ` style="--profunditat:${profunditat}"` : '';
+
+  return `
+    <div class="${classes.join(' ')}" data-i="${i}"${estil} ${rolAtributs}>
+      ${activa ? `
+        <label class="sr-only" for="acompanyant_nom">Nom i cognoms de l'acompanyant ${i + 1}</label>
+        <input type="text" id="acompanyant_nom" data-camp="nombre" placeholder="Nom i cognoms — acompanyant ${i + 1}" value="${escapeAttr(ac.nombre)}" required>
+        <label class="sr-only" for="acompanyant_email">Email de l'acompanyant ${i + 1}</label>
+        <input type="email" id="acompanyant_email" data-camp="email" placeholder="Email" value="${escapeAttr(ac.email)}" required>
+        <label class="sr-only" for="acompanyant_telefon">Telèfon de l'acompanyant ${i + 1}</label>
+        <input type="tel" id="acompanyant_telefon" data-camp="telefono" placeholder="Telèfon (opcional)" value="${escapeAttr(ac.telefono)}">
+      ` : ''}
+    </div>
+  `;
 }
 
 function renderAcompanyants(n) {
@@ -318,47 +361,61 @@ function renderAcompanyants(n) {
     return;
   }
 
-  // Si la pestanya activa deixa d'existir (p. ex. cantidad baixa estant a
-  // la pestanya 3 i ara només n'hi ha 2), es passa a l'última vàlida.
+  // Si la targeta activa deixa d'existir (p. ex. cantidad baixa estant-hi
+  // a sobre), es passa a l'última vàlida.
   if (acompanyantTabActiva > n - 1) acompanyantTabActiva = n - 1;
 
-  const ac = acompanyantsActuals[acompanyantTabActiva];
+  // Ordre de profunditat al mazo: totes les targetes menys l'activa, en
+  // el seu ordre natural d'índex. Les primeres MAX_ACOMPANYANTS_PEEK
+  // s'ensenyen amb franja pròpia; la resta s'apilen sense desplaçament
+  // addicional darrere l'última (comptador "+N").
+  const fons = [];
+  for (let i = 0; i < n; i++) {
+    if (i !== acompanyantTabActiva) fons.push(i);
+  }
+  const extra = Math.max(0, fons.length - MAX_ACOMPANYANTS_PEEK);
+
+  const cartesFonsHtml = fons
+    .map((i, idx) => targetaAcompanyantHtml(i, Math.min(idx + 1, MAX_ACOMPANYANTS_PEEK)))
+    .join('');
+
   cont.innerHTML = `
-    <p class="acompanyants-titol">Dades dels acompanyants</p>
-    <div class="acompanyants-pestanyes" role="tablist">
-      ${acompanyantsActuals.map((item, i) => `
-        <button type="button" class="acompanyant-pestanya${i === acompanyantTabActiva ? ' acompanyant-pestanya--activa' : ''}${intentAcompanyantsFallit && acompanyantInvalid(item) ? ' acompanyant-pestanya--error' : ''}"
-          role="tab" aria-selected="${i === acompanyantTabActiva}" data-i="${i}">${i + 1}</button>
-      `).join('')}
-    </div>
-    <div class="acompanyant-targeta">
-      <p class="acompanyant-subtitol">Acompanyant ${acompanyantTabActiva + 1}</p>
-      <label for="acompanyant_nom">Nom i cognoms</label>
-      <input type="text" id="acompanyant_nom" data-camp="nombre" value="${escapeAttr(ac.nombre)}" required>
-      <label for="acompanyant_email">Email</label>
-      <input type="email" id="acompanyant_email" data-camp="email" value="${escapeAttr(ac.email)}" required>
-      <label for="acompanyant_telefon">Telèfon</label>
-      <input type="tel" id="acompanyant_telefon" data-camp="telefono" value="${escapeAttr(ac.telefono)}">
+    <p class="acompanyants-titol">Dades dels acompanyants${n > 1 ? ` (${n})` : ''}</p>
+    <div class="acompanyants-mazo">
+      ${cartesFonsHtml}
+      ${targetaAcompanyantHtml(acompanyantTabActiva, 0)}
+      ${extra > 0 ? `<span class="acompanyants-mazo-comptador">+${extra}</span>` : ''}
     </div>
   `;
 
-  cont.querySelectorAll('.acompanyant-pestanya').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      acompanyantTabActiva = parseInt(btn.dataset.i, 10);
-      renderAcompanyants(acompanyantsActuals.length);
+  function activar(i) {
+    if (i === acompanyantTabActiva) return;
+    acompanyantTabActiva = i;
+    renderAcompanyants(acompanyantsActuals.length);
+  }
+
+  cont.querySelectorAll('.acompanyant-carta').forEach((carta) => {
+    const i = parseInt(carta.dataset.i, 10);
+    carta.addEventListener('click', () => activar(i));
+    carta.addEventListener('keydown', (evt) => {
+      if (evt.key === 'Enter' || evt.key === ' ') {
+        evt.preventDefault();
+        activar(i);
+      }
     });
   });
 
   cont.querySelectorAll('input[data-camp]').forEach((input) => {
     input.addEventListener('input', () => {
       acompanyantsActuals[acompanyantTabActiva][input.dataset.camp] = input.value;
-      // Repinta només els indicadors de les pestanyes (no la targeta, per
-      // no perdre el focus/cursor de l'input on l'usuari està escrivint)
-      // perquè el punt vermell desaparegui a l'instant en corregir-se.
+      // Repinta només la vora de la targeta activa (no tota la targeta,
+      // per no perdre el focus/cursor de l'input on l'usuari està
+      // escrivint) perquè s'esborri a l'instant en corregir-se. Les
+      // targetes de fons no tenen camps visibles: la seva vora només es
+      // recalcula quan es porten al davant (renderAcompanyants sencer).
       if (intentAcompanyantsFallit) {
-        cont.querySelectorAll('.acompanyant-pestanya').forEach((btn, i) => {
-          btn.classList.toggle('acompanyant-pestanya--error', acompanyantInvalid(acompanyantsActuals[i]));
-        });
+        cont.querySelector('.acompanyant-carta--activa')
+          ?.classList.toggle('acompanyant-carta--error', acompanyantInvalid(acompanyantsActuals[acompanyantTabActiva]));
       }
     });
   });
