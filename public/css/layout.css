@@ -33,9 +33,9 @@
 }
 
 /* Ancoratge del crumb de tornada: perquè quedi sempre al mateix nivell que
-   "Esdeveniment del mes" (i no un valor fix en píxels, fràgil si canvia
-   l'alçada del logo o el text), s'ubica dins el mateix bloc que l'eyebrow
-   i es posiciona relatiu a aquest contenidor, no al panell sencer. */
+   el títol de l'esdeveniment (i no un valor fix en píxels, fràgil si canvia
+   l'alçada del text), s'ubica dins el mateix bloc que el títol i es
+   posiciona relatiu a aquest contenidor, no al panell sencer. */
 .evento-info-titol {
   position: relative;
 }
@@ -66,13 +66,13 @@
   text-decoration: underline;
 }
 
-/* Només a escriptori: el crumb puja al mateix nivell que "Espai Econòmic".
+/* Només a escriptori: el crumb puja al mateix nivell que el títol.
    Traiem el position:relative de .evento-info-titol perquè el contenidor
    de referència de l'absolute torni a ser .panel-color (que ja té
    position:relative). Com que top/right d'un absolute es calculen contra
    la padding-box del seu contenidor —no contra on comença el contingut—,
    cal repetir el padding del panell (48px 40px) perquè quedi alineat amb
-   el logo en lloc de la cantonada exterior del panell. A mòbil es manté
+   el títol en lloc de la cantonada exterior del panell. A mòbil es manté
    el comportament original (relatiu a .evento-info-titol). */
 @media (min-width: 721px) {
   .evento-info-titol {
