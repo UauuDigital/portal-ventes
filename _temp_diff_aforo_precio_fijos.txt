@@ -1,0 +1,139 @@
+diff --git a/controllers/adminController.js b/controllers/adminController.js
+index 9b897de..333812c 100644
+--- a/controllers/adminController.js
++++ b/controllers/adminController.js
+@@ -6,6 +6,7 @@ const { validarDefinicionCampos } = require('../utils/camposFormulario');
+ const { validarInvitados } = require('../utils/validarInvitados');
+ const { enviarEmailPrueba } = require('../utils/mailer');
+ const { escriureAsistentsPdf } = require('../utils/pdfAsistentes');
++const { AFORAMENT_FIX, PREU_FIX_CENTIMS } = require('../utils/eventoConfig');
+ 
+ function validarEvento(body, { parcial } = {}) {
+   const errors = [];
+@@ -17,14 +18,6 @@ function validarEvento(body, { parcial } = {}) {
+   if (cal('fecha') && Number.isNaN(new Date(body.fecha).getTime())) {
+     errors.push('fecha invàlida');
+   }
+-  if (cal('precio')) {
+-    const precio = parseInt(body.precio, 10);
+-    if (!Number.isInteger(precio) || precio <= 0) errors.push('precio invàlid');
+-  }
+-  if (cal('aforo_total')) {
+-    const aforo = parseInt(body.aforo_total, 10);
+-    if (!Number.isInteger(aforo) || aforo <= 0) errors.push('aforo_total invàlid');
+-  }
+   if (cal('fecha_limite_compra') && Number.isNaN(new Date(body.fecha_limite_compra).getTime())) {
+     errors.push('fecha_limite_compra invàlida');
+   }
+@@ -77,8 +70,11 @@ async function crearEvento(req, res) {
+     nombre,
+     fecha: new Date(req.body.fecha).toISOString(),
+     descripcion: descripcion || null,
+-    precio: parseInt(req.body.precio, 10),
+-    aforo_total: parseInt(req.body.aforo_total, 10),
++    // Aforament i preu ja no venen del body: són fixos per a tots els
++    // esdeveniments (vegeu utils/eventoConfig.js). Es descarta qualsevol
++    // valor que arribi aquí encara que sigui vàlid.
++    precio: PREU_FIX_CENTIMS,
++    aforo_total: AFORAMENT_FIX,
+     fecha_limite_compra: new Date(req.body.fecha_limite_compra).toISOString(),
+     estado: req.body.estado || 'abierto',
+     invitados: invitados.map((inv) => ({
+@@ -110,8 +106,10 @@ async function actualitzarEvento(req, res) {
+   ['nombre', 'descripcion', 'estado', 'email_asunto', 'email_html'].forEach((camp) => {
+     if (req.body[camp] !== undefined) canvis[camp] = String(req.body[camp]).trim();
+   });
+-  if (req.body.precio !== undefined) canvis.precio = parseInt(req.body.precio, 10);
+-  if (req.body.aforo_total !== undefined) canvis.aforo_total = parseInt(req.body.aforo_total, 10);
++  // Igual que a crearEvento: fixos sempre, sense importar què arribi al
++  // body (vegeu utils/eventoConfig.js).
++  canvis.precio = PREU_FIX_CENTIMS;
++  canvis.aforo_total = AFORAMENT_FIX;
+   if (req.body.fecha !== undefined) canvis.fecha = new Date(req.body.fecha).toISOString();
+   if (req.body.fecha_limite_compra !== undefined) {
+     canvis.fecha_limite_compra = new Date(req.body.fecha_limite_compra).toISOString();
+diff --git a/public/admin/evento.html b/public/admin/evento.html
+index 890aac8..7e0eac2 100644
+--- a/public/admin/evento.html
++++ b/public/admin/evento.html
+@@ -29,11 +29,7 @@
+     <label for="descripcion">Descripció</label>
+     <textarea id="descripcion" name="descripcion" rows="2"></textarea>
+ 
+-    <label for="precio">Preu (€)</label>
+-    <input type="number" id="precio" name="precio" min="0.01" step="0.01" required>
+-
+-    <label for="aforo_total">Aforament total</label>
+-    <input type="number" id="aforo_total" name="aforo_total" min="1" step="1" required>
++    <p class="camps-formulari-ajuda" id="dades-fixes-evento">Preu i aforament fixos per a tots els esdeveniments: no editables des d'aquí.</p>
+ 
+     <div class="invitats-seccio">
+       <label>Convidats / ponents</label>
+diff --git a/public/admin/index.html b/public/admin/index.html
+index 1bbac92..e9d8376 100644
+--- a/public/admin/index.html
++++ b/public/admin/index.html
+@@ -133,11 +133,7 @@
+         <label for="descripcion">Descripció</label>
+         <textarea id="descripcion" name="descripcion" rows="2"></textarea>
+ 
+-        <label for="precio">Preu (€)</label>
+-        <input type="number" id="precio" name="precio" min="0.01" step="0.01" required>
+-
+-        <label for="aforo_total">Aforament total</label>
+-        <input type="number" id="aforo_total" name="aforo_total" min="1" step="1" required>
++        <p class="camps-formulari-ajuda">Preu i aforament fixos per a tots els esdeveniments: 70,00 € i 50 places, no editables.</p>
+ 
+         <div class="invitats-seccio">
+           <label>Convidats / ponents</label>
+diff --git a/public/js/admin.js b/public/js/admin.js
+index 2bb1132..a596c52 100644
+--- a/public/js/admin.js
++++ b/public/js/admin.js
+@@ -648,8 +648,6 @@ if (taulaEventos) {
+       nombre: document.getElementById('nombre').value,
+       fecha: new Date(fechaEventoInput.dataset.valor || fechaEventoInput.value).toISOString(),
+       descripcion: document.getElementById('descripcion').value,
+-      precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
+-      aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
+       fecha_limite_compra: fechaLimite.toISOString(),
+       invitados,
+     };
+@@ -1078,8 +1076,8 @@ if (formEventoEditar) {
+     document.getElementById('nombre').value = evento.nombre;
+     document.getElementById('fecha').value = aInputDatetimeLocal(evento.fecha);
+     document.getElementById('descripcion').value = evento.descripcion || '';
+-    document.getElementById('precio').value = (evento.precio / 100).toFixed(2);
+-    document.getElementById('aforo_total').value = evento.aforo_total;
++    document.getElementById('dades-fixes-evento').textContent =
++      `Preu: ${formatEuros(evento.precio)} · Aforament: ${evento.aforo_total} places (fixos, no editables des d'aquí).`;
+     document.getElementById('fecha_limite_compra').value = aInputDatetimeLocal(evento.fecha_limite_compra);
+     document.getElementById('estado').value = evento.estado;
+     gestorInvitatsEditar.carregar(evento.invitados);
+@@ -1104,8 +1102,6 @@ if (formEventoEditar) {
+       nombre: document.getElementById('nombre').value,
+       fecha: new Date(document.getElementById('fecha').value).toISOString(),
+       descripcion: document.getElementById('descripcion').value,
+-      precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
+-      aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
+       fecha_limite_compra: new Date(document.getElementById('fecha_limite_compra').value).toISOString(),
+       estado: document.getElementById('estado').value,
+       invitados,
+diff --git a/utils/eventoConfig.js b/utils/eventoConfig.js
+new file mode 100644
+index 0000000..94981fb
+--- /dev/null
++++ b/utils/eventoConfig.js
+@@ -0,0 +1,12 @@
++// Aforament i preu de tots els esdeveniments: constants fixes de
++// l'aplicació, ja no editables des de l'admin (decisió de negoci: cada
++// esdeveniment d'Espai Econòmic té sempre el mateix aforament i preu). Es
++// defineixen aquí, no com a números màgics dins adminController.js, perquè
++// s'han d'aplicar exactament igual tant en crear com en editar un
++// esdeveniment (mateix patró que EXPIRA_MINUTS a checkoutConfig.js).
++const AFORAMENT_FIX = 50;
++// Cèntims, mateixa unitat que la columna `precio` d'eventos i que la resta
++// de l'app (formatEuros a public/js/admin.js i utils/mailer.js): 70,00 €.
++const PREU_FIX_CENTIMS = 7000;
++
++module.exports = { AFORAMENT_FIX, PREU_FIX_CENTIMS };

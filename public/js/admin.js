@@ -648,8 +648,6 @@ if (taulaEventos) {
       nombre: document.getElementById('nombre').value,
       fecha: new Date(fechaEventoInput.dataset.valor || fechaEventoInput.value).toISOString(),
       descripcion: document.getElementById('descripcion').value,
-      precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
-      aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
       fecha_limite_compra: fechaLimite.toISOString(),
       invitados,
     };
@@ -1078,8 +1076,8 @@ if (formEventoEditar) {
     document.getElementById('nombre').value = evento.nombre;
     document.getElementById('fecha').value = aInputDatetimeLocal(evento.fecha);
     document.getElementById('descripcion').value = evento.descripcion || '';
-    document.getElementById('precio').value = (evento.precio / 100).toFixed(2);
-    document.getElementById('aforo_total').value = evento.aforo_total;
+    document.getElementById('dades-fixes-evento').textContent =
+      `Preu: ${formatEuros(evento.precio)} · Aforament: ${evento.aforo_total} places (fixos, no editables des d'aquí).`;
     document.getElementById('fecha_limite_compra').value = aInputDatetimeLocal(evento.fecha_limite_compra);
     document.getElementById('estado').value = evento.estado;
     gestorInvitatsEditar.carregar(evento.invitados);
@@ -1104,8 +1102,6 @@ if (formEventoEditar) {
       nombre: document.getElementById('nombre').value,
       fecha: new Date(document.getElementById('fecha').value).toISOString(),
       descripcion: document.getElementById('descripcion').value,
-      precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
-      aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
       fecha_limite_compra: new Date(document.getElementById('fecha_limite_compra').value).toISOString(),
       estado: document.getElementById('estado').value,
       invitados,

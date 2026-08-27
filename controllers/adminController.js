@@ -6,6 +6,7 @@ const { validarDefinicionCampos } = require('../utils/camposFormulario');
 const { validarInvitados } = require('../utils/validarInvitados');
 const { enviarEmailPrueba } = require('../utils/mailer');
 const { escriureAsistentsPdf } = require('../utils/pdfAsistentes');
+const { AFORAMENT_FIX, PREU_FIX_CENTIMS } = require('../utils/eventoConfig');
 
 function validarEvento(body, { parcial } = {}) {
   const errors = [];
@@ -16,14 +17,6 @@ function validarEvento(body, { parcial } = {}) {
   }
   if (cal('fecha') && Number.isNaN(new Date(body.fecha).getTime())) {
     errors.push('fecha invàlida');
-  }
-  if (cal('precio')) {
-    const precio = parseInt(body.precio, 10);
-    if (!Number.isInteger(precio) || precio <= 0) errors.push('precio invàlid');
-  }
-  if (cal('aforo_total')) {
-    const aforo = parseInt(body.aforo_total, 10);
-    if (!Number.isInteger(aforo) || aforo <= 0) errors.push('aforo_total invàlid');
   }
   if (cal('fecha_limite_compra') && Number.isNaN(new Date(body.fecha_limite_compra).getTime())) {
     errors.push('fecha_limite_compra invàlida');
@@ -77,8 +70,11 @@ async function crearEvento(req, res) {
     nombre,
     fecha: new Date(req.body.fecha).toISOString(),
     descripcion: descripcion || null,
-    precio: parseInt(req.body.precio, 10),
-    aforo_total: parseInt(req.body.aforo_total, 10),
+    // Aforament i preu ja no venen del body: són fixos per a tots els
+    // esdeveniments (vegeu utils/eventoConfig.js). Es descarta qualsevol
+    // valor que arribi aquí encara que sigui vàlid.
+    precio: PREU_FIX_CENTIMS,
+    aforo_total: AFORAMENT_FIX,
     fecha_limite_compra: new Date(req.body.fecha_limite_compra).toISOString(),
     estado: req.body.estado || 'abierto',
     invitados: invitados.map((inv) => ({
@@ -110,8 +106,10 @@ async function actualitzarEvento(req, res) {
   ['nombre', 'descripcion', 'estado', 'email_asunto', 'email_html'].forEach((camp) => {
     if (req.body[camp] !== undefined) canvis[camp] = String(req.body[camp]).trim();
   });
-  if (req.body.precio !== undefined) canvis.precio = parseInt(req.body.precio, 10);
-  if (req.body.aforo_total !== undefined) canvis.aforo_total = parseInt(req.body.aforo_total, 10);
+  // Igual que a crearEvento: fixos sempre, sense importar què arribi al
+  // body (vegeu utils/eventoConfig.js).
+  canvis.precio = PREU_FIX_CENTIMS;
+  canvis.aforo_total = AFORAMENT_FIX;
   if (req.body.fecha !== undefined) canvis.fecha = new Date(req.body.fecha).toISOString();
   if (req.body.fecha_limite_compra !== undefined) {
     canvis.fecha_limite_compra = new Date(req.body.fecha_limite_compra).toISOString();
