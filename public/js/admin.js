@@ -779,7 +779,7 @@ if (limitGraella) {
     const seleccionatRaw = valorInput(inputFecha);
     const seleccionat = seleccionatRaw ? clauData(seleccionatRaw) : null;
 
-    inputHora.value = inputFecha.dataset.valor ? inputFecha.dataset.valor.split('T')[1] : '20:00';
+    inputHora.value = inputFecha.dataset.valor ? inputFecha.dataset.valor.split('T')[1] : '13:00';
 
     const any = calMesVisible.getFullYear();
     const mes = calMesVisible.getMonth();
@@ -820,7 +820,7 @@ if (limitGraella) {
         btn.className = 'calendari-dia-numero';
         btn.textContent = dia;
         btn.addEventListener('click', () => {
-          omplirCampData(inputFecha, any, mes, dia, '20:00');
+          omplirCampData(inputFecha, any, mes, dia, '13:00');
           renderMiniCalendari();
           actualitzarPreviewLimit();
           amagarMiniCalendari();
