@@ -90,6 +90,21 @@ input[type="checkbox"]:focus-visible {
   outline-offset: 2px;
 }
 
+/* Vora vermella pels camps que fallen la validació nativa (required/type
+   invàlid) en substituir el globus del navegador per un avís propi (vegeu
+   validarCampsNatius a checkout.js/admin.js): mateix patró que ja feia
+   servir només l'acordió d'acompanyants (.acompanyants-acordio--validat),
+   generalitzat aquí a qualsevol formulari amb la classe .form-validat.
+   Només activa després d'un intent d'enviament fallit (la classe l'afegeix
+   el JS just abans de mostrar l'error), mai en carregar la pàgina amb
+   camps buits. Els checkboxes queden fora, igual que al :focus de dalt:
+   la vora no s'hi veu de forma fiable entre navegadors. */
+.form-validat input:not([type="checkbox"]):not([type="radio"]):invalid,
+.form-validat select:invalid,
+.form-validat textarea:invalid {
+  border-color: var(--error);
+}
+
 .stepper-label {
   font-family: var(--font-ui);
   font-size: 11px;

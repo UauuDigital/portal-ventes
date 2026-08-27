@@ -7,7 +7,7 @@
 <link rel="icon" href="/assets/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css?v=95">
+<link rel="stylesheet" href="/css/admin.css?v=96">
 </head>
 <body>
 <div class="admin-shell">
@@ -90,7 +90,7 @@
         <h2 class="admin-col-title" id="titol-modal-crear">Crear esdeveniment</h2>
         <button type="button" id="btn-tancar-crear" class="btn-tancar-modal objectiu-tactil" aria-label="Tanca">×</button>
       </div>
-      <form id="form-evento" class="admin-form">
+      <form id="form-evento" class="admin-form" novalidate>
         <label for="nombre">Nom</label>
         <textarea id="nombre" name="nombre" rows="2" required></textarea>
 
@@ -135,12 +135,12 @@
         </div>
 
         <button type="submit" class="btn-primary">Crear esdeveniment</button>
-        <p id="error-evento" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-ui);"></p>
+        <p id="error-evento" class="form-error"></p>
       </form>
     </div>
   </div>
 </div>
-<script src="/js/admin.js?v=66"></script>
+<script src="/js/admin.js?v=67"></script>
 <script src="/js/admin-historial.js?v=3"></script>
 </body>
 </html>

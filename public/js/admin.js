@@ -322,15 +322,47 @@ function crearGestorInvitados(idContenidor) {
   };
 }
 
+// Substitueix el globus de validació nativa del navegador (el "Completa
+// aquest camp"): tots els formularis de l'admin porten `novalidate` a
+// l'HTML perquè no aparegui, i aquesta funció fa la mateixa comprovació
+// (form.checkValidity(), basada en required/type=... dels <input>) però
+// mostrant l'error amb el mateix bloc .form-error/paràgraf d'error que ja
+// fa servir cada formulari, amb focus al primer camp que falla. Mateix
+// patró visual que ja tenia l'acordió d'acompanyants del checkout
+// (:invalid + una classe "--validat" que activa la vora vermella, vegeu
+// forms.css) — aquí generalitzat a .form-validat per a qualsevol
+// formulari en lloc d'inventar-ne un altre.
+function missatgeValidacioCamp(camp) {
+  if (!camp) return 'Revisa les dades del formulari.';
+  if (camp.type === 'checkbox' && camp.validity.valueMissing) {
+    return "Has d'acceptar-ho per continuar.";
+  }
+  if (camp.validity.valueMissing) return 'Aquest camp és obligatori.';
+  if (camp.validity.typeMismatch) return 'Introdueix un email vàlid.';
+  return camp.validationMessage || 'Revisa aquest camp.';
+}
+
+function validarCampsNatius(form, errorEl) {
+  form.classList.add('form-validat');
+  if (form.checkValidity()) return true;
+  const camp = form.querySelector(':invalid');
+  if (camp) camp.focus();
+  if (errorEl) errorEl.textContent = missatgeValidacioCamp(camp);
+  return false;
+}
+
 // Formulari de login
 const formLogin = document.getElementById('form-login');
 if (formLogin) {
   formLogin.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const usuari = document.getElementById('usuari').value;
-    const contrasenya = document.getElementById('contrasenya').value;
     const errorEl = document.getElementById('error-login');
     errorEl.textContent = '';
+
+    if (!validarCampsNatius(formLogin, errorEl)) return;
+
+    const usuari = document.getElementById('usuari').value;
+    const contrasenya = document.getElementById('contrasenya').value;
 
     const res = await fetch('/admin/login', {
       method: 'POST',
@@ -633,6 +665,8 @@ if (taulaEventos) {
       errorEl.textContent = "Tria la data de l'esdeveniment.";
       return;
     }
+
+    if (!validarCampsNatius(formEvento, errorEl)) return;
 
     const invitados = gestorInvitatsCrear.obtenirValid();
     if (invitados.length === 0) {
@@ -974,6 +1008,8 @@ if (formEventoEditar) {
     e.preventDefault();
     const errorEl = document.getElementById('error-evento-editar');
     errorEl.textContent = '';
+
+    if (!validarCampsNatius(formEventoEditar, errorEl)) return;
 
     const invitados = gestorInvitatsEditar.obtenirValid();
     if (invitados.length === 0) {

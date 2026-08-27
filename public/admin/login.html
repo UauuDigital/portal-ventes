@@ -7,21 +7,21 @@
 <link rel="icon" href="/assets/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css?v=93">
+<link rel="stylesheet" href="/css/admin.css?v=96">
 </head>
 <body>
 <main class="admin-login-card">
   <h1>Accés administració</h1>
-  <form id="form-login">
+  <form id="form-login" novalidate>
     <label for="usuari">Usuari</label>
     <input type="text" id="usuari" name="usuari" required autofocus>
     <label for="contrasenya">Contrasenya</label>
     <input type="password" id="contrasenya" name="contrasenya" required>
     <button type="submit" class="btn-primary">Entrar</button>
-    <p id="error-login" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-ui);"></p>
+    <p id="error-login" class="form-error"></p>
   </form>
   <a href="/index.html" class="admin-link-back">← Torna a l'inici</a>
 </main>
-<script src="/js/admin.js?v=64"></script>
+<script src="/js/admin.js?v=67"></script>
 </body>
 </html>

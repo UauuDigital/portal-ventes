@@ -555,12 +555,43 @@ function comprovarAccesAdmin(evt) {
   }
 }
 
+// Substitueix el globus de validació nativa del navegador (el "Completa
+// aquest camp"): el formulari porta `novalidate` a l'HTML perquè no
+// aparegui, i aquesta funció fa la mateixa comprovació
+// (form.checkValidity(), basada en required/type=... dels <input>) però
+// mostrant l'error amb el mateix bloc #error-missatge que ja fa servir la
+// resta del formulari, amb focus al primer camp que falla. Mateix patró
+// visual que ja tenia l'acordió d'acompanyants (:invalid + una classe
+// "--validat" que activa la vora vermella, vegeu forms.css) — aquí
+// generalitzat a .form-validat per no inventar-ne un altre.
+function missatgeValidacioCamp(camp) {
+  if (!camp) return 'Revisa les dades del formulari.';
+  if (camp.type === 'checkbox' && camp.validity.valueMissing) {
+    return "Has d'acceptar-ho per continuar.";
+  }
+  if (camp.validity.valueMissing) return 'Aquest camp és obligatori.';
+  if (camp.validity.typeMismatch) return 'Introdueix un email vàlid.';
+  return camp.validationMessage || 'Revisa aquest camp.';
+}
+
+function validarCampsNatius(form, errorEl) {
+  form.classList.add('form-validat');
+  if (form.checkValidity()) return true;
+  const camp = form.querySelector(':invalid');
+  if (camp) camp.focus();
+  if (errorEl) errorEl.textContent = missatgeValidacioCamp(camp);
+  return false;
+}
+
 async function enviarFormulari(evt) {
   evt.preventDefault();
 
   const btn = document.getElementById('btn-comprar');
   const errorEl = document.getElementById('error-missatge');
   errorEl.textContent = '';
+
+  if (!validarCampsNatius(evt.target, errorEl)) return;
+
   btn.disabled = true;
   btn.textContent = t('btn_comprar_processant');
 
