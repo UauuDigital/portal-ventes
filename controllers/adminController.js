@@ -6,7 +6,7 @@ const { validarDefinicionCampos } = require('../utils/camposFormulario');
 const { validarInvitados } = require('../utils/validarInvitados');
 const { enviarEmailPrueba } = require('../utils/mailer');
 const { escriureAsistentsPdf } = require('../utils/pdfAsistentes');
-const { AFORAMENT_FIX, PREU_FIX_CENTIMS } = require('../utils/eventoConfig');
+const { AFORAMENT_FIX, PREU_FIX_CENTIMS, calcularFechaLimiteCompra } = require('../utils/eventoConfig');
 
 function validarEvento(body, { parcial } = {}) {
   const errors = [];
@@ -18,20 +18,14 @@ function validarEvento(body, { parcial } = {}) {
   if (cal('fecha') && Number.isNaN(new Date(body.fecha).getTime())) {
     errors.push('fecha invàlida');
   }
-  if (cal('fecha_limite_compra') && Number.isNaN(new Date(body.fecha_limite_compra).getTime())) {
-    errors.push('fecha_limite_compra invàlida');
-  }
-  if (
-    !parcial &&
-    cal('fecha_limite_compra') &&
-    !Number.isNaN(new Date(body.fecha_limite_compra).getTime()) &&
-    new Date(body.fecha_limite_compra) < new Date()
-  ) {
-    errors.push('fecha_limite_compra no pot ser una data ja passada');
-  }
-  if (body.fecha && body.fecha_limite_compra) {
-    if (new Date(body.fecha_limite_compra) > new Date(body.fecha)) {
-      errors.push('fecha_limite_compra ha de ser anterior o igual a fecha');
+  // fecha_limite_compra ja no ve del body (es calcula sempre a partir de
+  // fecha, vegeu calcularFechaLimiteCompra): l'única validació que en
+  // queda és que la pròpia fecha no sigui tan propera que el límit
+  // calculat (48h abans) ja hagi passat. Només es comprova quan fecha
+  // s'està fixant en aquesta petició (creació, o edició que la canvia).
+  if (cal('fecha') && !Number.isNaN(new Date(body.fecha).getTime())) {
+    if (new Date(calcularFechaLimiteCompra(body.fecha)) < new Date()) {
+      errors.push("la data de l'esdeveniment és massa propera: la data límit de compra (48h abans) ja hauria passat");
     }
   }
   if (body.estado !== undefined && !['abierto', 'cerrado'].includes(body.estado)) {
@@ -75,7 +69,9 @@ async function crearEvento(req, res) {
     // valor que arribi aquí encara que sigui vàlid.
     precio: PREU_FIX_CENTIMS,
     aforo_total: AFORAMENT_FIX,
-    fecha_limite_compra: new Date(req.body.fecha_limite_compra).toISOString(),
+    // Igual que precio/aforo_total: mai ve del body, es calcula sempre a
+    // partir de la data de l'esdeveniment (vegeu utils/eventoConfig.js).
+    fecha_limite_compra: calcularFechaLimiteCompra(req.body.fecha),
     estado: req.body.estado || 'abierto',
     invitados: invitados.map((inv) => ({
       nombre: String(inv.nombre).trim(),
@@ -111,9 +107,9 @@ async function actualitzarEvento(req, res) {
   canvis.precio = PREU_FIX_CENTIMS;
   canvis.aforo_total = AFORAMENT_FIX;
   if (req.body.fecha !== undefined) canvis.fecha = new Date(req.body.fecha).toISOString();
-  if (req.body.fecha_limite_compra !== undefined) {
-    canvis.fecha_limite_compra = new Date(req.body.fecha_limite_compra).toISOString();
-  }
+  // Sempre recalculada a partir de la fecha resultant (la nova si canvia
+  // en aquesta edició, l'actual si no) — mai acceptada del body.
+  canvis.fecha_limite_compra = calcularFechaLimiteCompra(canvis.fecha || actual.fecha);
 
   if (req.body.campos_formulario !== undefined) {
     canvis.campos_formulario = req.body.campos_formulario;

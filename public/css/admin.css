@@ -275,9 +275,6 @@ body:has(> .admin-shell) {
     word-break: break-word;
   }
 
-  .camps-dates-parella {
-    flex-direction: column;
-  }
 }
 
 .admin-table-scroll {
@@ -1164,29 +1161,20 @@ body:has(> .admin-shell) {
   touch-action: manipulation;
 }
 
-/* Mini-calendari compartit pels camps "Data de l'esdeveniment" i "Data
-   límit de compra" al formulari de creació: tots dos queden costat a
-   costat i s'obre el mateix calendari per triar-los, un darrere l'altre
-   (primer l'esdeveniment, després el termini). Un cop triat el dia de
-   l'esdeveniment, el calendari marca aquell dia i pinta més clar els dies
-   entre avui i aquell dia (el rang vàlid per triar el termini). */
+/* Mini-calendari per triar la "Data de l'esdeveniment" al formulari de
+   creació. La data límit de compra ja no es tria aquí (es calcula sempre
+   com 48h abans, vegeu utils/eventoConfig.js): el camp de data és l'únic
+   que obre aquest calendari. */
 .camp-amb-minicalendari {
   position: relative;
 }
 
-.camps-dates-parella {
-  display: flex;
-  gap: 16px;
-}
-
-.camps-dates-parella .camp-data {
-  flex: 1 1 0;
-  min-width: 0;
+.camp-data {
   display: flex;
   flex-direction: column;
 }
 
-.camps-dates-parella .camp-data input {
+.camp-data input {
   cursor: pointer;
   background: var(--white);
 }
@@ -1241,13 +1229,6 @@ body:has(> .admin-shell) {
   border-radius: 8px;
 }
 
-.mini-calendari-seguent {
-  display: block;
-  width: 100%;
-  text-align: center;
-  margin-top: 10px;
-}
-
 /* Centrat al mig del modal (no just sota les dates): amb position:fixed
    respecte al viewport es manté al mig independentment de per on vagi el
    scroll intern del formulari, ja que el propi modal ja queda centrat en
@@ -1276,40 +1257,10 @@ body:has(> .admin-shell) {
   color: rgba(34, 31, 30, 0.3);
 }
 
-.calendari-dia--interval .calendari-dia-numero {
-  background: rgba(34, 31, 30, 0.1);
-  border-radius: 8px;
-}
-
-.calendari-dia--marcat .calendari-dia-numero {
-  background: var(--dark);
-  color: var(--light);
-  border-radius: 8px;
-  font-weight: 600;
-}
-
 .calendari-dia--seleccionat .calendari-dia-numero {
   outline: 2px solid var(--dark);
   outline-offset: 1px;
 }
-
-.mini-calendari-llegenda {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 10px;
-  font-size: 10px;
-  color: var(--admin-muted-text);
-}
-
-.mini-calendari-llegenda span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.calendari-punt--marcat { background: var(--dark); }
-.calendari-punt--interval { background: rgba(34, 31, 30, 0.2); }
 
 /* Secció "Formulari de compra": subsecció dins .admin-form (ja blanca),
    no una targeta pròpia — mateix patró de separador (vora fina) que ja

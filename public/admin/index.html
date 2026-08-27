@@ -94,15 +94,12 @@
         <label for="nombre">Nom</label>
         <textarea id="nombre" name="nombre" rows="2" required></textarea>
 
-        <div class="camp-amb-minicalendari camps-dates-parella">
+        <div class="camp-amb-minicalendari">
           <div class="camp-data">
             <label for="fecha">Data de l'esdeveniment</label>
             <input type="text" id="fecha" name="fecha" placeholder="Tria un dia al calendari" readonly required autocomplete="off">
           </div>
-          <div class="camp-data">
-            <label for="fecha_limite_compra">Data límit de compra</label>
-            <input type="text" id="fecha_limite_compra" name="fecha_limite_compra" placeholder="Tria un dia al calendari" readonly required autocomplete="off">
-          </div>
+          <p class="camps-formulari-ajuda" id="preview-limit-compra"></p>
 
           <div class="mini-calendari hidden" id="mini-calendari-limit">
             <div class="mini-calendari-header">
@@ -121,11 +118,6 @@
             <div class="mini-calendari-hora">
               <label for="mini-calendari-hora-input">Hora</label>
               <input type="time" id="mini-calendari-hora-input">
-            </div>
-            <button type="button" class="btn-secundari mini-calendari-seguent hidden" id="mini-calendari-seguent">Següent: tria el límit ›</button>
-            <div class="mini-calendari-llegenda">
-              <span><i class="calendari-punt calendari-punt--marcat"></i> Dia de l'esdeveniment</span>
-              <span><i class="calendari-punt calendari-punt--interval"></i> Dies vàlids per al termini</span>
             </div>
           </div>
         </div>

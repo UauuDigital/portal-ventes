@@ -9,4 +9,18 @@ const AFORAMENT_FIX = 50;
 // de l'app (formatEuros a public/js/admin.js i utils/mailer.js): 70,00 €.
 const PREU_FIX_CENTIMS = 7000;
 
-module.exports = { AFORAMENT_FIX, PREU_FIX_CENTIMS };
+// Data límit de compra: també fixa, ja no editable des de l'admin. Sempre
+// aquestes hores abans de la data de l'esdeveniment, sense excepció.
+const HORES_LIMIT_COMPRA = 48;
+
+/**
+ * Calcula fecha_limite_compra a partir de la data de l'esdeveniment: sempre
+ * HORES_LIMIT_COMPRA hores abans. Accepta qualsevol valor vàlid per a
+ * `new Date(...)` (ISO string o Date) i retorna un ISO string, la mateixa
+ * representació que fa servir la resta de l'app per a les dates d'eventos.
+ */
+function calcularFechaLimiteCompra(fechaEvento) {
+  return new Date(new Date(fechaEvento).getTime() - HORES_LIMIT_COMPRA * 3600 * 1000).toISOString();
+}
+
+module.exports = { AFORAMENT_FIX, PREU_FIX_CENTIMS, HORES_LIMIT_COMPRA, calcularFechaLimiteCompra };
