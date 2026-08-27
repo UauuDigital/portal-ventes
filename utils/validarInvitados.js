@@ -6,9 +6,7 @@ function esStringNoBuit(v) {
  * Valida la llista de convidats/ponents d'un esdeveniment (dada informativa
  * que introdueix l'admin, substitueix les antigues eventos.nombre_invitado/
  * cargo_invitado — vegeu evento_invitados a config/schema.sql). Cal almenys
- * un convidat amb nom; el càrrec és opcional. No té res a veure amb
- * utils/camposFormulario.js, que valida el formulari dinàmic que respon el
- * comprador.
+ * un convidat amb nom; el càrrec és opcional.
  */
 function validarInvitados(invitados) {
   if (!Array.isArray(invitados)) {

@@ -235,7 +235,6 @@ async function carregarEvento(eventoId) {
   document.getElementById('evento-descripcio').textContent = ev.descripcion || '';
   document.getElementById('evento-data').textContent = formatDataSenseHora(ev.fecha);
   actualitzarPreu();
-  renderCampsFormulariDinamics(ev.campos_formulario || []);
   renderConvidats(ev.invitados || []);
 
   return ev;
@@ -263,44 +262,6 @@ function renderConvidats(invitados) {
     </p>
   `).join('');
   bloc.classList.remove('hidden');
-}
-
-let campsFormulariActuals = [];
-
-function renderCampsFormulariDinamics(campos) {
-  campsFormulariActuals = campos;
-  const cont = document.getElementById('camps-formulari-dinamics');
-  cont.innerHTML = '';
-  campos.forEach((campo) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'camp-dinamic';
-
-    if (campo.tipo === 'texto') {
-      wrap.innerHTML = `
-        <label for="camp_${campo.id}">${escapeHtml(campo.etiqueta)}${campo.requerido ? ' *' : ''}</label>
-        <input type="text" id="camp_${campo.id}" ${campo.requerido ? 'required' : ''}>
-      `;
-    } else if (campo.tipo === 'numero') {
-      const min = campo.min !== undefined ? `min="${campo.min}"` : '';
-      const max = campo.max !== undefined ? `max="${campo.max}"` : '';
-      const unitat = campo.unidad ? ` (${escapeHtml(campo.unidad)})` : '';
-      wrap.innerHTML = `
-        <label for="camp_${campo.id}">${escapeHtml(campo.etiqueta)}${unitat}${campo.requerido ? ' *' : ''}</label>
-        <input type="number" id="camp_${campo.id}" ${min} ${max} ${campo.requerido ? 'required' : ''}>
-      `;
-    } else if (campo.tipo === 'seleccion') {
-      const inputType = campo.multiple ? 'checkbox' : 'radio';
-      const opcions = (campo.opciones || []).map((op, i) => `
-        <label class="opcio-dinamica">
-          <input type="${inputType}" name="camp_${campo.id}" value="${escapeAttr(op)}" ${campo.requerido && !campo.multiple ? 'required' : ''}>
-          ${escapeHtml(op)}
-        </label>
-      `).join('');
-      wrap.innerHTML = `<span class="camp-dinamic-etiqueta">${escapeHtml(campo.etiqueta)}${campo.requerido ? ' *' : ''}</span>${opcions}`;
-    }
-
-    cont.appendChild(wrap);
-  });
 }
 
 // Acompanyants: apareixen/creixen quan "Nombre de places" (cantidad) és
@@ -491,22 +452,6 @@ function actualitzarPreu() {
   document.getElementById('evento-preu').textContent = formatEuros(cantidad * precioUnitari);
 }
 
-function llegirRespostesCampsDinamics() {
-  const respostes = {};
-  campsFormulariActuals.forEach((campo) => {
-    if (campo.tipo === 'texto') {
-      respostes[campo.id] = document.getElementById(`camp_${campo.id}`).value;
-    } else if (campo.tipo === 'numero') {
-      const v = document.getElementById(`camp_${campo.id}`).value;
-      if (v !== '') respostes[campo.id] = parseFloat(v);
-    } else if (campo.tipo === 'seleccion') {
-      const marcats = Array.from(document.querySelectorAll(`input[name="camp_${campo.id}"]:checked`)).map((i) => i.value);
-      respostes[campo.id] = campo.multiple ? marcats : (marcats[0] || '');
-    }
-  });
-  return respostes;
-}
-
 function calcularAforo(disponibles, total) {
   const percentOcupat = Math.min(100, Math.max(0, ((total - disponibles) / total) * 100));
   const percentDisponible = 100 - percentOcupat;
@@ -646,7 +591,6 @@ async function enviarFormulari(evt) {
     email: document.getElementById('email').value,
     telefono: combinarTelefonAmbPrefix(),
     accepta_condicions: document.getElementById('accepta_condicions').checked,
-    respuestas_campos: llegirRespostesCampsDinamics(),
   };
 
   // Amb cantidad=1 el cos no porta la clau acompanyants en absolut (el

@@ -62,7 +62,6 @@ async function crearCompraProva(evento, overrides = {}) {
     telefono: null,
     cantidad: 1,
     importe_total: evento.precio,
-    respuestas_campos: {},
     ...overrides,
   }, { origen: 'client', usuari: 'test-aforo' });
 }
@@ -112,7 +111,6 @@ test('un esdeveniment amb aforo_total=3 ple de compres pendents rebutja la 4a a 
     telefono: '',
     cantidad: 1,
     accepta_condicions: true,
-    respuestas_campos: {},
   });
   const res = fakeRes();
 

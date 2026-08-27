@@ -45,7 +45,7 @@ if (llistaHistorial) {
     fecha: 'Data', descripcion: 'Descripció',
     precio: 'Preu', aforo_total: 'Aforament total', fecha_limite_compra: 'Data límit de compra',
     estado: 'Estat', nombre_invitado: 'Nom del convidat', cargo_invitado: 'Càrrec del convidat',
-    campos_formulario: 'Camps del formulari', email_asunto: 'Assumpte de l\'email', email_html: 'HTML de l\'email',
+    email_asunto: 'Assumpte de l\'email', email_html: 'HTML de l\'email',
     estado_pago: 'Estat del pagament', total: 'Total',
   };
 

@@ -4,7 +4,7 @@ const Historial = require('./Historial');
 const CAMPS_AUDITABLES = [
   'nombre', 'fecha', 'descripcion',
   'precio', 'aforo_total', 'fecha_limite_compra', 'estado',
-  'campos_formulario', 'email_asunto', 'email_html',
+  'email_asunto', 'email_html',
 ];
 // nombre_invitado/cargo_invitado ja no hi són: obsoletes, substituïdes per
 // evento_invitados (vegeu config/schema.sql). Els seus canvis es tracten a
@@ -130,18 +130,16 @@ async function getById(id) {
 
 async function create(data, meta = {}) {
   const stmt = db.prepare(
-    `INSERT INTO eventos (nombre, fecha, descripcion, precio, aforo_total, fecha_limite_compra, estado, campos_formulario, email_asunto, email_html)
-     VALUES (@nombre, @fecha, @descripcion, @precio, @aforo_total, @fecha_limite_compra, @estado, @campos_formulario, @email_asunto, @email_html)
+    `INSERT INTO eventos (nombre, fecha, descripcion, precio, aforo_total, fecha_limite_compra, estado, email_asunto, email_html)
+     VALUES (@nombre, @fecha, @descripcion, @precio, @aforo_total, @fecha_limite_compra, @estado, @email_asunto, @email_html)
      RETURNING id`
   );
   const info = await stmt.run({
     estado: 'abierto',
     descripcion: null,
-    campos_formulario: JSON.stringify([]),
     email_asunto: null,
     email_html: null,
     ...data,
-    campos_formulario: JSON.stringify(data.campos_formulario || []),
   });
   await setInvitados(info.lastInsertRowid, Array.isArray(data.invitados) ? data.invitados : []);
   const evento = await getById(info.lastInsertRowid);
@@ -164,28 +162,26 @@ async function update(id, data, meta = {}) {
   const {
     nombre, fecha, descripcion,
     precio, aforo_total, fecha_limite_compra, estado,
-    campos_formulario, email_asunto, email_html,
+    email_asunto, email_html,
   } = { ...actual, ...data };
   await db
     .prepare(
       `UPDATE eventos SET nombre=@nombre, fecha=@fecha, descripcion=@descripcion,
          precio=@precio, aforo_total=@aforo_total,
          fecha_limite_compra=@fecha_limite_compra, estado=@estado,
-         campos_formulario=@campos_formulario,
          email_asunto=@email_asunto, email_html=@email_html
        WHERE id=@id`
     )
     .run({
       nombre, fecha, descripcion,
       precio, aforo_total, fecha_limite_compra, estado, id,
-      campos_formulario: JSON.stringify(campos_formulario || []),
       email_asunto: email_asunto || null,
       email_html: email_html || null,
     });
 
   // Els invitats no són una columna d'eventos: es tracten a part i només es
-  // toquen si venen explícitament (igual que campos_formulario, permet
-  // editar la resta de l'esdeveniment sense reenviar sempre la llista).
+  // toquen si venen explícitament, permetent editar la resta de
+  // l'esdeveniment sense reenviar sempre la llista.
   let invitadosAbans;
   let invitadosDespres;
   let invitadosCanviats = false;

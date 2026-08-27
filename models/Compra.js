@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const db = require('../config/db');
 const Historial = require('./Historial');
 const Evento = require('./Evento');
@@ -28,17 +27,15 @@ async function create(data, meta = {}) {
   const stmt = db.prepare(
     `INSERT INTO compras (
        evento_id, nombre_comprador, email, telefono, cantidad, importe_total,
-       estado_pago, respuestas_campos, edit_token
+       estado_pago
      ) VALUES (
        @evento_id, @nombre_comprador, @email, @telefono, @cantidad, @importe_total,
-       'pendiente', @respuestas_campos, @edit_token
+       'pendiente'
      ) RETURNING id`
   );
   const info = await stmt.run({
     telefono: null,
     ...data,
-    respuestas_campos: JSON.stringify(data.respuestas_campos || {}),
-    edit_token: crypto.randomBytes(24).toString('hex'),
   });
   // Els acompanyants no són una columna de compras: es guarden a part, dins
   // la mateixa operació de creació (mateix patró que Evento.create amb els
@@ -51,10 +48,6 @@ async function create(data, meta = {}) {
   // etc. — que no els necessita) només perquè quedin al registre
   // d'historial i al valor retornat just després de crear-la.
   compra.acompanyants = await getAcompanyants(compra.id);
-  // edit_token dona accés directe (sense login) a editar les dades del
-  // comprador: no es desa a l'historial perquè el rol viewer hi té accés de
-  // només lectura i no ha de poder veure ni reutilitzar aquest token.
-  const { edit_token: _editToken, ...compraPerHistorial } = compra;
   await Historial.registrar({
     tipus_entitat: 'compra',
     entitat_id: compra.id,
@@ -63,7 +56,7 @@ async function create(data, meta = {}) {
     origen: meta.origen || 'client',
     usuari: meta.usuari || compra.email,
     descripcio: `Compra #${compra.id} creada per ${compra.nombre_comprador} (${compra.cantidad} places)`,
-    dades_despres: compraPerHistorial,
+    dades_despres: compra,
   });
   return compra;
 }
@@ -102,17 +95,6 @@ async function setAcompanyants(compraId, acompanyants) {
 
 async function findBySessionId(sessionId) {
   return db.prepare('SELECT * FROM compras WHERE stripe_checkout_session_id = ?').get(sessionId);
-}
-
-async function findByEditToken(token) {
-  return db.prepare('SELECT * FROM compras WHERE edit_token = ?').get(token);
-}
-
-async function updateRespuestas(id, respuestas) {
-  await db
-    .prepare('UPDATE compras SET respuestas_campos = ? WHERE id = ?')
-    .run(JSON.stringify(respuestas || {}), id);
-  return getById(id);
 }
 
 async function setSessionId(id, sessionId) {
@@ -253,8 +235,6 @@ module.exports = {
   getAcompanyants,
   setAcompanyants,
   findBySessionId,
-  findByEditToken,
-  updateRespuestas,
   setSessionId,
   marcarPagado,
   marcarCancelado,

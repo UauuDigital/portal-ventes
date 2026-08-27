@@ -2,7 +2,6 @@ const PDFDocument = require('pdfkit');
 const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
 const Historial = require('../models/Historial');
-const { validarDefinicionCampos } = require('../utils/camposFormulario');
 const { validarInvitados } = require('../utils/validarInvitados');
 const { enviarEmailPrueba } = require('../utils/mailer');
 const { escriureAsistentsPdf } = require('../utils/pdfAsistentes');
@@ -51,8 +50,6 @@ async function obtenirEvento(req, res) {
 
 async function crearEvento(req, res) {
   const errors = validarEvento(req.body);
-  const camposFormulario = Array.isArray(req.body.campos_formulario) ? req.body.campos_formulario : [];
-  errors.push(...validarDefinicionCampos(camposFormulario));
   const invitados = Array.isArray(req.body.invitados) ? req.body.invitados : [];
   errors.push(...validarInvitados(invitados));
   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
@@ -77,7 +74,6 @@ async function crearEvento(req, res) {
       nombre: String(inv.nombre).trim(),
       cargo: inv.cargo ? String(inv.cargo).trim() : null,
     })),
-    campos_formulario: camposFormulario,
     email_asunto: req.body.email_asunto ? String(req.body.email_asunto).trim() : null,
     email_html: req.body.email_html ? String(req.body.email_html).trim() : null,
   }, { origen: 'manual', usuari: req.adminUser });
@@ -90,9 +86,6 @@ async function actualitzarEvento(req, res) {
   if (!actual) return res.status(404).json({ error: 'no_trobat' });
 
   const errors = validarEvento(req.body, { parcial: true });
-  if (req.body.campos_formulario !== undefined) {
-    errors.push(...validarDefinicionCampos(req.body.campos_formulario));
-  }
   if (req.body.invitados !== undefined) {
     errors.push(...validarInvitados(req.body.invitados));
   }
@@ -111,9 +104,6 @@ async function actualitzarEvento(req, res) {
   // en aquesta edició, l'actual si no) — mai acceptada del body.
   canvis.fecha_limite_compra = calcularFechaLimiteCompra(canvis.fecha || actual.fecha);
 
-  if (req.body.campos_formulario !== undefined) {
-    canvis.campos_formulario = req.body.campos_formulario;
-  }
   if (req.body.invitados !== undefined) {
     canvis.invitados = req.body.invitados.map((inv) => ({
       nombre: String(inv.nombre).trim(),
@@ -197,9 +187,9 @@ async function llistarCompresEvento(req, res) {
   if (!evento) return res.status(404).json({ error: 'no_trobat' });
   const compras = await Compra.listByEvento(eventoId, { estado: resoldreFiltreEstat(req) });
   const ambAcompanyants = await Promise.all(
-    compras.map(async ({ edit_token, ...resta }) => ({
-      ...resta,
-      acompanyants: await Compra.getAcompanyants(resta.id),
+    compras.map(async (compra) => ({
+      ...compra,
+      acompanyants: await Compra.getAcompanyants(compra.id),
     }))
   );
   res.json(ambAcompanyants);

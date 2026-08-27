@@ -2,7 +2,6 @@ const Stripe = require('stripe');
 const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
 const { enviarEmailConfirmacio } = require('../utils/mailer');
-const { validarRespuestas } = require('../utils/camposFormulario');
 const { validarAcompanyants } = require('../utils/validarAcompanyants');
 const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
 const { EMAIL_REGEX } = require('../utils/validacio');
@@ -93,14 +92,6 @@ async function crearCheckoutSession(req, res) {
       return res.status(409).json({ error: 'aforament_insuficient', disponibles });
     }
 
-    const { errors: errorsCamps, respuestasNormalizadas } = validarRespuestas(
-      evento.campos_formulario || [],
-      req.body.respuestas_campos
-    );
-    if (errorsCamps.length) {
-      return res.status(400).json({ error: 'dades_invalides', detalls: errorsCamps });
-    }
-
     // Acompanyants: només si cantidad > 1 (el comprador principal ja compta
     // com a 1 plaça). Amb cantidad=1 el camp ni s'exigeix ni es processa —
     // si arriba igualment (client vell/cache), s'ignora sense error, no es
@@ -129,7 +120,6 @@ async function crearCheckoutSession(req, res) {
       telefono: telefono || null,
       cantidad,
       importe_total: importeTotal,
-      respuestas_campos: respuestasNormalizadas,
       acompanyants: acompanyantsNormalizados,
     }, { origen: 'client', usuari: req.body.email.trim().toLowerCase() });
 

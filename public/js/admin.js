@@ -262,13 +262,11 @@ function escapeAttr(text) {
 // Llista dinàmica de convidats/ponents d'un esdeveniment (nom + càrrec,
 // sense límit, cal almenys un amb nom per poder desar). S'usa tant al
 // formulari de creació (index.html) com al d'edició (evento.html) — per
-// això és una funció reutilitzable en lloc de duplicar-la. Mateix patró
-// visual/interacció que la llista d'opcions d'un camp de campos_formulario
-// (fila-opcio-camp): input(s) en línia + botó circular d'eliminar,
-// re-renderitzat sencer a cada canvi. Sempre hi ha almenys una fila
-// visible (el botó d'eliminar es desactiva a l'última): la validació de
-// "cal almenys un" es fa igualment abans d'enviar, per si l'única fila es
-// deixa sense nom.
+// això és una funció reutilitzable en lloc de duplicar-la: input(s) en
+// línia + botó circular d'eliminar, re-renderitzat sencer a cada canvi.
+// Sempre hi ha almenys una fila visible (el botó d'eliminar es desactiva
+// a l'última): la validació de "cal almenys un" es fa igualment abans
+// d'enviar, per si l'única fila es deixa sense nom.
 function crearGestorInvitados(idContenidor) {
   const cont = document.getElementById(idContenidor);
   let invitados = [{ nombre: '', cargo: '' }];
@@ -878,160 +876,8 @@ if (formEventoEditar) {
     }
   });
 
-  let camposFormularioActuals = [];
-  let indexCampEditant = null;
-  let opcionsModalActuals = [];
-
   const gestorInvitatsEditar = crearGestorInvitados('llista-invitats');
   document.getElementById('btn-afegir-invitat').addEventListener('click', () => gestorInvitatsEditar.afegir());
-
-  function generarIdCamp() {
-    return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  }
-
-  function etiquetaTipo(tipo) {
-    return { texto: 'Text lliure', numero: 'Número', seleccion: 'Selecció' }[tipo] || tipo;
-  }
-
-  function renderLlistaCamps() {
-    const cont = document.getElementById('llista-camps-formulari');
-    cont.innerHTML = '';
-    if (camposFormularioActuals.length === 0) {
-      cont.innerHTML = '<p class="camps-formulari-buit">Encara no hi ha cap camp definit.</p>';
-      return;
-    }
-    camposFormularioActuals.forEach((campo, i) => {
-      const fila = document.createElement('div');
-      fila.className = 'fila-camp-formulari';
-      fila.innerHTML = `
-        <span class="fila-camp-formulari-etiqueta">${escapeHtml(campo.etiqueta)}</span>
-        <span class="fila-camp-formulari-tipus">${etiquetaTipo(campo.tipo)}</span>
-        <button type="button" data-accio="requerido" data-i="${i}" aria-pressed="${campo.requerido ? 'true' : 'false'}" aria-label="${campo.requerido ? 'Camp obligatori (clica per fer-lo opcional)' : 'Camp opcional (clica per fer-lo obligatori)'}" title="Obligatori">*</button>
-        <button type="button" data-accio="pujar" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Puja ${escapeHtml(campo.etiqueta)}">▲</button>
-        <button type="button" data-accio="baixar" data-i="${i}" ${i === camposFormularioActuals.length - 1 ? 'disabled' : ''} aria-label="Baixa ${escapeHtml(campo.etiqueta)}">▼</button>
-        <button type="button" data-accio="editar" data-i="${i}" aria-label="Edita ${escapeHtml(campo.etiqueta)}">✎</button>
-        <button type="button" data-accio="eliminar" data-i="${i}" aria-label="Elimina ${escapeHtml(campo.etiqueta)}">✕</button>
-      `;
-      cont.appendChild(fila);
-    });
-
-    cont.querySelectorAll('button[data-accio]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const i = parseInt(btn.dataset.i, 10);
-        const accio = btn.dataset.accio;
-        if (accio === 'requerido') {
-          camposFormularioActuals[i].requerido = !camposFormularioActuals[i].requerido;
-          renderLlistaCamps();
-        } else if (accio === 'pujar' && i > 0) {
-          [camposFormularioActuals[i - 1], camposFormularioActuals[i]] = [camposFormularioActuals[i], camposFormularioActuals[i - 1]];
-          renderLlistaCamps();
-        } else if (accio === 'baixar' && i < camposFormularioActuals.length - 1) {
-          [camposFormularioActuals[i + 1], camposFormularioActuals[i]] = [camposFormularioActuals[i], camposFormularioActuals[i + 1]];
-          renderLlistaCamps();
-        } else if (accio === 'eliminar') {
-          camposFormularioActuals.splice(i, 1);
-          renderLlistaCamps();
-        } else if (accio === 'editar') {
-          obrirModalCamp(i);
-        }
-      });
-    });
-  }
-
-  function renderOpcionsModal(opciones) {
-    const cont = document.getElementById('llista-opcions-camp');
-    cont.innerHTML = '';
-    opciones.forEach((opcio, i) => {
-      const fila = document.createElement('div');
-      fila.className = 'fila-opcio-camp';
-      fila.innerHTML = `<input type="text" value="${escapeAttr(opcio)}" data-i="${i}"><button type="button" data-i="${i}">✕</button>`;
-      cont.appendChild(fila);
-    });
-    cont.querySelectorAll('button').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        opcionsModalActuals.splice(parseInt(btn.dataset.i, 10), 1);
-        renderOpcionsModal(opcionsModalActuals);
-      });
-    });
-    cont.querySelectorAll('input').forEach((input) => {
-      input.addEventListener('input', () => {
-        opcionsModalActuals[parseInt(input.dataset.i, 10)] = input.value;
-      });
-    });
-  }
-
-  function obrirModalCamp(i) {
-    indexCampEditant = i === undefined ? null : i;
-    const campo = i === undefined ? null : camposFormularioActuals[i];
-    document.getElementById('camp-etiqueta').value = campo ? campo.etiqueta : '';
-    document.getElementById('camp-tipo').value = campo ? campo.tipo : 'texto';
-    document.getElementById('camp-unidad').value = campo && campo.unidad ? campo.unidad : '';
-    document.getElementById('camp-min').value = campo && campo.min !== undefined ? campo.min : '';
-    document.getElementById('camp-max').value = campo && campo.max !== undefined ? campo.max : '';
-    document.getElementById('camp-requerido').checked = !!(campo && campo.requerido);
-    document.getElementById('camp-multiple').checked = !!(campo && campo.multiple);
-    opcionsModalActuals = campo && Array.isArray(campo.opciones) ? [...campo.opciones] : [];
-    renderOpcionsModal(opcionsModalActuals);
-    document.getElementById('error-camp-formulari').textContent = '';
-    actualitzarVisibilitatTipusModal();
-    document.getElementById('modal-camp-formulari').classList.remove('hidden');
-  }
-
-  function actualitzarVisibilitatTipusModal() {
-    const tipo = document.getElementById('camp-tipo').value;
-    document.getElementById('camp-opcions-numero').classList.toggle('hidden', tipo !== 'numero');
-    document.getElementById('camp-opcions-seleccion').classList.toggle('hidden', tipo !== 'seleccion');
-  }
-
-  document.getElementById('camp-tipo').addEventListener('change', actualitzarVisibilitatTipusModal);
-  document.getElementById('btn-afegir-camp').addEventListener('click', () => obrirModalCamp(undefined));
-  document.getElementById('btn-cancelar-camp').addEventListener('click', () => {
-    document.getElementById('modal-camp-formulari').classList.add('hidden');
-  });
-  document.getElementById('btn-afegir-opcio-camp').addEventListener('click', () => {
-    opcionsModalActuals.push('');
-    renderOpcionsModal(opcionsModalActuals);
-  });
-
-  document.getElementById('btn-desar-camp').addEventListener('click', () => {
-    const errorEl = document.getElementById('error-camp-formulari');
-    const etiqueta = document.getElementById('camp-etiqueta').value.trim();
-    const tipo = document.getElementById('camp-tipo').value;
-    if (!etiqueta) {
-      errorEl.textContent = 'Cal una etiqueta per al camp.';
-      return;
-    }
-    if (tipo === 'seleccion' && opcionsModalActuals.filter((o) => o.trim()).length === 0) {
-      errorEl.textContent = 'Cal almenys una opció.';
-      return;
-    }
-    const campo = {
-      id: indexCampEditant !== null ? camposFormularioActuals[indexCampEditant].id : generarIdCamp(),
-      etiqueta,
-      tipo,
-      requerido: document.getElementById('camp-requerido').checked,
-    };
-    if (tipo === 'numero') {
-      const unidad = document.getElementById('camp-unidad').value.trim();
-      const min = document.getElementById('camp-min').value;
-      const max = document.getElementById('camp-max').value;
-      if (unidad) campo.unidad = unidad;
-      if (min !== '') campo.min = parseFloat(min);
-      if (max !== '') campo.max = parseFloat(max);
-    }
-    if (tipo === 'seleccion') {
-      campo.opciones = opcionsModalActuals.map((o) => o.trim()).filter(Boolean);
-      campo.multiple = document.getElementById('camp-multiple').checked;
-    }
-
-    if (indexCampEditant !== null) {
-      camposFormularioActuals[indexCampEditant] = campo;
-    } else {
-      camposFormularioActuals.push(campo);
-    }
-    document.getElementById('modal-camp-formulari').classList.add('hidden');
-    renderLlistaCamps();
-  });
 
   async function carregarEvento() {
     const res = await apiFetch(`/api/admin/eventos/${eventoId}`);
@@ -1053,8 +899,6 @@ if (formEventoEditar) {
     gestorInvitatsEditar.carregar(evento.invitados);
     document.getElementById('email_asunto').value = evento.email_asunto || '';
     document.getElementById('email_html').value = evento.email_html || '';
-    camposFormularioActuals = Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [];
-    renderLlistaCamps();
   }
 
   // Previsualització de només lectura: es recalcula si l'admin canvia la
@@ -1087,7 +931,6 @@ if (formEventoEditar) {
       descripcion: document.getElementById('descripcion').value,
       estado: document.getElementById('estado').value,
       invitados,
-      campos_formulario: camposFormularioActuals,
       email_asunto: document.getElementById('email_asunto').value,
       email_html: document.getElementById('email_html').value,
     };
@@ -1157,7 +1000,7 @@ if (formEventoEditar) {
 
   function actualitzarCapsaleraCompras() {
     if (!filaCapsaleraCompras) return;
-    filaCapsaleraCompras.querySelectorAll('th[data-camp-dinamic], th[data-estat-col]').forEach((th) => th.remove());
+    filaCapsaleraCompras.querySelectorAll('th[data-estat-col]').forEach((th) => th.remove());
     const thAccions = filaCapsaleraCompras.querySelector('th:last-child');
     // La columna d'estat només aporta res quan la taula pot mostrar
     // compres que no siguin totes "pagado" (toggle "totes" actiu): amb el
@@ -1168,12 +1011,6 @@ if (formEventoEditar) {
       thEstat.textContent = 'Estat';
       filaCapsaleraCompras.insertBefore(thEstat, thAccions);
     }
-    camposFormularioActuals.forEach((campo) => {
-      const th = document.createElement('th');
-      th.dataset.campDinamic = '1';
-      th.textContent = campo.etiqueta;
-      filaCapsaleraCompras.insertBefore(th, thAccions);
-    });
   }
 
   async function carregarCompras() {
@@ -1185,17 +1022,10 @@ if (formEventoEditar) {
     taulaCompras.innerHTML = '';
     // Nombre de columnes de la taula (per al colspan de la fila de detall
     // dels acompanyants): comprador/email/telèfon/quantitat/import/data (6)
-    // + la columna d'estat (només amb el toggle actiu) + un th dinàmic per
-    // camp de campos_formulario + la columna d'accions.
-    const numColumnes = 6 + (mostrarTotes ? 1 : 0) + camposFormularioActuals.length + 1;
+    // + la columna d'estat (només amb el toggle actiu) + la columna d'accions.
+    const numColumnes = 6 + (mostrarTotes ? 1 : 0) + 1;
     compras.forEach((c) => {
       const potCancelar = ['pendiente', 'pagado'].includes(c.estado_pago) && rolActual !== 'viewer';
-      const respuestas = c.respuestas_campos || {};
-      const tdsCamps = camposFormularioActuals.map((campo) => {
-        const valor = respuestas[campo.id];
-        const text = Array.isArray(valor) ? valor.join(', ') : (valor ?? '');
-        return `<td>${escapeHtml(text)}</td>`;
-      }).join('');
       const tdEstat = mostrarTotes ? `<td>${badgeEstatPagament(c.estado_pago)}</td>` : '';
       const teAcompanyants = Array.isArray(c.acompanyants) && c.acompanyants.length > 0;
       const tr = document.createElement('tr');
@@ -1209,7 +1039,6 @@ if (formEventoEditar) {
         <td>${formatEuros(c.importe_total)}</td>
         <td>${formatData(c.created_at)}</td>
         ${tdEstat}
-        ${tdsCamps}
         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
       `;
       taulaCompras.appendChild(tr);

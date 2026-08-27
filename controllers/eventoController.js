@@ -45,7 +45,6 @@ async function getEventoActual(req, res) {
       fecha_limite_compra: evento.fecha_limite_compra,
       aforo_disponible: disponibles,
       aforo_total: evento.aforo_total,
-      campos_formulario: Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [],
       invitados: (Array.isArray(evento.invitados) ? evento.invitados : [])
         .map(({ nombre, cargo }) => ({ nombre, cargo })),
     },

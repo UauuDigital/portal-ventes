@@ -379,56 +379,6 @@ input[type="checkbox"]:focus-visible {
   font-family: var(--font-ui);
 }
 
-.camp-dinamic { margin-bottom: 16px; }
-
-/* .camp-dinamic-etiqueta és un <span> (no <label>): no hereta l'estil de
-   label global (majúscules, mida, color), així que cal repetir-lo aquí
-   perquè faci joc amb la resta de títols de camp del formulari. */
-.camp-dinamic-etiqueta {
-  display: block;
-  margin-bottom: 6px;
-  font-family: var(--font-ui);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--dark-muted-text);
-}
-
-/* .opcio-dinamica SÍ és un <label> real: sense aquesta regla heretaria
-   l'estil de label global (majúscules/mida petita/color apagat), pensat
-   per a títols de camp, no per al text d'una opció triable — es reseteja
-   per fer joc amb .checkbox-row en lloc d'això. */
-.opcio-dinamica {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 300;
-  letter-spacing: normal;
-  text-transform: none;
-  color: var(--dark);
-  cursor: pointer;
-}
-
-.opcio-dinamica:last-child { margin-bottom: 0; }
-
-.opcio-dinamica input[type="checkbox"],
-.opcio-dinamica input[type="radio"] {
-  flex-shrink: 0;
-  accent-color: var(--dark);
-}
-
-/* Els labels dels camps dinàmics ja inclouen el " *" al text (generat en
-   JS), a diferència de la resta del formulari (que el genera per CSS via
-   label:has(+ input[required])::after). Es desactiva aquí per no duplicar
-   l'asterisc. */
-.camp-dinamic label:has(+ input[required])::after {
-  content: none;
-}
-
 /* Formulari dinàmic d'acompanyants (checkout.js): apareix/creix segons
    "Nombre de places". Es mostra com un acordió: una capçalera
    "Acompanyant N" per cadascun, amb com a molt un panell desplegat

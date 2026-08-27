@@ -1,0 +1,1451 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index a69a1f0..f7f7449 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -28,7 +28,6 @@ public/              # index.html (compra), success.html, cancel.html, admin/*,
+ 
+ ## Decisions conegudes
+ - **Naming del backend en camelCase, no kebab-case:** els fitxers de `controllers/`, `middleware/`, `routes/`, `utils/` i `models/` (`adminController.js`, `authMiddleware.js`, `Evento.js`, etc.) usen camelCase/PascalCase, tot i que la regla global d'UAUU exigeix kebab-case. És una excepció deliberada: el codi ja és consistent amb aquest patró arreu i renombrar-lo trencaria imports sense cap benefici real. `public/` sí segueix kebab-case per als fitxers estàtics.
+-- `public/mis-datos.html` / `public/js/mis-datos.js` són intencionadament només en català, a diferència de la resta del frontend públic (que és multi-idioma via `js/i18n.js`). El motiu: l'enllaç a aquesta pàgina s'envia per email després de la compra i, ara mateix, no es guarda l'idioma triat pel comprador (`eventos`/`compras` no tenen columna de locale), de manera que no hi ha manera de saber en quin idioma renderitzar-la. Fer-la multi-idioma de debò requeriria desar l'idioma de compra a la BD i passar-lo a l'enllaç — no és un simple afegit de claus `data-i18n`. Si es vol abordar, cal fer-ho com a tasca pròpia (canvi d'esquema + backend), no com a retoc de frontend.
+ 
+ ## Notes de domini
+ - `eventos.fecha` és sempre un datetime complet (no hi ha hora fixa hardcoded): tota pantalla que mostri l'hora de l'esdeveniment l'ha de llegir d'aquest camp, mai reescriure-la a mà.
+diff --git a/config/schema.sql b/config/schema.sql
+index 8fcf5f1..5da831c 100644
+--- a/config/schema.sql
++++ b/config/schema.sql
+@@ -32,15 +32,6 @@ CREATE TABLE IF NOT EXISTS compras (
+ CREATE INDEX IF NOT EXISTS idx_compras_evento ON compras(evento_id);
+ CREATE INDEX IF NOT EXISTS idx_compras_session ON compras(stripe_checkout_session_id);
+ 
+--- Constructor de formulari de compra personalitzat per esdeveniment (vegeu
+--- docs/superpowers/specs/2026-08-18-formulari-compra-personalitzat-design.md).
+-ALTER TABLE eventos ADD COLUMN IF NOT EXISTS campos_formulario JSONB NOT NULL DEFAULT '[]'::jsonb;
+-
+-ALTER TABLE compras ADD COLUMN IF NOT EXISTS respuestas_campos JSONB NOT NULL DEFAULT '{}'::jsonb;
+-ALTER TABLE compras ADD COLUMN IF NOT EXISTS edit_token TEXT;
+-
+-CREATE UNIQUE INDEX IF NOT EXISTS idx_compras_edit_token ON compras(edit_token) WHERE edit_token IS NOT NULL;
+-
+ -- Email de confirmació personalitzable per esdeveniment (utils/mailer.js).
+ -- Buits = es fa servir la plantilla per defecte (comportament actual).
+ ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_asunto TEXT;
+diff --git a/controllers/adminController.js b/controllers/adminController.js
+index 78b4b5b..ad9fb4a 100644
+--- a/controllers/adminController.js
++++ b/controllers/adminController.js
+@@ -2,7 +2,6 @@ const PDFDocument = require('pdfkit');
+ const Evento = require('../models/Evento');
+ const Compra = require('../models/Compra');
+ const Historial = require('../models/Historial');
+-const { validarDefinicionCampos } = require('../utils/camposFormulario');
+ const { validarInvitados } = require('../utils/validarInvitados');
+ const { enviarEmailPrueba } = require('../utils/mailer');
+ const { escriureAsistentsPdf } = require('../utils/pdfAsistentes');
+@@ -51,8 +50,6 @@ async function obtenirEvento(req, res) {
+ 
+ async function crearEvento(req, res) {
+   const errors = validarEvento(req.body);
+-  const camposFormulario = Array.isArray(req.body.campos_formulario) ? req.body.campos_formulario : [];
+-  errors.push(...validarDefinicionCampos(camposFormulario));
+   const invitados = Array.isArray(req.body.invitados) ? req.body.invitados : [];
+   errors.push(...validarInvitados(invitados));
+   if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
+@@ -77,7 +74,6 @@ async function crearEvento(req, res) {
+       nombre: String(inv.nombre).trim(),
+       cargo: inv.cargo ? String(inv.cargo).trim() : null,
+     })),
+-    campos_formulario: camposFormulario,
+     email_asunto: req.body.email_asunto ? String(req.body.email_asunto).trim() : null,
+     email_html: req.body.email_html ? String(req.body.email_html).trim() : null,
+   }, { origen: 'manual', usuari: req.adminUser });
+@@ -90,9 +86,6 @@ async function actualitzarEvento(req, res) {
+   if (!actual) return res.status(404).json({ error: 'no_trobat' });
+ 
+   const errors = validarEvento(req.body, { parcial: true });
+-  if (req.body.campos_formulario !== undefined) {
+-    errors.push(...validarDefinicionCampos(req.body.campos_formulario));
+-  }
+   if (req.body.invitados !== undefined) {
+     errors.push(...validarInvitados(req.body.invitados));
+   }
+@@ -111,9 +104,6 @@ async function actualitzarEvento(req, res) {
+   // en aquesta edició, l'actual si no) — mai acceptada del body.
+   canvis.fecha_limite_compra = calcularFechaLimiteCompra(canvis.fecha || actual.fecha);
+ 
+-  if (req.body.campos_formulario !== undefined) {
+-    canvis.campos_formulario = req.body.campos_formulario;
+-  }
+   if (req.body.invitados !== undefined) {
+     canvis.invitados = req.body.invitados.map((inv) => ({
+       nombre: String(inv.nombre).trim(),
+@@ -197,9 +187,9 @@ async function llistarCompresEvento(req, res) {
+   if (!evento) return res.status(404).json({ error: 'no_trobat' });
+   const compras = await Compra.listByEvento(eventoId, { estado: resoldreFiltreEstat(req) });
+   const ambAcompanyants = await Promise.all(
+-    compras.map(async ({ edit_token, ...resta }) => ({
+-      ...resta,
+-      acompanyants: await Compra.getAcompanyants(resta.id),
++    compras.map(async (compra) => ({
++      ...compra,
++      acompanyants: await Compra.getAcompanyants(compra.id),
+     }))
+   );
+   res.json(ambAcompanyants);
+diff --git a/controllers/eventoController.js b/controllers/eventoController.js
+index dc32a0d..0db3f97 100644
+--- a/controllers/eventoController.js
++++ b/controllers/eventoController.js
+@@ -45,7 +45,6 @@ async function getEventoActual(req, res) {
+       fecha_limite_compra: evento.fecha_limite_compra,
+       aforo_disponible: disponibles,
+       aforo_total: evento.aforo_total,
+-      campos_formulario: Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [],
+       invitados: (Array.isArray(evento.invitados) ? evento.invitados : [])
+         .map(({ nombre, cargo }) => ({ nombre, cargo })),
+     },
+diff --git a/controllers/misDatosController.js b/controllers/misDatosController.js
+deleted file mode 100644
+index ff1d0d3..0000000
+--- a/controllers/misDatosController.js
++++ /dev/null
+@@ -1,57 +0,0 @@
+-const Compra = require('../models/Compra');
+-const Evento = require('../models/Evento');
+-const { validarRespuestas } = require('../utils/camposFormulario');
+-
+-function eventoJaPassat(evento) {
+-  return new Date() > new Date(evento.fecha);
+-}
+-
+-/**
+- * GET /api/mis-datos/:token
+- * Accés sense login: el token és l'únic secret. Es retorna només el
+- * mínim necessari per pintar el formulari d'edició (mai dades d'altres
+- * compres ni de l'esdeveniment sencer).
+- */
+-async function obtenerMisDatos(req, res) {
+-  const compra = await Compra.findByEditToken(req.params.token);
+-  if (!compra) return res.status(404).json({ error: 'enllac_no_valid' });
+-
+-  const evento = await Evento.getById(compra.evento_id);
+-  if (!evento) return res.status(404).json({ error: 'enllac_no_valid' });
+-
+-  res.json({
+-    evento: { nombre: evento.nombre, fecha: evento.fecha },
+-    editable: !eventoJaPassat(evento),
+-    campos_formulario: Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [],
+-    respuestas_campos: compra.respuestas_campos || {},
+-  });
+-}
+-
+-/**
+- * PUT /api/mis-datos/:token
+- * Revalida sempre contra la definició vigent de l'esdeveniment (pot haver
+- * canviat des de la compra).
+- */
+-async function actualizarMisDatos(req, res) {
+-  const compra = await Compra.findByEditToken(req.params.token);
+-  if (!compra) return res.status(404).json({ error: 'enllac_no_valid' });
+-
+-  const evento = await Evento.getById(compra.evento_id);
+-  if (!evento) return res.status(404).json({ error: 'enllac_no_valid' });
+-
+-  if (eventoJaPassat(evento)) {
+-    return res.status(403).json({ error: 'esdeveniment_ja_passat' });
+-  }
+-
+-  const campos = Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [];
+-  const { errors, respuestasNormalizadas } = validarRespuestas(campos, req.body.respuestas_campos);
+-  if (errors.length) {
+-    return res.status(400).json({ error: 'dades_invalides', detalls: errors });
+-  }
+-
+-  const respuestasFusionadas = { ...compra.respuestas_campos, ...respuestasNormalizadas };
+-  const actualitzada = await Compra.updateRespuestas(compra.id, respuestasFusionadas);
+-  res.json({ respuestas_campos: actualitzada.respuestas_campos });
+-}
+-
+-module.exports = { obtenerMisDatos, actualizarMisDatos };
+diff --git a/controllers/stripeController.js b/controllers/stripeController.js
+index d6bd30f..dd9ba04 100644
+--- a/controllers/stripeController.js
++++ b/controllers/stripeController.js
+@@ -2,7 +2,6 @@ const Stripe = require('stripe');
+ const Evento = require('../models/Evento');
+ const Compra = require('../models/Compra');
+ const { enviarEmailConfirmacio } = require('../utils/mailer');
+-const { validarRespuestas } = require('../utils/camposFormulario');
+ const { validarAcompanyants } = require('../utils/validarAcompanyants');
+ const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
+ const { EMAIL_REGEX } = require('../utils/validacio');
+@@ -93,14 +92,6 @@ async function crearCheckoutSession(req, res) {
+       return res.status(409).json({ error: 'aforament_insuficient', disponibles });
+     }
+ 
+-    const { errors: errorsCamps, respuestasNormalizadas } = validarRespuestas(
+-      evento.campos_formulario || [],
+-      req.body.respuestas_campos
+-    );
+-    if (errorsCamps.length) {
+-      return res.status(400).json({ error: 'dades_invalides', detalls: errorsCamps });
+-    }
+-
+     // Acompanyants: només si cantidad > 1 (el comprador principal ja compta
+     // com a 1 plaça). Amb cantidad=1 el camp ni s'exigeix ni es processa —
+     // si arriba igualment (client vell/cache), s'ignora sense error, no es
+@@ -129,7 +120,6 @@ async function crearCheckoutSession(req, res) {
+       telefono: telefono || null,
+       cantidad,
+       importe_total: importeTotal,
+-      respuestas_campos: respuestasNormalizadas,
+       acompanyants: acompanyantsNormalizados,
+     }, { origen: 'client', usuari: req.body.email.trim().toLowerCase() });
+ 
+diff --git a/models/Compra.js b/models/Compra.js
+index 87c3c4d..824e1ee 100644
+--- a/models/Compra.js
++++ b/models/Compra.js
+@@ -1,4 +1,3 @@
+-const crypto = require('crypto');
+ const db = require('../config/db');
+ const Historial = require('./Historial');
+ const Evento = require('./Evento');
+@@ -28,17 +27,15 @@ async function create(data, meta = {}) {
+   const stmt = db.prepare(
+     `INSERT INTO compras (
+        evento_id, nombre_comprador, email, telefono, cantidad, importe_total,
+-       estado_pago, respuestas_campos, edit_token
++       estado_pago
+      ) VALUES (
+        @evento_id, @nombre_comprador, @email, @telefono, @cantidad, @importe_total,
+-       'pendiente', @respuestas_campos, @edit_token
++       'pendiente'
+      ) RETURNING id`
+   );
+   const info = await stmt.run({
+     telefono: null,
+     ...data,
+-    respuestas_campos: JSON.stringify(data.respuestas_campos || {}),
+-    edit_token: crypto.randomBytes(24).toString('hex'),
+   });
+   // Els acompanyants no són una columna de compras: es guarden a part, dins
+   // la mateixa operació de creació (mateix patró que Evento.create amb els
+@@ -51,10 +48,6 @@ async function create(data, meta = {}) {
+   // etc. — que no els necessita) només perquè quedin al registre
+   // d'historial i al valor retornat just després de crear-la.
+   compra.acompanyants = await getAcompanyants(compra.id);
+-  // edit_token dona accés directe (sense login) a editar les dades del
+-  // comprador: no es desa a l'historial perquè el rol viewer hi té accés de
+-  // només lectura i no ha de poder veure ni reutilitzar aquest token.
+-  const { edit_token: _editToken, ...compraPerHistorial } = compra;
+   await Historial.registrar({
+     tipus_entitat: 'compra',
+     entitat_id: compra.id,
+@@ -63,7 +56,7 @@ async function create(data, meta = {}) {
+     origen: meta.origen || 'client',
+     usuari: meta.usuari || compra.email,
+     descripcio: `Compra #${compra.id} creada per ${compra.nombre_comprador} (${compra.cantidad} places)`,
+-    dades_despres: compraPerHistorial,
++    dades_despres: compra,
+   });
+   return compra;
+ }
+@@ -104,17 +97,6 @@ async function findBySessionId(sessionId) {
+   return db.prepare('SELECT * FROM compras WHERE stripe_checkout_session_id = ?').get(sessionId);
+ }
+ 
+-async function findByEditToken(token) {
+-  return db.prepare('SELECT * FROM compras WHERE edit_token = ?').get(token);
+-}
+-
+-async function updateRespuestas(id, respuestas) {
+-  await db
+-    .prepare('UPDATE compras SET respuestas_campos = ? WHERE id = ?')
+-    .run(JSON.stringify(respuestas || {}), id);
+-  return getById(id);
+-}
+-
+ async function setSessionId(id, sessionId) {
+   await db.prepare('UPDATE compras SET stripe_checkout_session_id = ? WHERE id = ?').run(sessionId, id);
+ }
+@@ -253,8 +235,6 @@ module.exports = {
+   getAcompanyants,
+   setAcompanyants,
+   findBySessionId,
+-  findByEditToken,
+-  updateRespuestas,
+   setSessionId,
+   marcarPagado,
+   marcarCancelado,
+diff --git a/models/Evento.js b/models/Evento.js
+index 3110130..8d92d5f 100644
+--- a/models/Evento.js
++++ b/models/Evento.js
+@@ -4,7 +4,7 @@ const Historial = require('./Historial');
+ const CAMPS_AUDITABLES = [
+   'nombre', 'fecha', 'descripcion',
+   'precio', 'aforo_total', 'fecha_limite_compra', 'estado',
+-  'campos_formulario', 'email_asunto', 'email_html',
++  'email_asunto', 'email_html',
+ ];
+ // nombre_invitado/cargo_invitado ja no hi són: obsoletes, substituïdes per
+ // evento_invitados (vegeu config/schema.sql). Els seus canvis es tracten a
+@@ -130,18 +130,16 @@ async function getById(id) {
+ 
+ async function create(data, meta = {}) {
+   const stmt = db.prepare(
+-    `INSERT INTO eventos (nombre, fecha, descripcion, precio, aforo_total, fecha_limite_compra, estado, campos_formulario, email_asunto, email_html)
+-     VALUES (@nombre, @fecha, @descripcion, @precio, @aforo_total, @fecha_limite_compra, @estado, @campos_formulario, @email_asunto, @email_html)
++    `INSERT INTO eventos (nombre, fecha, descripcion, precio, aforo_total, fecha_limite_compra, estado, email_asunto, email_html)
++     VALUES (@nombre, @fecha, @descripcion, @precio, @aforo_total, @fecha_limite_compra, @estado, @email_asunto, @email_html)
+      RETURNING id`
+   );
+   const info = await stmt.run({
+     estado: 'abierto',
+     descripcion: null,
+-    campos_formulario: JSON.stringify([]),
+     email_asunto: null,
+     email_html: null,
+     ...data,
+-    campos_formulario: JSON.stringify(data.campos_formulario || []),
+   });
+   await setInvitados(info.lastInsertRowid, Array.isArray(data.invitados) ? data.invitados : []);
+   const evento = await getById(info.lastInsertRowid);
+@@ -164,28 +162,26 @@ async function update(id, data, meta = {}) {
+   const {
+     nombre, fecha, descripcion,
+     precio, aforo_total, fecha_limite_compra, estado,
+-    campos_formulario, email_asunto, email_html,
++    email_asunto, email_html,
+   } = { ...actual, ...data };
+   await db
+     .prepare(
+       `UPDATE eventos SET nombre=@nombre, fecha=@fecha, descripcion=@descripcion,
+          precio=@precio, aforo_total=@aforo_total,
+          fecha_limite_compra=@fecha_limite_compra, estado=@estado,
+-         campos_formulario=@campos_formulario,
+          email_asunto=@email_asunto, email_html=@email_html
+        WHERE id=@id`
+     )
+     .run({
+       nombre, fecha, descripcion,
+       precio, aforo_total, fecha_limite_compra, estado, id,
+-      campos_formulario: JSON.stringify(campos_formulario || []),
+       email_asunto: email_asunto || null,
+       email_html: email_html || null,
+     });
+ 
+   // Els invitats no són una columna d'eventos: es tracten a part i només es
+-  // toquen si venen explícitament (igual que campos_formulario, permet
+-  // editar la resta de l'esdeveniment sense reenviar sempre la llista).
++  // toquen si venen explícitament, permetent editar la resta de
++  // l'esdeveniment sense reenviar sempre la llista.
+   let invitadosAbans;
+   let invitadosDespres;
+   let invitadosCanviats = false;
+diff --git a/public/admin/evento.html b/public/admin/evento.html
+index 4f2f262..f3579c5 100644
+--- a/public/admin/evento.html
++++ b/public/admin/evento.html
+@@ -46,60 +46,9 @@
+       <option value="cerrado">Tancat</option>
+     </select>
+ 
+-    <div class="camps-formulari-seccio">
+-      <h2 class="camps-formulari-titol">Formulari de compra</h2>
+-      <p class="camps-formulari-ajuda">Camps addicionals que el comprador respon abans de pagar (ex: al·lèrgies, talla).</p>
+-      <div id="llista-camps-formulari"></div>
+-      <button type="button" id="btn-afegir-camp" class="btn-secundari">+ Afegir camp</button>
+-    </div>
+-
+-    <div id="modal-camp-formulari" class="modal-camp-formulari hidden">
+-      <div class="modal-camp-formulari-cos">
+-        <label for="camp-etiqueta">Etiqueta</label>
+-        <input type="text" id="camp-etiqueta">
+-
+-        <label for="camp-tipo">Tipus</label>
+-        <select id="camp-tipo">
+-          <option value="texto">Text lliure</option>
+-          <option value="numero">Número</option>
+-          <option value="seleccion">Selecció d'opcions</option>
+-        </select>
+-
+-        <div id="camp-opcions-numero" class="hidden">
+-          <label for="camp-unidad">Unitat (opcional)</label>
+-          <input type="text" id="camp-unidad">
+-          <label for="camp-min">Mínim</label>
+-          <input type="number" id="camp-min">
+-          <label for="camp-max">Màxim</label>
+-          <input type="number" id="camp-max">
+-        </div>
+-
+-        <div id="camp-opcions-seleccion" class="hidden">
+-          <label>Opcions</label>
+-          <div id="llista-opcions-camp"></div>
+-          <button type="button" id="btn-afegir-opcio-camp" class="btn-secundari">+ Afegir opció</button>
+-          <div class="checkbox-row">
+-            <input type="checkbox" id="camp-multiple">
+-            <label for="camp-multiple">Permet triar-ne diverses</label>
+-          </div>
+-        </div>
+-
+-        <div class="checkbox-row">
+-          <input type="checkbox" id="camp-requerido">
+-          <label for="camp-requerido">Camp obligatori</label>
+-        </div>
+-
+-        <div class="modal-camp-formulari-accions">
+-          <button type="button" id="btn-cancelar-camp" class="btn-secundari">Cancel·la</button>
+-          <button type="button" id="btn-desar-camp" class="btn-primary">Desa el camp</button>
+-        </div>
+-        <p id="error-camp-formulari" class="form-error"></p>
+-      </div>
+-    </div>
+-
+     <div class="camps-formulari-seccio">
+       <h2 class="camps-formulari-titol">Email de confirmació</h2>
+-      <p class="camps-formulari-ajuda">Es fa servir per defecte si es deixa buit. Variables disponibles: <code>{{nom_comprador}}</code>, <code>{{nom_esdeveniment}}</code>, <code>{{data_hora}}</code>, <code>{{quantitat}}</code>, <code>{{import_total}}</code>, <code>{{enllac_edicio}}</code>.</p>
++      <p class="camps-formulari-ajuda">Es fa servir per defecte si es deixa buit. Variables disponibles: <code>{{nom_comprador}}</code>, <code>{{nom_esdeveniment}}</code>, <code>{{data_hora}}</code>, <code>{{quantitat}}</code>, <code>{{import_total}}</code>.</p>
+ 
+       <label for="email_asunto">Assumpte</label>
+       <input type="text" id="email_asunto" name="email_asunto" placeholder="Confirmació de la teva plaça — {{nom_esdeveniment}}">
+diff --git a/public/css/admin.css b/public/css/admin.css
+index 14d5dc1..7474d1a 100644
+--- a/public/css/admin.css
++++ b/public/css/admin.css
+@@ -1271,10 +1271,6 @@ body:has(> .admin-shell) {
+   border-top: 1px solid rgba(34, 31, 30, 0.1);
+ }
+ 
+-#btn-afegir-camp {
+-  margin-top: 16px;
+-}
+-
+ /* Mateix tractament que el títol "Compres" (evento.html), perquè els dos
+    títols de secció d'aquesta pàgina es llegeixin com el mateix nivell. */
+ .camps-formulari-titol {
+@@ -1294,158 +1290,6 @@ body:has(> .admin-shell) {
+   margin: 0 0 16px;
+ }
+ 
+-.camps-formulari-buit {
+-  font-family: var(--font-ui);
+-  font-size: 13px;
+-  color: var(--admin-muted-text);
+-  padding: 12px 0;
+-}
+-
+-.fila-camp-formulari {
+-  display: grid;
+-  grid-template-columns: 1fr auto auto auto auto auto auto;
+-  align-items: center;
+-  gap: 4px;
+-  padding: 10px 0;
+-  box-shadow: inset 0 -1px 0 0 rgba(34, 31, 30, 0.08);
+-}
+-
+-.fila-camp-formulari-etiqueta {
+-  font-family: var(--font-ui);
+-  font-size: 13px;
+-  font-weight: 500;
+-  color: var(--dark);
+-  margin-right: 12px;
+-}
+-
+-.fila-camp-formulari-tipus {
+-  font-family: var(--font-ui);
+-  font-size: 12px;
+-  color: var(--admin-muted-text);
+-  margin-right: 12px;
+-  white-space: nowrap;
+-}
+-
+-/* Botons de fila (reordenar/editar/eliminar): mateix cercle petit amb
+-   vora fina que .btn-tancar-modal / .btn-calendari-nav, per no barrejar
+-   controls natius sense estilitzar amb la resta de la interfície. */
+-.fila-camp-formulari button[data-accio] {
+-  width: 26px;
+-  height: 26px;
+-  flex-shrink: 0;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  background: var(--white);
+-  border: 1px solid rgba(34, 31, 30, 0.2);
+-  border-radius: 50%;
+-  font-size: 12px;
+-  line-height: 1;
+-  color: var(--dark);
+-  cursor: pointer;
+-  transition: background 0.2s ease;
+-}
+-
+-.fila-camp-formulari button[data-accio]:hover:not(:disabled) {
+-  background: rgba(34, 31, 30, 0.06);
+-}
+-
+-.fila-camp-formulari button[data-accio]:disabled {
+-  opacity: 0.3;
+-  cursor: default;
+-}
+-
+-.fila-camp-formulari button[data-accio="eliminar"] {
+-  border-color: rgba(179, 38, 30, 0.4);
+-  color: var(--error);
+-}
+-
+-.fila-camp-formulari button[data-accio="eliminar"]:hover {
+-  background: rgba(179, 38, 30, 0.08);
+-}
+-
+-/* Toggle "Obligatori": buit quan el camp és opcional, ple quan és
+-   obligatori — es pot canviar directament des de la fila. */
+-.fila-camp-formulari button[data-accio="requerido"] {
+-  font-weight: 700;
+-}
+-
+-.fila-camp-formulari button[data-accio="requerido"][aria-pressed="true"] {
+-  background: var(--dark);
+-  border-color: var(--dark);
+-  color: var(--light);
+-}
+-
+-.fila-camp-formulari button[data-accio="requerido"][aria-pressed="true"]:hover {
+-  background: #3a3532;
+-}
+-
+-/* Modal de camp: mateix vidre fosc, targeta clara i ombra que
+-   .admin-modal-overlay/.admin-modal, perquè no es llegeixi com un
+-   component d'un altre sistema de disseny. */
+-.modal-camp-formulari {
+-  position: fixed;
+-  inset: 0;
+-  background: rgba(34, 31, 30, 0.45);
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  padding: 24px;
+-  z-index: 50;
+-}
+-
+-.modal-camp-formulari.hidden {
+-  display: none;
+-}
+-
+-.modal-camp-formulari-cos {
+-  background: var(--light);
+-  padding: 28px;
+-  border-radius: var(--radius-card);
+-  box-shadow: 0 30px 60px -20px rgba(34, 31, 30, 0.35);
+-  max-width: 420px;
+-  width: 100%;
+-  max-height: 85vh;
+-  overflow-y: auto;
+-}
+-
+-.modal-camp-formulari-accions {
+-  display: flex;
+-  gap: 8px;
+-  justify-content: flex-end;
+-  margin-top: 16px;
+-}
+-
+-.fila-opcio-camp {
+-  display: flex;
+-  gap: 8px;
+-  align-items: center;
+-  margin-bottom: 8px;
+-}
+-
+-.fila-opcio-camp input { flex: 1; margin-bottom: 0; }
+-
+-.fila-opcio-camp button {
+-  width: 26px;
+-  height: 26px;
+-  flex-shrink: 0;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  background: var(--white);
+-  border: 1px solid rgba(179, 38, 30, 0.4);
+-  border-radius: 50%;
+-  font-size: 12px;
+-  line-height: 1;
+-  color: var(--error);
+-  cursor: pointer;
+-  transition: background 0.2s ease;
+-}
+-
+-.fila-opcio-camp button:hover {
+-  background: rgba(179, 38, 30, 0.08);
+-}
+-
+ .camps-formulari-ajuda code {
+   background: rgba(34, 31, 30, 0.06);
+   border-radius: 4px;
+@@ -1455,9 +1299,8 @@ body:has(> .admin-shell) {
+   color: var(--dark);
+ }
+ 
+-/* Llista de convidats/ponents (nom + càrrec): mateix patró de fila que
+-   .fila-opcio-camp (input(s) en línia + botó circular d'eliminar), amb
+-   dos inputs en lloc d'un. */
++/* Llista de convidats/ponents (nom + càrrec): input(s) en línia + botó
++   circular d'eliminar, amb dos inputs en lloc d'un. */
+ .invitats-seccio {
+   margin: 20px 0;
+ }
+diff --git a/public/css/forms.css b/public/css/forms.css
+index c3a537f..52b097f 100644
+--- a/public/css/forms.css
++++ b/public/css/forms.css
+@@ -379,56 +379,6 @@ input[type="checkbox"]:focus-visible {
+   font-family: var(--font-ui);
+ }
+ 
+-.camp-dinamic { margin-bottom: 16px; }
+-
+-/* .camp-dinamic-etiqueta és un <span> (no <label>): no hereta l'estil de
+-   label global (majúscules, mida, color), així que cal repetir-lo aquí
+-   perquè faci joc amb la resta de títols de camp del formulari. */
+-.camp-dinamic-etiqueta {
+-  display: block;
+-  margin-bottom: 6px;
+-  font-family: var(--font-ui);
+-  font-size: 11px;
+-  font-weight: 500;
+-  letter-spacing: 0.06em;
+-  text-transform: uppercase;
+-  color: var(--dark-muted-text);
+-}
+-
+-/* .opcio-dinamica SÍ és un <label> real: sense aquesta regla heretaria
+-   l'estil de label global (majúscules/mida petita/color apagat), pensat
+-   per a títols de camp, no per al text d'una opció triable — es reseteja
+-   per fer joc amb .checkbox-row en lloc d'això. */
+-.opcio-dinamica {
+-  display: flex;
+-  align-items: center;
+-  gap: 8px;
+-  margin-bottom: 8px;
+-  font-family: var(--font-ui);
+-  font-size: 13px;
+-  font-weight: 300;
+-  letter-spacing: normal;
+-  text-transform: none;
+-  color: var(--dark);
+-  cursor: pointer;
+-}
+-
+-.opcio-dinamica:last-child { margin-bottom: 0; }
+-
+-.opcio-dinamica input[type="checkbox"],
+-.opcio-dinamica input[type="radio"] {
+-  flex-shrink: 0;
+-  accent-color: var(--dark);
+-}
+-
+-/* Els labels dels camps dinàmics ja inclouen el " *" al text (generat en
+-   JS), a diferència de la resta del formulari (que el genera per CSS via
+-   label:has(+ input[required])::after). Es desactiva aquí per no duplicar
+-   l'asterisc. */
+-.camp-dinamic label:has(+ input[required])::after {
+-  content: none;
+-}
+-
+ /* Formulari dinàmic d'acompanyants (checkout.js): apareix/creix segons
+    "Nombre de places". Es mostra com un acordió: una capçalera
+    "Acompanyant N" per cadascun, amb com a molt un panell desplegat
+diff --git a/public/index.html b/public/index.html
+index 1364f44..daae4a8 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -90,8 +90,6 @@
+ 
+       <p class="factura-avis">En cas de necessitar factura, escriure un correu a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a>.</p>
+ 
+-      <div id="camps-formulari-dinamics"></div>
+-
+       <div class="checkbox-row">
+         <input type="checkbox" id="accepta_condicions" name="accepta_condicions" required>
+         <label for="accepta_condicions">
+diff --git a/public/js/admin-historial.js b/public/js/admin-historial.js
+index 42544ae..b4d8bce 100644
+--- a/public/js/admin-historial.js
++++ b/public/js/admin-historial.js
+@@ -45,7 +45,7 @@ if (llistaHistorial) {
+     fecha: 'Data', descripcion: 'Descripció',
+     precio: 'Preu', aforo_total: 'Aforament total', fecha_limite_compra: 'Data límit de compra',
+     estado: 'Estat', nombre_invitado: 'Nom del convidat', cargo_invitado: 'Càrrec del convidat',
+-    campos_formulario: 'Camps del formulari', email_asunto: 'Assumpte de l\'email', email_html: 'HTML de l\'email',
++    email_asunto: 'Assumpte de l\'email', email_html: 'HTML de l\'email',
+     estado_pago: 'Estat del pagament', total: 'Total',
+   };
+ 
+diff --git a/public/js/admin.js b/public/js/admin.js
+index 4f846c4..ff8979b 100644
+--- a/public/js/admin.js
++++ b/public/js/admin.js
+@@ -262,13 +262,11 @@ function escapeAttr(text) {
+ // Llista dinàmica de convidats/ponents d'un esdeveniment (nom + càrrec,
+ // sense límit, cal almenys un amb nom per poder desar). S'usa tant al
+ // formulari de creació (index.html) com al d'edició (evento.html) — per
+-// això és una funció reutilitzable en lloc de duplicar-la. Mateix patró
+-// visual/interacció que la llista d'opcions d'un camp de campos_formulario
+-// (fila-opcio-camp): input(s) en línia + botó circular d'eliminar,
+-// re-renderitzat sencer a cada canvi. Sempre hi ha almenys una fila
+-// visible (el botó d'eliminar es desactiva a l'última): la validació de
+-// "cal almenys un" es fa igualment abans d'enviar, per si l'única fila es
+-// deixa sense nom.
++// això és una funció reutilitzable en lloc de duplicar-la: input(s) en
++// línia + botó circular d'eliminar, re-renderitzat sencer a cada canvi.
++// Sempre hi ha almenys una fila visible (el botó d'eliminar es desactiva
++// a l'última): la validació de "cal almenys un" es fa igualment abans
++// d'enviar, per si l'única fila es deixa sense nom.
+ function crearGestorInvitados(idContenidor) {
+   const cont = document.getElementById(idContenidor);
+   let invitados = [{ nombre: '', cargo: '' }];
+@@ -878,161 +876,9 @@ if (formEventoEditar) {
+     }
+   });
+ 
+-  let camposFormularioActuals = [];
+-  let indexCampEditant = null;
+-  let opcionsModalActuals = [];
+-
+   const gestorInvitatsEditar = crearGestorInvitados('llista-invitats');
+   document.getElementById('btn-afegir-invitat').addEventListener('click', () => gestorInvitatsEditar.afegir());
+ 
+-  function generarIdCamp() {
+-    return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+-  }
+-
+-  function etiquetaTipo(tipo) {
+-    return { texto: 'Text lliure', numero: 'Número', seleccion: 'Selecció' }[tipo] || tipo;
+-  }
+-
+-  function renderLlistaCamps() {
+-    const cont = document.getElementById('llista-camps-formulari');
+-    cont.innerHTML = '';
+-    if (camposFormularioActuals.length === 0) {
+-      cont.innerHTML = '<p class="camps-formulari-buit">Encara no hi ha cap camp definit.</p>';
+-      return;
+-    }
+-    camposFormularioActuals.forEach((campo, i) => {
+-      const fila = document.createElement('div');
+-      fila.className = 'fila-camp-formulari';
+-      fila.innerHTML = `
+-        <span class="fila-camp-formulari-etiqueta">${escapeHtml(campo.etiqueta)}</span>
+-        <span class="fila-camp-formulari-tipus">${etiquetaTipo(campo.tipo)}</span>
+-        <button type="button" data-accio="requerido" data-i="${i}" aria-pressed="${campo.requerido ? 'true' : 'false'}" aria-label="${campo.requerido ? 'Camp obligatori (clica per fer-lo opcional)' : 'Camp opcional (clica per fer-lo obligatori)'}" title="Obligatori">*</button>
+-        <button type="button" data-accio="pujar" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Puja ${escapeHtml(campo.etiqueta)}">▲</button>
+-        <button type="button" data-accio="baixar" data-i="${i}" ${i === camposFormularioActuals.length - 1 ? 'disabled' : ''} aria-label="Baixa ${escapeHtml(campo.etiqueta)}">▼</button>
+-        <button type="button" data-accio="editar" data-i="${i}" aria-label="Edita ${escapeHtml(campo.etiqueta)}">✎</button>
+-        <button type="button" data-accio="eliminar" data-i="${i}" aria-label="Elimina ${escapeHtml(campo.etiqueta)}">✕</button>
+-      `;
+-      cont.appendChild(fila);
+-    });
+-
+-    cont.querySelectorAll('button[data-accio]').forEach((btn) => {
+-      btn.addEventListener('click', () => {
+-        const i = parseInt(btn.dataset.i, 10);
+-        const accio = btn.dataset.accio;
+-        if (accio === 'requerido') {
+-          camposFormularioActuals[i].requerido = !camposFormularioActuals[i].requerido;
+-          renderLlistaCamps();
+-        } else if (accio === 'pujar' && i > 0) {
+-          [camposFormularioActuals[i - 1], camposFormularioActuals[i]] = [camposFormularioActuals[i], camposFormularioActuals[i - 1]];
+-          renderLlistaCamps();
+-        } else if (accio === 'baixar' && i < camposFormularioActuals.length - 1) {
+-          [camposFormularioActuals[i + 1], camposFormularioActuals[i]] = [camposFormularioActuals[i], camposFormularioActuals[i + 1]];
+-          renderLlistaCamps();
+-        } else if (accio === 'eliminar') {
+-          camposFormularioActuals.splice(i, 1);
+-          renderLlistaCamps();
+-        } else if (accio === 'editar') {
+-          obrirModalCamp(i);
+-        }
+-      });
+-    });
+-  }
+-
+-  function renderOpcionsModal(opciones) {
+-    const cont = document.getElementById('llista-opcions-camp');
+-    cont.innerHTML = '';
+-    opciones.forEach((opcio, i) => {
+-      const fila = document.createElement('div');
+-      fila.className = 'fila-opcio-camp';
+-      fila.innerHTML = `<input type="text" value="${escapeAttr(opcio)}" data-i="${i}"><button type="button" data-i="${i}">✕</button>`;
+-      cont.appendChild(fila);
+-    });
+-    cont.querySelectorAll('button').forEach((btn) => {
+-      btn.addEventListener('click', () => {
+-        opcionsModalActuals.splice(parseInt(btn.dataset.i, 10), 1);
+-        renderOpcionsModal(opcionsModalActuals);
+-      });
+-    });
+-    cont.querySelectorAll('input').forEach((input) => {
+-      input.addEventListener('input', () => {
+-        opcionsModalActuals[parseInt(input.dataset.i, 10)] = input.value;
+-      });
+-    });
+-  }
+-
+-  function obrirModalCamp(i) {
+-    indexCampEditant = i === undefined ? null : i;
+-    const campo = i === undefined ? null : camposFormularioActuals[i];
+-    document.getElementById('camp-etiqueta').value = campo ? campo.etiqueta : '';
+-    document.getElementById('camp-tipo').value = campo ? campo.tipo : 'texto';
+-    document.getElementById('camp-unidad').value = campo && campo.unidad ? campo.unidad : '';
+-    document.getElementById('camp-min').value = campo && campo.min !== undefined ? campo.min : '';
+-    document.getElementById('camp-max').value = campo && campo.max !== undefined ? campo.max : '';
+-    document.getElementById('camp-requerido').checked = !!(campo && campo.requerido);
+-    document.getElementById('camp-multiple').checked = !!(campo && campo.multiple);
+-    opcionsModalActuals = campo && Array.isArray(campo.opciones) ? [...campo.opciones] : [];
+-    renderOpcionsModal(opcionsModalActuals);
+-    document.getElementById('error-camp-formulari').textContent = '';
+-    actualitzarVisibilitatTipusModal();
+-    document.getElementById('modal-camp-formulari').classList.remove('hidden');
+-  }
+-
+-  function actualitzarVisibilitatTipusModal() {
+-    const tipo = document.getElementById('camp-tipo').value;
+-    document.getElementById('camp-opcions-numero').classList.toggle('hidden', tipo !== 'numero');
+-    document.getElementById('camp-opcions-seleccion').classList.toggle('hidden', tipo !== 'seleccion');
+-  }
+-
+-  document.getElementById('camp-tipo').addEventListener('change', actualitzarVisibilitatTipusModal);
+-  document.getElementById('btn-afegir-camp').addEventListener('click', () => obrirModalCamp(undefined));
+-  document.getElementById('btn-cancelar-camp').addEventListener('click', () => {
+-    document.getElementById('modal-camp-formulari').classList.add('hidden');
+-  });
+-  document.getElementById('btn-afegir-opcio-camp').addEventListener('click', () => {
+-    opcionsModalActuals.push('');
+-    renderOpcionsModal(opcionsModalActuals);
+-  });
+-
+-  document.getElementById('btn-desar-camp').addEventListener('click', () => {
+-    const errorEl = document.getElementById('error-camp-formulari');
+-    const etiqueta = document.getElementById('camp-etiqueta').value.trim();
+-    const tipo = document.getElementById('camp-tipo').value;
+-    if (!etiqueta) {
+-      errorEl.textContent = 'Cal una etiqueta per al camp.';
+-      return;
+-    }
+-    if (tipo === 'seleccion' && opcionsModalActuals.filter((o) => o.trim()).length === 0) {
+-      errorEl.textContent = 'Cal almenys una opció.';
+-      return;
+-    }
+-    const campo = {
+-      id: indexCampEditant !== null ? camposFormularioActuals[indexCampEditant].id : generarIdCamp(),
+-      etiqueta,
+-      tipo,
+-      requerido: document.getElementById('camp-requerido').checked,
+-    };
+-    if (tipo === 'numero') {
+-      const unidad = document.getElementById('camp-unidad').value.trim();
+-      const min = document.getElementById('camp-min').value;
+-      const max = document.getElementById('camp-max').value;
+-      if (unidad) campo.unidad = unidad;
+-      if (min !== '') campo.min = parseFloat(min);
+-      if (max !== '') campo.max = parseFloat(max);
+-    }
+-    if (tipo === 'seleccion') {
+-      campo.opciones = opcionsModalActuals.map((o) => o.trim()).filter(Boolean);
+-      campo.multiple = document.getElementById('camp-multiple').checked;
+-    }
+-
+-    if (indexCampEditant !== null) {
+-      camposFormularioActuals[indexCampEditant] = campo;
+-    } else {
+-      camposFormularioActuals.push(campo);
+-    }
+-    document.getElementById('modal-camp-formulari').classList.add('hidden');
+-    renderLlistaCamps();
+-  });
+-
+   async function carregarEvento() {
+     const res = await apiFetch(`/api/admin/eventos/${eventoId}`);
+     if (!res) return;
+@@ -1053,8 +899,6 @@ if (formEventoEditar) {
+     gestorInvitatsEditar.carregar(evento.invitados);
+     document.getElementById('email_asunto').value = evento.email_asunto || '';
+     document.getElementById('email_html').value = evento.email_html || '';
+-    camposFormularioActuals = Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [];
+-    renderLlistaCamps();
+   }
+ 
+   // Previsualització de només lectura: es recalcula si l'admin canvia la
+@@ -1087,7 +931,6 @@ if (formEventoEditar) {
+       descripcion: document.getElementById('descripcion').value,
+       estado: document.getElementById('estado').value,
+       invitados,
+-      campos_formulario: camposFormularioActuals,
+       email_asunto: document.getElementById('email_asunto').value,
+       email_html: document.getElementById('email_html').value,
+     };
+@@ -1157,7 +1000,7 @@ if (formEventoEditar) {
+ 
+   function actualitzarCapsaleraCompras() {
+     if (!filaCapsaleraCompras) return;
+-    filaCapsaleraCompras.querySelectorAll('th[data-camp-dinamic], th[data-estat-col]').forEach((th) => th.remove());
++    filaCapsaleraCompras.querySelectorAll('th[data-estat-col]').forEach((th) => th.remove());
+     const thAccions = filaCapsaleraCompras.querySelector('th:last-child');
+     // La columna d'estat només aporta res quan la taula pot mostrar
+     // compres que no siguin totes "pagado" (toggle "totes" actiu): amb el
+@@ -1168,12 +1011,6 @@ if (formEventoEditar) {
+       thEstat.textContent = 'Estat';
+       filaCapsaleraCompras.insertBefore(thEstat, thAccions);
+     }
+-    camposFormularioActuals.forEach((campo) => {
+-      const th = document.createElement('th');
+-      th.dataset.campDinamic = '1';
+-      th.textContent = campo.etiqueta;
+-      filaCapsaleraCompras.insertBefore(th, thAccions);
+-    });
+   }
+ 
+   async function carregarCompras() {
+@@ -1185,17 +1022,10 @@ if (formEventoEditar) {
+     taulaCompras.innerHTML = '';
+     // Nombre de columnes de la taula (per al colspan de la fila de detall
+     // dels acompanyants): comprador/email/telèfon/quantitat/import/data (6)
+-    // + la columna d'estat (només amb el toggle actiu) + un th dinàmic per
+-    // camp de campos_formulario + la columna d'accions.
+-    const numColumnes = 6 + (mostrarTotes ? 1 : 0) + camposFormularioActuals.length + 1;
++    // + la columna d'estat (només amb el toggle actiu) + la columna d'accions.
++    const numColumnes = 6 + (mostrarTotes ? 1 : 0) + 1;
+     compras.forEach((c) => {
+       const potCancelar = ['pendiente', 'pagado'].includes(c.estado_pago) && rolActual !== 'viewer';
+-      const respuestas = c.respuestas_campos || {};
+-      const tdsCamps = camposFormularioActuals.map((campo) => {
+-        const valor = respuestas[campo.id];
+-        const text = Array.isArray(valor) ? valor.join(', ') : (valor ?? '');
+-        return `<td>${escapeHtml(text)}</td>`;
+-      }).join('');
+       const tdEstat = mostrarTotes ? `<td>${badgeEstatPagament(c.estado_pago)}</td>` : '';
+       const teAcompanyants = Array.isArray(c.acompanyants) && c.acompanyants.length > 0;
+       const tr = document.createElement('tr');
+@@ -1209,7 +1039,6 @@ if (formEventoEditar) {
+         <td>${formatEuros(c.importe_total)}</td>
+         <td>${formatData(c.created_at)}</td>
+         ${tdEstat}
+-        ${tdsCamps}
+         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
+       `;
+       taulaCompras.appendChild(tr);
+diff --git a/public/js/checkout.js b/public/js/checkout.js
+index 9584c7d..c204c92 100644
+--- a/public/js/checkout.js
++++ b/public/js/checkout.js
+@@ -235,7 +235,6 @@ async function carregarEvento(eventoId) {
+   document.getElementById('evento-descripcio').textContent = ev.descripcion || '';
+   document.getElementById('evento-data').textContent = formatDataSenseHora(ev.fecha);
+   actualitzarPreu();
+-  renderCampsFormulariDinamics(ev.campos_formulario || []);
+   renderConvidats(ev.invitados || []);
+ 
+   return ev;
+@@ -265,44 +264,6 @@ function renderConvidats(invitados) {
+   bloc.classList.remove('hidden');
+ }
+ 
+-let campsFormulariActuals = [];
+-
+-function renderCampsFormulariDinamics(campos) {
+-  campsFormulariActuals = campos;
+-  const cont = document.getElementById('camps-formulari-dinamics');
+-  cont.innerHTML = '';
+-  campos.forEach((campo) => {
+-    const wrap = document.createElement('div');
+-    wrap.className = 'camp-dinamic';
+-
+-    if (campo.tipo === 'texto') {
+-      wrap.innerHTML = `
+-        <label for="camp_${campo.id}">${escapeHtml(campo.etiqueta)}${campo.requerido ? ' *' : ''}</label>
+-        <input type="text" id="camp_${campo.id}" ${campo.requerido ? 'required' : ''}>
+-      `;
+-    } else if (campo.tipo === 'numero') {
+-      const min = campo.min !== undefined ? `min="${campo.min}"` : '';
+-      const max = campo.max !== undefined ? `max="${campo.max}"` : '';
+-      const unitat = campo.unidad ? ` (${escapeHtml(campo.unidad)})` : '';
+-      wrap.innerHTML = `
+-        <label for="camp_${campo.id}">${escapeHtml(campo.etiqueta)}${unitat}${campo.requerido ? ' *' : ''}</label>
+-        <input type="number" id="camp_${campo.id}" ${min} ${max} ${campo.requerido ? 'required' : ''}>
+-      `;
+-    } else if (campo.tipo === 'seleccion') {
+-      const inputType = campo.multiple ? 'checkbox' : 'radio';
+-      const opcions = (campo.opciones || []).map((op, i) => `
+-        <label class="opcio-dinamica">
+-          <input type="${inputType}" name="camp_${campo.id}" value="${escapeAttr(op)}" ${campo.requerido && !campo.multiple ? 'required' : ''}>
+-          ${escapeHtml(op)}
+-        </label>
+-      `).join('');
+-      wrap.innerHTML = `<span class="camp-dinamic-etiqueta">${escapeHtml(campo.etiqueta)}${campo.requerido ? ' *' : ''}</span>${opcions}`;
+-    }
+-
+-    cont.appendChild(wrap);
+-  });
+-}
+-
+ // Acompanyants: apareixen/creixen quan "Nombre de places" (cantidad) és
+ // més gran d'1 — cal exactament cantidad - 1 (el comprador principal ja
+ // compta com a 1 plaça, ell no s'hi repeteix). L'array es manté persistent
+@@ -491,22 +452,6 @@ function actualitzarPreu() {
+   document.getElementById('evento-preu').textContent = formatEuros(cantidad * precioUnitari);
+ }
+ 
+-function llegirRespostesCampsDinamics() {
+-  const respostes = {};
+-  campsFormulariActuals.forEach((campo) => {
+-    if (campo.tipo === 'texto') {
+-      respostes[campo.id] = document.getElementById(`camp_${campo.id}`).value;
+-    } else if (campo.tipo === 'numero') {
+-      const v = document.getElementById(`camp_${campo.id}`).value;
+-      if (v !== '') respostes[campo.id] = parseFloat(v);
+-    } else if (campo.tipo === 'seleccion') {
+-      const marcats = Array.from(document.querySelectorAll(`input[name="camp_${campo.id}"]:checked`)).map((i) => i.value);
+-      respostes[campo.id] = campo.multiple ? marcats : (marcats[0] || '');
+-    }
+-  });
+-  return respostes;
+-}
+-
+ function calcularAforo(disponibles, total) {
+   const percentOcupat = Math.min(100, Math.max(0, ((total - disponibles) / total) * 100));
+   const percentDisponible = 100 - percentOcupat;
+@@ -646,7 +591,6 @@ async function enviarFormulari(evt) {
+     email: document.getElementById('email').value,
+     telefono: combinarTelefonAmbPrefix(),
+     accepta_condicions: document.getElementById('accepta_condicions').checked,
+-    respuestas_campos: llegirRespostesCampsDinamics(),
+   };
+ 
+   // Amb cantidad=1 el cos no porta la clau acompanyants en absolut (el
+diff --git a/public/js/mis-datos.js b/public/js/mis-datos.js
+deleted file mode 100644
+index 330fcd3..0000000
+--- a/public/js/mis-datos.js
++++ /dev/null
+@@ -1,125 +0,0 @@
+-function escapeHtml(text) {
+-  const div = document.createElement('div');
+-  div.textContent = text == null ? '' : String(text);
+-  return div.innerHTML;
+-}
+-
+-// Igual que escapeHtml, però també escapa les cometes: cal fer-la servir
+-// quan el valor s'insereix dins un atribut HTML delimitat per cometes
+-// dobles (p. ex. value="${escapeAttr(valor)}"), perquè escapeHtml sol no
+-// escapa el caràcter " i una cometa dins el valor trencaria l'atribut.
+-function escapeAttr(text) {
+-  return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+-}
+-
+-function token() {
+-  return new URLSearchParams(window.location.search).get('token');
+-}
+-
+-let campsActuals = [];
+-
+-function renderCamps(campos, respuestas) {
+-  const cont = document.getElementById('camps-formulari-misdatos');
+-  cont.innerHTML = '';
+-  campos.forEach((campo) => {
+-    const valor = respuestas[campo.id];
+-    const wrap = document.createElement('div');
+-    wrap.className = 'camp-dinamic';
+-
+-    if (campo.tipo === 'texto') {
+-      wrap.innerHTML = `
+-        <label for="camp_${campo.id}">${escapeHtml(campo.etiqueta)}${campo.requerido ? ' *' : ''}</label>
+-        <input type="text" id="camp_${campo.id}" value="${escapeAttr(valor || '')}" ${campo.requerido ? 'required' : ''}>
+-      `;
+-    } else if (campo.tipo === 'numero') {
+-      const min = campo.min !== undefined ? `min="${campo.min}"` : '';
+-      const max = campo.max !== undefined ? `max="${campo.max}"` : '';
+-      const unitat = campo.unidad ? ` (${escapeHtml(campo.unidad)})` : '';
+-      wrap.innerHTML = `
+-        <label for="camp_${campo.id}">${escapeHtml(campo.etiqueta)}${unitat}${campo.requerido ? ' *' : ''}</label>
+-        <input type="number" id="camp_${campo.id}" value="${valor !== undefined ? valor : ''}" ${min} ${max} ${campo.requerido ? 'required' : ''}>
+-      `;
+-    } else if (campo.tipo === 'seleccion') {
+-      const seleccionats = campo.multiple ? (valor || []) : [valor];
+-      const inputType = campo.multiple ? 'checkbox' : 'radio';
+-      const opcions = (campo.opciones || []).map((op) => `
+-        <label class="opcio-dinamica">
+-          <input type="${inputType}" name="camp_${campo.id}" value="${escapeAttr(op)}" ${seleccionats.includes(op) ? 'checked' : ''}>
+-          ${escapeHtml(op)}
+-        </label>
+-      `).join('');
+-      wrap.innerHTML = `<span class="camp-dinamic-etiqueta">${escapeHtml(campo.etiqueta)}${campo.requerido ? ' *' : ''}</span>${opcions}`;
+-    }
+-
+-    cont.appendChild(wrap);
+-  });
+-  campsActuals = campos;
+-}
+-
+-function llegirRespostes() {
+-  const respostes = {};
+-  campsActuals.forEach((campo) => {
+-    if (campo.tipo === 'texto') {
+-      respostes[campo.id] = document.getElementById(`camp_${campo.id}`).value;
+-    } else if (campo.tipo === 'numero') {
+-      const v = document.getElementById(`camp_${campo.id}`).value;
+-      if (v !== '') respostes[campo.id] = parseFloat(v);
+-    } else if (campo.tipo === 'seleccion') {
+-      const marcats = Array.from(document.querySelectorAll(`input[name="camp_${campo.id}"]:checked`)).map((i) => i.value);
+-      respostes[campo.id] = campo.multiple ? marcats : (marcats[0] || '');
+-    }
+-  });
+-  return respostes;
+-}
+-
+-async function iniciar() {
+-  const t = token();
+-  const avis = document.getElementById('estat-misdatos');
+-  if (!t) {
+-    avis.textContent = 'Aquest enllaç no és vàlid.';
+-    avis.classList.remove('hidden');
+-    return;
+-  }
+-
+-  const res = await fetch(`/api/mis-datos/${t}`);
+-  if (!res.ok) {
+-    avis.textContent = 'Aquest enllaç no és vàlid.';
+-    avis.classList.remove('hidden');
+-    return;
+-  }
+-  const data = await res.json();
+-
+-  document.getElementById('evento-nombre-misdatos').textContent = data.evento.nombre;
+-  document.getElementById('evento-data-misdatos').textContent = new Date(data.evento.fecha).toLocaleString('ca-ES');
+-
+-  if (!data.editable) {
+-    avis.textContent = 'Ja no es poden modificar les dades, l\'esdeveniment ja ha tingut lloc.';
+-    avis.classList.remove('hidden');
+-    return;
+-  }
+-
+-  renderCamps(data.campos_formulario, data.respuestas_campos || {});
+-  document.getElementById('form-misdatos').classList.remove('hidden');
+-
+-  document.getElementById('form-misdatos').addEventListener('submit', async (evt) => {
+-    evt.preventDefault();
+-    const errorEl = document.getElementById('error-misdatos');
+-    const okEl = document.getElementById('ok-misdatos');
+-    errorEl.textContent = '';
+-    okEl.classList.add('hidden');
+-
+-    const resPut = await fetch(`/api/mis-datos/${t}`, {
+-      method: 'PUT',
+-      headers: { 'Content-Type': 'application/json' },
+-      body: JSON.stringify({ respuestas_campos: llegirRespostes() }),
+-    });
+-    const dataPut = await resPut.json();
+-    if (resPut.ok) {
+-      okEl.classList.remove('hidden');
+-    } else {
+-      errorEl.textContent = (dataPut.detalls || ['No s\'han pogut desar els canvis.']).join(', ');
+-    }
+-  });
+-}
+-
+-iniciar();
+diff --git a/public/mis-datos.html b/public/mis-datos.html
+deleted file mode 100644
+index 685be7b..0000000
+--- a/public/mis-datos.html
++++ /dev/null
+@@ -1,37 +0,0 @@
+-<!doctype html>
+-<html lang="ca">
+-<head>
+-<meta charset="UTF-8">
+-<meta name="viewport" content="width=device-width, initial-scale=1">
+-<title>Les meves dades — Espai Econòmic</title>
+-<link rel="icon" href="/assets/favicon.ico">
+-<link rel="preconnect" href="https://fonts.googleapis.com">
+-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+-<link rel="stylesheet" href="/css/style.css">
+-</head>
+-<body>
+-<main class="card" data-layout="info-left" style="min-height:auto;">
+-  <section class="panel panel-color evento-info">
+-    <div class="logo"><span class="logo-icon"></span><span>Espai Econòmic</span></div>
+-    <div>
+-      <span class="eyebrow">Les teves dades</span>
+-      <h1 id="evento-nombre-misdatos">Carregant…</h1>
+-      <p id="evento-data-misdatos"></p>
+-    </div>
+-    <div></div>
+-  </section>
+-  <section class="panel panel-white" style="justify-content:center; align-items:flex-start;">
+-    <h1 style="font-size:24px;">Revisa o modifica les teves dades</h1>
+-    <div id="estat-misdatos" class="estat-missatge hidden" role="status" aria-live="polite"></div>
+-    <form id="form-misdatos" class="hidden">
+-      <div id="camps-formulari-misdatos"></div>
+-      <button type="submit" class="btn-primary">Desar canvis</button>
+-      <p id="error-misdatos" class="form-error" role="alert" aria-live="polite"></p>
+-      <p id="ok-misdatos" class="form-ok hidden" role="status">Dades desades correctament.</p>
+-    </form>
+-  </section>
+-</main>
+-<script src="/js/mis-datos.js"></script>
+-</body>
+-</html>
+diff --git a/routes/publicRoutes.js b/routes/publicRoutes.js
+index 2f24981..8b5e93d 100644
+--- a/routes/publicRoutes.js
++++ b/routes/publicRoutes.js
+@@ -4,7 +4,6 @@ const router = express.Router();
+ const asyncHandler = require('../utils/asyncHandler');
+ const { getEventoActual, getEventosActius } = require('../controllers/eventoController');
+ const { crearCheckoutSession, cancelarCheckoutSession, obtenerConfirmacion } = require('../controllers/stripeController');
+-const { obtenerMisDatos, actualizarMisDatos } = require('../controllers/misDatosController');
+ const { checkoutLimiter } = require('../middleware/rateLimiter');
+ 
+ router.get('/api/evento/actual', asyncHandler(getEventoActual));
+@@ -12,7 +11,5 @@ router.get('/api/evento/actius', asyncHandler(getEventosActius));
+ router.post('/api/checkout/crear', checkoutLimiter, asyncHandler(crearCheckoutSession));
+ router.post('/api/checkout/cancelar', asyncHandler(cancelarCheckoutSession));
+ router.get('/api/checkout/confirmacion/:session_id', asyncHandler(obtenerConfirmacion));
+-router.get('/api/mis-datos/:token', asyncHandler(obtenerMisDatos));
+-router.put('/api/mis-datos/:token', asyncHandler(actualizarMisDatos));
+ 
+ module.exports = router;
+diff --git a/tests/aforo.test.js b/tests/aforo.test.js
+index 4ac0a35..d57d963 100644
+--- a/tests/aforo.test.js
++++ b/tests/aforo.test.js
+@@ -62,7 +62,6 @@ async function crearCompraProva(evento, overrides = {}) {
+     telefono: null,
+     cantidad: 1,
+     importe_total: evento.precio,
+-    respuestas_campos: {},
+     ...overrides,
+   }, { origen: 'client', usuari: 'test-aforo' });
+ }
+@@ -112,7 +111,6 @@ test('un esdeveniment amb aforo_total=3 ple de compres pendents rebutja la 4a a
+     telefono: '',
+     cantidad: 1,
+     accepta_condicions: true,
+-    respuestas_campos: {},
+   });
+   const res = fakeRes();
+ 
+diff --git a/tests/webhook.test.js b/tests/webhook.test.js
+index aece390..ebfdc74 100644
+--- a/tests/webhook.test.js
++++ b/tests/webhook.test.js
+@@ -54,7 +54,6 @@ async function crearCompraDeProva(eventoId, overrides = {}) {
+       telefono: null,
+       cantidad: 1,
+       importe_total: 1500,
+-      respuestas_campos: {},
+       ...overrides,
+     },
+     { origen: 'client', usuari: 'comprador-proves@example.com' }
+diff --git a/utils/camposFormulario.js b/utils/camposFormulario.js
+deleted file mode 100644
+index 1df6240..0000000
+--- a/utils/camposFormulario.js
++++ /dev/null
+@@ -1,128 +0,0 @@
+-const TIPOS_VALIDOS = ['texto', 'numero', 'seleccion'];
+-
+-function esStringNoBuit(v) {
+-  return typeof v === 'string' && v.trim().length > 0;
+-}
+-
+-/**
+- * Valida la definició de camps que envia l'admin en crear/editar un
+- * esdeveniment. No toca respostes existents: només l'estructura.
+- */
+-function validarDefinicionCampos(campos) {
+-  const errors = [];
+-  if (!Array.isArray(campos)) {
+-    return ['campos_formulario ha de ser una llista'];
+-  }
+-
+-  const idsVists = new Set();
+-
+-  campos.forEach((campo, i) => {
+-    const ref = `camp ${i + 1}`;
+-    if (!campo || typeof campo !== 'object') {
+-      errors.push(`${ref}: definició invàlida`);
+-      return;
+-    }
+-    if (!esStringNoBuit(campo.id)) {
+-      errors.push(`${ref}: falta un identificador`);
+-    } else if (!/^[A-Za-z0-9_-]{1,64}$/.test(campo.id)) {
+-      errors.push(`${ref}: identificador amb format invàlid`);
+-    } else if (idsVists.has(campo.id)) {
+-      errors.push(`${ref}: identificador duplicat "${campo.id}"`);
+-    } else {
+-      idsVists.add(campo.id);
+-    }
+-    if (!esStringNoBuit(campo.etiqueta)) {
+-      errors.push(`${ref}: falta l'etiqueta`);
+-    }
+-    if (!TIPOS_VALIDOS.includes(campo.tipo)) {
+-      errors.push(`${ref}: tipus invàlid`);
+-      return;
+-    }
+-
+-    if (campo.tipo === 'numero') {
+-      const { min, max } = campo;
+-      if (min !== undefined && min !== null && typeof min !== 'number') {
+-        errors.push(`${ref}: el mínim ha de ser un número`);
+-      }
+-      if (max !== undefined && max !== null && typeof max !== 'number') {
+-        errors.push(`${ref}: el màxim ha de ser un número`);
+-      }
+-      if (typeof min === 'number' && typeof max === 'number' && min > max) {
+-        errors.push(`${ref}: el mínim no pot ser més gran que el màxim`);
+-      }
+-    }
+-
+-    if (campo.tipo === 'seleccion') {
+-      if (!Array.isArray(campo.opciones) || campo.opciones.filter(esStringNoBuit).length === 0) {
+-        errors.push(`${ref}: cal almenys una opció`);
+-      }
+-    }
+-  });
+-
+-  return errors;
+-}
+-
+-/**
+- * Valida i normalitza les respostes que envia el comprador (en crear la
+- * compra o en editar-les després) contra la definició vigent de
+- * l'esdeveniment. Els camps que ja no existeixen a la definició s'ignoren
+- * (no generen error): permet que l'admin elimini camps sense trencar
+- * compres que ja els havien respost.
+- */
+-function validarRespuestas(campos, respuestas) {
+-  const errors = [];
+-  const respuestasNormalizadas = {};
+-  const entrada = respuestas && typeof respuestas === 'object' ? respuestas : {};
+-
+-  (Array.isArray(campos) ? campos : []).forEach((campo) => {
+-    const valor = entrada[campo.id];
+-    const buit = valor === undefined || valor === null || valor === '' ||
+-      (Array.isArray(valor) && valor.length === 0);
+-
+-    if (buit) {
+-      if (campo.requerido) errors.push(`"${campo.etiqueta}" és obligatori`);
+-      return;
+-    }
+-
+-    if (campo.tipo === 'texto') {
+-      respuestasNormalizadas[campo.id] = String(valor).trim();
+-      return;
+-    }
+-
+-    if (campo.tipo === 'numero') {
+-      const num = typeof valor === 'number' ? valor : parseFloat(valor);
+-      if (Number.isNaN(num)) {
+-        errors.push(`"${campo.etiqueta}" ha de ser un número`);
+-        return;
+-      }
+-      if (typeof campo.min === 'number' && num < campo.min) {
+-        errors.push(`"${campo.etiqueta}" ha de ser com a mínim ${campo.min}`);
+-        return;
+-      }
+-      if (typeof campo.max === 'number' && num > campo.max) {
+-        errors.push(`"${campo.etiqueta}" ha de ser com a màxim ${campo.max}`);
+-        return;
+-      }
+-      respuestasNormalizadas[campo.id] = num;
+-      return;
+-    }
+-
+-    if (campo.tipo === 'seleccion') {
+-      const opcionsValides = Array.isArray(campo.opciones) ? campo.opciones : [];
+-      const seleccio = campo.multiple
+-        ? (Array.isArray(valor) ? valor : [valor])
+-        : [Array.isArray(valor) ? valor[0] : valor];
+-
+-      const totesValides = seleccio.every((v) => opcionsValides.includes(v));
+-      if (!totesValides) {
+-        errors.push(`"${campo.etiqueta}" té una opció no vàlida`);
+-        return;
+-      }
+-      respuestasNormalizadas[campo.id] = campo.multiple ? seleccio : seleccio[0];
+-    }
+-  });
+-
+-  return { errors, respuestasNormalizadas };
+-}
+-
+-module.exports = { validarDefinicionCampos, validarRespuestas };
+diff --git a/utils/mailer.js b/utils/mailer.js
+index 1aa4381..9efbf64 100644
+--- a/utils/mailer.js
++++ b/utils/mailer.js
+@@ -29,7 +29,6 @@ const HTML_DEFECTE = `
+         <li><strong>Places:</strong> {{quantitat}}</li>
+         <li><strong>Import total:</strong> {{import_total}}</li>
+       </ul>
+-      {{enllac_edicio}}
+       <p>Ens veiem a l'esdeveniment!</p>
+     </div>
+   `;
+@@ -37,7 +36,7 @@ const HTML_DEFECTE = `
+ /** Variables disponibles a l'assumpte i al cos de l'email (vegeu admin/evento.html). */
+ const VARIABLES_DISPONIBLES = [
+   'nom_comprador', 'nom_esdeveniment', 'data_hora', 'quantitat',
+-  'import_total', 'dades_factura', 'enllac_edicio',
++  'import_total', 'dades_factura',
+ ];
+ 
+ function substituirVariables(text, variables) {
+@@ -53,12 +52,7 @@ function substituirVariables(text, variables) {
+  * autèntiques) i l'enviament de prova (dades d'exemple), perquè els dos
+  * facin servir exactament la mateixa lògica de renderitzat.
+  */
+-function calcularVariables({ compra, evento, baseUrl }) {
+-  const enllacEdicio = compra.edit_token && new Date() < new Date(evento.fecha)
+-    ? `<p>Pots revisar o modificar les teves dades (com les al·lèrgies) fins al dia de l'esdeveniment des d'aquest enllaç: <br>
+-       <a href="${baseUrl}/mis-datos.html?token=${compra.edit_token}">${baseUrl}/mis-datos.html?token=${compra.edit_token}</a></p>`
+-    : '';
+-
++function calcularVariables({ compra, evento }) {
+   return {
+     nom_comprador: compra.nombre_comprador,
+     nom_esdeveniment: evento.nombre,
+@@ -71,7 +65,6 @@ function calcularVariables({ compra, evento, baseUrl }) {
+     // {{dades_factura}} el substitueixi per buit en lloc de deixar-hi el
+     // placeholder literal.
+     dades_factura: '',
+-    enllac_edicio: enllacEdicio,
+   };
+ }
+ 
+@@ -129,7 +122,6 @@ async function enviarEmailPrueba({ destinatario, asunto, html, evento, baseUrl }
+     nombre_comprador: 'Nom Exemple',
+     cantidad: 2,
+     importe_total: evento.precio ? evento.precio * 2 : 4000,
+-    edit_token: 'token-de-prova-no-funcional',
+   };
+ 
+   const { subject } = renderitzarEmail({
+diff --git a/utils/validarInvitados.js b/utils/validarInvitados.js
+index 600dd7f..2ec0b07 100644
+--- a/utils/validarInvitados.js
++++ b/utils/validarInvitados.js
+@@ -6,9 +6,7 @@ function esStringNoBuit(v) {
+  * Valida la llista de convidats/ponents d'un esdeveniment (dada informativa
+  * que introdueix l'admin, substitueix les antigues eventos.nombre_invitado/
+  * cargo_invitado — vegeu evento_invitados a config/schema.sql). Cal almenys
+- * un convidat amb nom; el càrrec és opcional. No té res a veure amb
+- * utils/camposFormulario.js, que valida el formulari dinàmic que respon el
+- * comprador.
++ * un convidat amb nom; el càrrec és opcional.
+  */
+ function validarInvitados(invitados) {
+   if (!Array.isArray(invitados)) {

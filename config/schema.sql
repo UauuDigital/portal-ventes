@@ -32,15 +32,6 @@ CREATE TABLE IF NOT EXISTS compras (
 CREATE INDEX IF NOT EXISTS idx_compras_evento ON compras(evento_id);
 CREATE INDEX IF NOT EXISTS idx_compras_session ON compras(stripe_checkout_session_id);
 
--- Constructor de formulari de compra personalitzat per esdeveniment (vegeu
--- docs/superpowers/specs/2026-08-18-formulari-compra-personalitzat-design.md).
-ALTER TABLE eventos ADD COLUMN IF NOT EXISTS campos_formulario JSONB NOT NULL DEFAULT '[]'::jsonb;
-
-ALTER TABLE compras ADD COLUMN IF NOT EXISTS respuestas_campos JSONB NOT NULL DEFAULT '{}'::jsonb;
-ALTER TABLE compras ADD COLUMN IF NOT EXISTS edit_token TEXT;
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_compras_edit_token ON compras(edit_token) WHERE edit_token IS NOT NULL;
-
 -- Email de confirmació personalitzable per esdeveniment (utils/mailer.js).
 -- Buits = es fa servir la plantilla per defecte (comportament actual).
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_asunto TEXT;

@@ -54,7 +54,6 @@ async function crearCompraDeProva(eventoId, overrides = {}) {
       telefono: null,
       cantidad: 1,
       importe_total: 1500,
-      respuestas_campos: {},
       ...overrides,
     },
     { origen: 'client', usuari: 'comprador-proves@example.com' }

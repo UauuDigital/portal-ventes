@@ -29,7 +29,6 @@ const HTML_DEFECTE = `
         <li><strong>Places:</strong> {{quantitat}}</li>
         <li><strong>Import total:</strong> {{import_total}}</li>
       </ul>
-      {{enllac_edicio}}
       <p>Ens veiem a l'esdeveniment!</p>
     </div>
   `;
@@ -37,7 +36,7 @@ const HTML_DEFECTE = `
 /** Variables disponibles a l'assumpte i al cos de l'email (vegeu admin/evento.html). */
 const VARIABLES_DISPONIBLES = [
   'nom_comprador', 'nom_esdeveniment', 'data_hora', 'quantitat',
-  'import_total', 'dades_factura', 'enllac_edicio',
+  'import_total', 'dades_factura',
 ];
 
 function substituirVariables(text, variables) {
@@ -53,12 +52,7 @@ function substituirVariables(text, variables) {
  * autèntiques) i l'enviament de prova (dades d'exemple), perquè els dos
  * facin servir exactament la mateixa lògica de renderitzat.
  */
-function calcularVariables({ compra, evento, baseUrl }) {
-  const enllacEdicio = compra.edit_token && new Date() < new Date(evento.fecha)
-    ? `<p>Pots revisar o modificar les teves dades (com les al·lèrgies) fins al dia de l'esdeveniment des d'aquest enllaç: <br>
-       <a href="${baseUrl}/mis-datos.html?token=${compra.edit_token}">${baseUrl}/mis-datos.html?token=${compra.edit_token}</a></p>`
-    : '';
-
+function calcularVariables({ compra, evento }) {
   return {
     nom_comprador: compra.nombre_comprador,
     nom_esdeveniment: evento.nombre,
@@ -71,7 +65,6 @@ function calcularVariables({ compra, evento, baseUrl }) {
     // {{dades_factura}} el substitueixi per buit en lloc de deixar-hi el
     // placeholder literal.
     dades_factura: '',
-    enllac_edicio: enllacEdicio,
   };
 }
 
@@ -129,7 +122,6 @@ async function enviarEmailPrueba({ destinatario, asunto, html, evento, baseUrl }
     nombre_comprador: 'Nom Exemple',
     cantidad: 2,
     importe_total: evento.precio ? evento.precio * 2 : 4000,
-    edit_token: 'token-de-prova-no-funcional',
   };
 
   const { subject } = renderitzarEmail({

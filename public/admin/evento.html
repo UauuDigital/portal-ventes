@@ -47,59 +47,8 @@
     </select>
 
     <div class="camps-formulari-seccio">
-      <h2 class="camps-formulari-titol">Formulari de compra</h2>
-      <p class="camps-formulari-ajuda">Camps addicionals que el comprador respon abans de pagar (ex: al·lèrgies, talla).</p>
-      <div id="llista-camps-formulari"></div>
-      <button type="button" id="btn-afegir-camp" class="btn-secundari">+ Afegir camp</button>
-    </div>
-
-    <div id="modal-camp-formulari" class="modal-camp-formulari hidden">
-      <div class="modal-camp-formulari-cos">
-        <label for="camp-etiqueta">Etiqueta</label>
-        <input type="text" id="camp-etiqueta">
-
-        <label for="camp-tipo">Tipus</label>
-        <select id="camp-tipo">
-          <option value="texto">Text lliure</option>
-          <option value="numero">Número</option>
-          <option value="seleccion">Selecció d'opcions</option>
-        </select>
-
-        <div id="camp-opcions-numero" class="hidden">
-          <label for="camp-unidad">Unitat (opcional)</label>
-          <input type="text" id="camp-unidad">
-          <label for="camp-min">Mínim</label>
-          <input type="number" id="camp-min">
-          <label for="camp-max">Màxim</label>
-          <input type="number" id="camp-max">
-        </div>
-
-        <div id="camp-opcions-seleccion" class="hidden">
-          <label>Opcions</label>
-          <div id="llista-opcions-camp"></div>
-          <button type="button" id="btn-afegir-opcio-camp" class="btn-secundari">+ Afegir opció</button>
-          <div class="checkbox-row">
-            <input type="checkbox" id="camp-multiple">
-            <label for="camp-multiple">Permet triar-ne diverses</label>
-          </div>
-        </div>
-
-        <div class="checkbox-row">
-          <input type="checkbox" id="camp-requerido">
-          <label for="camp-requerido">Camp obligatori</label>
-        </div>
-
-        <div class="modal-camp-formulari-accions">
-          <button type="button" id="btn-cancelar-camp" class="btn-secundari">Cancel·la</button>
-          <button type="button" id="btn-desar-camp" class="btn-primary">Desa el camp</button>
-        </div>
-        <p id="error-camp-formulari" class="form-error"></p>
-      </div>
-    </div>
-
-    <div class="camps-formulari-seccio">
       <h2 class="camps-formulari-titol">Email de confirmació</h2>
-      <p class="camps-formulari-ajuda">Es fa servir per defecte si es deixa buit. Variables disponibles: <code>{{nom_comprador}}</code>, <code>{{nom_esdeveniment}}</code>, <code>{{data_hora}}</code>, <code>{{quantitat}}</code>, <code>{{import_total}}</code>, <code>{{enllac_edicio}}</code>.</p>
+      <p class="camps-formulari-ajuda">Es fa servir per defecte si es deixa buit. Variables disponibles: <code>{{nom_comprador}}</code>, <code>{{nom_esdeveniment}}</code>, <code>{{data_hora}}</code>, <code>{{quantitat}}</code>, <code>{{import_total}}</code>.</p>
 
       <label for="email_asunto">Assumpte</label>
       <input type="text" id="email_asunto" name="email_asunto" placeholder="Confirmació de la teva plaça — {{nom_esdeveniment}}">
