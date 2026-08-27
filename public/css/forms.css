@@ -90,6 +90,66 @@ input[type="checkbox"]:focus-visible {
   outline-offset: 2px;
 }
 
+.stepper-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dark-muted-text);
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Stepper de "Nombre de places": substitueix l'input numèric pla. El valor
+   real es manté a l'input ocult #cantidad (llegit tal qual per checkout.js
+   en construir el body de la compra), perquè els botons +/- no dupliquin
+   cap lògica de recàlcul: només canvien aquest input i en disparen l'event
+   "input" ja escoltat avui (recalcula preu i acordeó d'acompanyants). */
+.stepper-cantidad {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: fit-content;
+  margin: 0 0 16px auto;
+}
+
+.stepper-btn {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-input);
+  background: var(--dark);
+  color: var(--white);
+  font-family: var(--font-ui);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background: var(--dark-hover);
+}
+
+.stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.stepper-valor {
+  min-width: 28px;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--dark);
+}
+
 /* Prefix de país + número de telèfon com un sol camp visual. El prefix és
    un desplegable personalitzat (bandera + país + codi) en lloc d'un
    <select> natiu, perquè el navegador no permet estilitzar la llista

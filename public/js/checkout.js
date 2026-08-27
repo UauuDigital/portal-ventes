@@ -462,6 +462,26 @@ function actualitzarAcompanyants() {
   renderAcompanyants(Math.max(0, cantidad - 1));
 }
 
+// Stepper de "Nombre de places": +/- només toquen l'input #cantidad (el
+// que ja es llegia a mà abans) i en disparen l'event "input", perquè el
+// recàlcul de preu i acordeó d'acompanyants segueixi passant pel listener
+// existent (dispatchEvent) en lloc de duplicar-lo aquí.
+function actualitzarEstatStepperCantidad() {
+  const cantidad = parseInt(document.getElementById('cantidad').value, 10) || 1;
+  document.getElementById('cantidad-valor').textContent = cantidad;
+  document.getElementById('btn-cantidad-menys').disabled = cantidad <= 1;
+}
+
+function canviarCantidad(delta) {
+  const input = document.getElementById('cantidad');
+  const actual = parseInt(input.value, 10) || 1;
+  const nova = Math.max(1, actual + delta);
+  if (nova === actual) return;
+  input.value = nova;
+  actualitzarEstatStepperCantidad();
+  input.dispatchEvent(new Event('input'));
+}
+
 // Preu de la fitxa: es repinta amb el preu unitari de l'evento (precioUnitari)
 // multiplicat per "Nombre de places". El preu real cobrat es calcula al
 // backend (crearCheckoutSession); això és només reflex visual.
@@ -690,5 +710,8 @@ document.addEventListener('DOMContentLoaded', () => {
     actualitzarAcompanyants();
     actualitzarPreu();
   });
+  document.getElementById('btn-cantidad-menys').addEventListener('click', () => canviarCantidad(-1));
+  document.getElementById('btn-cantidad-mes').addEventListener('click', () => canviarCantidad(1));
+  actualitzarEstatStepperCantidad();
   actualitzarAcompanyants();
 });

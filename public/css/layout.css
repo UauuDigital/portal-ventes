@@ -32,56 +32,33 @@
   position: relative;
 }
 
-/* Ancoratge del crumb de tornada: perquè quedi sempre al mateix nivell que
-   el títol de l'esdeveniment (i no un valor fix en píxels, fràgil si canvia
-   l'alçada del text), s'ubica dins el mateix bloc que el títol i es
-   posiciona relatiu a aquest contenidor, no al panell sencer. */
-.evento-info-titol {
-  position: relative;
-}
-
 /* Crumb de tornada al selector d'esdeveniments (només visible quan s'hi ha
-   arribat des de la quadrícula, quan hi havia diversos esdeveniments actius). */
+   arribat des de la quadrícula, quan hi havia diversos esdeveniments actius).
+   Viu FORA de .card, com una línia pròpia per sobre de la targeta: amb
+   noms d'esdeveniment llargs el títol (h1) pot ocupar tota l'amplada del
+   panell fosc i arribar a dues línies, de manera que un crumb ancorat en
+   absolut a la cantonada del panell (com abans) acabava solapant-se amb el
+   text del títol. Fora de la targeta mai hi pot xocar, en cap amplada. */
 .breadcrumb-tornar {
-  position: absolute;
-  top: 0;
-  right: 0;
-  /* Sense això l'eyebrow (bloc a tota l'amplada, mateix requadre) rebia
-     els clics per sobre del botó tot i ser contingut estàtic. */
-  z-index: 1;
+  display: block;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto 12px;
+  padding: 0 40px;
   background: transparent;
   border: none;
-  padding: 0;
   font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.03em;
-  color: var(--light-muted);
+  color: var(--dark-muted-text);
   cursor: pointer;
   transition: color 0.2s ease;
 }
 
 .breadcrumb-tornar:hover {
-  color: var(--white);
+  color: var(--dark);
   text-decoration: underline;
-}
-
-/* Només a escriptori: el crumb puja al mateix nivell que el títol.
-   Traiem el position:relative de .evento-info-titol perquè el contenidor
-   de referència de l'absolute torni a ser .panel-color (que ja té
-   position:relative). Com que top/right d'un absolute es calculen contra
-   la padding-box del seu contenidor —no contra on comença el contingut—,
-   cal repetir el padding del panell (48px 40px) perquè quedi alineat amb
-   el títol en lloc de la cantonada exterior del panell. A mòbil es manté
-   el comportament original (relatiu a .evento-info-titol). */
-@media (min-width: 721px) {
-  .evento-info-titol {
-    position: static;
-  }
-  .breadcrumb-tornar {
-    top: 48px;
-    right: 40px;
-  }
 }
 
 .panel-white {
@@ -248,6 +225,9 @@
   }
   .panel {
     padding: 32px 24px;
+  }
+  .breadcrumb-tornar {
+    padding: 0 24px;
   }
 }
 
