@@ -29,7 +29,8 @@ const HTML_DEFECTE = `
         <li><strong>Places:</strong> {{quantitat}}</li>
         <li><strong>Import total:</strong> {{import_total}}</li>
       </ul>
-      <p>Ens veiem a l'esdeveniment!</p>
+      <p>En cas de necessitar factura o desitjar fer qualsevol canvi o modificació, contactar a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a>.</p>
+      <p>Moltes gràcies, UAUU weddings &amp; events</p>
     </div>
   `;
 
