@@ -1050,6 +1050,33 @@ body:has(> .admin-shell) {
   max-width: 520px;
 }
 
+/* Avís propi (no beforeunload natiu) en sortir de l'edició d'un
+   esdeveniment amb canvis sense desar (evento.html). Mateix patró que la
+   resta de modals de l'admin (.admin-modal-overlay/.admin-modal). */
+.admin-modal--confirmacio {
+  max-width: 400px;
+}
+
+.modal-canvis-missatge {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--dark);
+  margin: 0 0 20px;
+}
+
+.modal-canvis-accions {
+  display: flex;
+  gap: 8px;
+}
+
+.modal-canvis-accions .btn-primary {
+  margin: 0;
+}
+
+.modal-canvis-accions button {
+  flex: 1;
+}
+
 .admin-historial-detall-descripcio {
   font-size: 15px;
   color: var(--dark);

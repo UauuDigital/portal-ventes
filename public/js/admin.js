@@ -879,6 +879,62 @@ if (formEventoEditar) {
   const gestorInvitatsEditar = crearGestorInvitados('llista-invitats');
   document.getElementById('btn-afegir-invitat').addEventListener('click', () => gestorInvitatsEditar.afegir());
 
+  // Avís propi (no beforeunload natiu, expressament exclòs: això és
+  // navegació dins l'admin, no tancar la pestanya) en sortir de l'edició
+  // amb canvis sense desar. `hiHaCanvisSenseDesar` es marca a true amb
+  // qualsevol canvi als camps de l'esdeveniment (incloent afegir/eliminar
+  // convidats) i es reinicialitza a false just després de carregar les
+  // dades (perquè omplir el formulari no compti com "un canvi") i després
+  // de desar amb èxit.
+  let hiHaCanvisSenseDesar = false;
+  function marcarCanvisSenseDesar() {
+    hiHaCanvisSenseDesar = true;
+  }
+  ['nombre', 'fecha', 'descripcion', 'estado', 'email_asunto', 'email_html'].forEach((id) => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', marcarCanvisSenseDesar);
+    el.addEventListener('change', marcarCanvisSenseDesar);
+  });
+  // Els inputs de nom/càrrec de cada convidat es recreen a cada render()
+  // (crearGestorInvitados): delegat sobre el contenidor estable en lloc de
+  // re-enganxar el listener a cada fila nova. Els botons (afegir/eliminar
+  // convidat) no disparen input/change, per això cal 'click' a part.
+  document.getElementById('llista-invitats').addEventListener('input', marcarCanvisSenseDesar);
+  document.getElementById('llista-invitats').addEventListener('click', (e) => {
+    if (e.target.tagName === 'BUTTON') marcarCanvisSenseDesar();
+  });
+  document.getElementById('btn-afegir-invitat').addEventListener('click', marcarCanvisSenseDesar);
+
+  const modalCanvis = document.getElementById('modal-canvis-sense-desar');
+  const linkTornar = document.getElementById('link-tornar-esdeveniments');
+  let urlSortidaPendent = null;
+
+  function obrirModalCanvis(url) {
+    urlSortidaPendent = url;
+    modalCanvis.classList.remove('hidden');
+  }
+  function tancarModalCanvis() {
+    modalCanvis.classList.add('hidden');
+    urlSortidaPendent = null;
+  }
+
+  linkTornar.addEventListener('click', (e) => {
+    if (hiHaCanvisSenseDesar) {
+      e.preventDefault();
+      obrirModalCanvis(linkTornar.href);
+    }
+  });
+  document.getElementById('btn-canvis-quedar').addEventListener('click', tancarModalCanvis);
+  document.getElementById('btn-canvis-sortir').addEventListener('click', () => {
+    if (urlSortidaPendent) window.location.href = urlSortidaPendent;
+  });
+  modalCanvis.addEventListener('click', (e) => {
+    if (e.target === modalCanvis) tancarModalCanvis();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modalCanvis.classList.contains('hidden')) tancarModalCanvis();
+  });
+
   async function carregarEvento() {
     const res = await apiFetch(`/api/admin/eventos/${eventoId}`);
     if (!res) return;
@@ -942,6 +998,7 @@ if (formEventoEditar) {
     if (!res) return;
 
     if (res.ok) {
+      hiHaCanvisSenseDesar = false;
       window.location.href = '/admin/index.html';
     } else {
       const data = await res.json();
@@ -1097,6 +1154,10 @@ if (formEventoEditar) {
   // "Cancel·lar" no aparegui un instant per després desaparèixer.
   aplicarRestriccionsPerRol().then(async () => {
     await carregarEvento();
+    // Omplir el formulari amb les dades carregades no compta com "un
+    // canvi" — es reinicialitza aquí, després que carregarEvento() ja hagi
+    // assignat tots els valors (i disparat qualsevol event que això comporti).
+    hiHaCanvisSenseDesar = false;
     carregarCompras();
   });
 }

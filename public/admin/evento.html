@@ -7,12 +7,12 @@
 <link rel="icon" href="/assets/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css?v=94">
+<link rel="stylesheet" href="/css/admin.css?v=95">
 </head>
 <body>
 <div class="admin-shell">
   <div class="admin-topbar">
-    <a href="/admin/index.html" class="admin-link-back">← Tots els esdeveniments</a>
+    <a href="/admin/index.html" class="admin-link-back" id="link-tornar-esdeveniments">← Tots els esdeveniments</a>
   </div>
 
   <div class="admin-topbar admin-topbar--evento">
@@ -95,7 +95,18 @@
       <tbody id="taula-compras"></tbody>
     </table>
   </div>
+
+  <div class="admin-modal-overlay hidden" id="modal-canvis-sense-desar" role="dialog" aria-modal="true" aria-labelledby="titol-modal-canvis">
+    <div class="admin-modal admin-modal--confirmacio">
+      <h2 class="admin-col-title" id="titol-modal-canvis">Tens canvis sense desar</h2>
+      <p class="modal-canvis-missatge">Tens canvis sense desar. Vols sortir igualment?</p>
+      <div class="modal-canvis-accions">
+        <button type="button" class="btn-primary" id="btn-canvis-quedar">Queda't a la pàgina</button>
+        <button type="button" class="btn-perillos" id="btn-canvis-sortir">Surt sense desar</button>
+      </div>
+    </div>
+  </div>
 </div>
-<script src="/js/admin.js?v=65"></script>
+<script src="/js/admin.js?v=66"></script>
 </body>
 </html>
