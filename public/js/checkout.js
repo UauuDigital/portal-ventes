@@ -35,7 +35,7 @@ function t(clau) {
 }
 
 /** Mateix format que ja fa servir la resta del projecte per a imports en
- * cèntims (formatEuros a public/js/admin.js i utils/mailer.js): "70.00 €". */
+ * cèntims (formatEuros a public/js/admin.js i utils/mailer.js): "65.00 €". */
 function formatEuros(centims) {
   return (centims / 100).toFixed(2) + ' €';
 }

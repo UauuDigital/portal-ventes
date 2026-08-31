@@ -6,8 +6,8 @@
 // esdeveniment (mateix patró que EXPIRA_MINUTS a checkoutConfig.js).
 const AFORAMENT_FIX = 50;
 // Cèntims, mateixa unitat que la columna `precio` d'eventos i que la resta
-// de l'app (formatEuros a public/js/admin.js i utils/mailer.js): 70,00 €.
-const PREU_FIX_CENTIMS = 7000;
+// de l'app (formatEuros a public/js/admin.js i utils/mailer.js): 65,00 €.
+const PREU_FIX_CENTIMS = 6500;
 
 // Data límit de compra: també fixa, ja no editable des de l'admin. Sempre
 // aquestes hores abans de la data de l'esdeveniment, sense excepció.
