@@ -13,6 +13,7 @@
     "seed": "node scripts/seed.js",
     "migrar-invitados": "node scripts/migrar-invitados.js",
     "diag": "node scripts/diag.js",
+    "check-preu": "node -e \"console.log('PREU_FIX_CENTIMS =', require('./utils/eventoConfig').PREU_FIX_CENTIMS)\"",
     "test": "node --env-file=.env.test --experimental-test-module-mocks --test"
   },
   "dependencies": {
