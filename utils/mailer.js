@@ -17,7 +17,7 @@ function formatDataHora(isoString) {
   return `${dataText} a les ${horaText}h`;
 }
 
-const ASSUMPTE_DEFECTE = 'Confirmació de la teva entrada — {{nom_esdeveniment}}';
+const ASSUMPTE_DEFECTE = 'Confirmació de la teva plaça — {{nom_esdeveniment}}';
 
 const HTML_DEFECTE = `
     <div style="font-family:sans-serif; max-width:480px; margin:0 auto;">
@@ -26,19 +26,18 @@ const HTML_DEFECTE = `
       <p>La teva compra per a <strong>{{nom_esdeveniment}}</strong> ha quedat confirmada.</p>
       <ul>
         <li><strong>Data i hora:</strong> {{data_hora}}</li>
-        <li><strong>Entrades:</strong> {{quantitat}}</li>
+        <li><strong>Places:</strong> {{quantitat}}</li>
         <li><strong>Import total:</strong> {{import_total}}</li>
       </ul>
-      {{dades_factura}}
-      {{enllac_edicio}}
-      <p>Ens veiem a l'esdeveniment!</p>
+      <p>En cas de necessitar factura o desitjar fer qualsevol canvi o modificació, contactar a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a>.</p>
+      <p>Moltes gràcies, UAUU weddings &amp; events</p>
     </div>
   `;
 
 /** Variables disponibles a l'assumpte i al cos de l'email (vegeu admin/evento.html). */
 const VARIABLES_DISPONIBLES = [
   'nom_comprador', 'nom_esdeveniment', 'data_hora', 'quantitat',
-  'import_total', 'dades_factura', 'enllac_edicio',
+  'import_total', 'dades_factura',
 ];
 
 function substituirVariables(text, variables) {
@@ -54,27 +53,19 @@ function substituirVariables(text, variables) {
  * autèntiques) i l'enviament de prova (dades d'exemple), perquè els dos
  * facin servir exactament la mateixa lògica de renderitzat.
  */
-function calcularVariables({ compra, evento, baseUrl }) {
-  const dadesFactura = compra.quiere_factura
-    ? `<p><strong>Dades de facturació</strong><br>
-       ${compra.nombre_fiscal}<br>
-       NIF/CIF: ${compra.nif}<br>
-       ${compra.direccion_fiscal}</p>`
-    : '';
-
-  const enllacEdicio = compra.edit_token && new Date() < new Date(evento.fecha)
-    ? `<p>Pots revisar o modificar les teves dades (com les al·lèrgies) fins al dia de l'esdeveniment des d'aquest enllaç: <br>
-       <a href="${baseUrl}/mis-datos.html?token=${compra.edit_token}">${baseUrl}/mis-datos.html?token=${compra.edit_token}</a></p>`
-    : '';
-
+function calcularVariables({ compra, evento }) {
   return {
     nom_comprador: compra.nombre_comprador,
     nom_esdeveniment: evento.nombre,
     data_hora: formatDataHora(evento.fecha),
     quantitat: String(compra.cantidad),
     import_total: formatEuros(compra.importe_total),
-    dades_factura: dadesFactura,
-    enllac_edicio: enllacEdicio,
+    // dades_factura ja no es calcula (facturació eliminada del checkout),
+    // però es manté a VARIABLES_DISPONIBLES/substituirVariables perquè un
+    // esdeveniment amb email_html personalitzat que encara contingui
+    // {{dades_factura}} el substitueixi per buit en lloc de deixar-hi el
+    // placeholder literal.
+    dades_factura: '',
   };
 }
 
@@ -132,11 +123,6 @@ async function enviarEmailPrueba({ destinatario, asunto, html, evento, baseUrl }
     nombre_comprador: 'Nom Exemple',
     cantidad: 2,
     importe_total: evento.precio ? evento.precio * 2 : 4000,
-    quiere_factura: true,
-    nombre_fiscal: 'Nom Exemple SL',
-    nif: '12345678A',
-    direccion_fiscal: 'Carrer Exemple, 1, Barcelona',
-    edit_token: 'token-de-prova-no-funcional',
   };
 
   const { subject } = renderitzarEmail({
@@ -155,45 +141,4 @@ async function enviarEmailPrueba({ destinatario, asunto, html, evento, baseUrl }
   });
 }
 
-/**
- * Notificació interna a digital@uauu.cat quan un comprador demana factura:
- * inclou les dades fiscals i les dades de l'esdeveniment/compra perquè
- * l'equip pugui emetre i enviar la factura manualment. Enviament "best
- * effort", igual que enviarEmailConfirmacio: no ha de fer fallar el webhook.
- */
-async function enviarNotificacioFactura({ compra, evento }) {
-  if (!process.env.RESEND_API_KEY) {
-    console.error('No s\'ha pogut enviar la notificació de factura: falta RESEND_API_KEY.');
-    return;
-  }
-
-  const html = `
-    <div style="font-family:sans-serif; max-width:480px; margin:0 auto;">
-      <h1 style="font-size:20px;">Sol·licitud de factura</h1>
-      <p><strong>Esdeveniment:</strong> ${evento.nombre}</p>
-      <p><strong>Data i hora:</strong> ${formatDataHora(evento.fecha)}</p>
-      <ul>
-        <li><strong>Comprador:</strong> ${compra.nombre_comprador} (${compra.email})</li>
-        <li><strong>Entrades:</strong> ${compra.cantidad}</li>
-        <li><strong>Import total:</strong> ${formatEuros(compra.importe_total)}</li>
-      </ul>
-      <p><strong>Dades de facturació</strong><br>
-      ${compra.nombre_fiscal}<br>
-      NIF/CIF: ${compra.nif}<br>
-      ${compra.direccion_fiscal}</p>
-    </div>
-  `;
-
-  try {
-    await client().emails.send({
-      from: process.env.RESEND_FROM,
-      to: 'digital@uauu.cat',
-      subject: `Sol·licitud de factura — ${evento.nombre}`,
-      html,
-    });
-  } catch (err) {
-    console.error('Error enviant la notificació de factura via Resend:', err);
-  }
-}
-
-module.exports = { enviarEmailConfirmacio, enviarEmailPrueba, enviarNotificacioFactura, VARIABLES_DISPONIBLES };
+module.exports = { enviarEmailConfirmacio, enviarEmailPrueba, VARIABLES_DISPONIBLES };

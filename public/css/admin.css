@@ -188,10 +188,9 @@ body:has(> .admin-shell) {
   background: rgba(34, 31, 30, 0.4);
 }
 
-/* Amb els 3 idiomes en columnes (.camps-traduccio), 420px queda massa
-   estret un cop es treu el padding: cada textarea es queda amb ~110px i
-   el formulari sencer es veu apretat. A partir d'on hi ha marge de
-   sobres a la pantalla, s'eixampla el modal perquè cada columna respiri. */
+/* 420px queda massa estret un cop es treu el padding per a un formulari
+   amb diversos camps llargs. A partir d'on hi ha marge de sobres a la
+   pantalla, s'eixampla el modal perquè el formulari respiri. */
 @media (min-width: 860px) {
   .admin-modal {
     max-width: 760px;
@@ -276,9 +275,6 @@ body:has(> .admin-shell) {
     word-break: break-word;
   }
 
-  .camps-dates-parella {
-    flex-direction: column;
-  }
 }
 
 .admin-table-scroll {
@@ -586,6 +582,21 @@ body:has(> .admin-shell) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* Toggle "Mostrar totes les compres" + botó d'exportar, agrupats al
+   costat dret del topbar de la taula de compres (l'.admin-topbar en si
+   només espera dos fills — capçalera i accions — per l'space-between). */
+.compres-accions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* .checkbox-row (forms.css) porta un margin-bottom pensat per a camps de
+   formulari apilats verticalment; en una barra d'accions inline no cal. */
+.checkbox-row--inline {
+  margin-bottom: 0;
 }
 
 .admin-link-back {
@@ -976,6 +987,27 @@ body:has(> .admin-shell) {
 .admin-historial-entrada--vermell .admin-historial-badge { background: #F0C9C4; }
 .admin-historial-entrada--gris .admin-historial-badge { background: #DEDBD8; }
 
+/* Badge de la columna "Estat" a la taula de compres (només visible amb el
+   toggle "Mostrar totes les compres" actiu). Mateixa forma que
+   .admin-historial-badge i mateixa paleta verd/vermell/gris que ja fa
+   servir la resta de l'admin (files de taula, calendari, historial). */
+.estat-pagament-badge {
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  color: var(--dark);
+  white-space: nowrap;
+}
+
+.estat-pagament-badge--pagado { background: #C7D9BE; }
+.estat-pagament-badge--pendiente { background: #DEDBD8; }
+.estat-pagament-badge--cancelado,
+.estat-pagament-badge--reembolsado { background: #F0C9C4; }
+
 .admin-historial-cos {
   min-width: 0;
 }
@@ -1016,6 +1048,33 @@ body:has(> .admin-shell) {
 
 .admin-modal--historial {
   max-width: 520px;
+}
+
+/* Avís propi (no beforeunload natiu) en sortir de l'edició d'un
+   esdeveniment amb canvis sense desar (evento.html). Mateix patró que la
+   resta de modals de l'admin (.admin-modal-overlay/.admin-modal). */
+.admin-modal--confirmacio {
+  max-width: 400px;
+}
+
+.modal-canvis-missatge {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--dark);
+  margin: 0 0 20px;
+}
+
+.modal-canvis-accions {
+  display: flex;
+  gap: 8px;
+}
+
+.modal-canvis-accions .btn-primary {
+  margin: 0;
+}
+
+.modal-canvis-accions button {
+  flex: 1;
 }
 
 .admin-historial-detall-descripcio {
@@ -1129,98 +1188,22 @@ body:has(> .admin-shell) {
   touch-action: manipulation;
 }
 
-/* Mini-calendari compartit pels camps "Data de l'esdeveniment" i "Data
-   límit de compra" al formulari de creació: tots dos queden costat a
-   costat i s'obre el mateix calendari per triar-los, un darrere l'altre
-   (primer l'esdeveniment, després el termini). Un cop triat el dia de
-   l'esdeveniment, el calendari marca aquell dia i pinta més clar els dies
-   entre avui i aquell dia (el rang vàlid per triar el termini). */
+/* Mini-calendari per triar la "Data de l'esdeveniment" al formulari de
+   creació. La data límit de compra ja no es tria aquí (es calcula sempre
+   com 48h abans, vegeu utils/eventoConfig.js): el camp de data és l'únic
+   que obre aquest calendari. */
 .camp-amb-minicalendari {
   position: relative;
 }
 
-.camps-dates-parella {
-  display: flex;
-  gap: 16px;
-}
-
-.camps-dates-parella .camp-data {
-  flex: 1 1 0;
-  min-width: 0;
+.camp-data {
   display: flex;
   flex-direction: column;
 }
 
-.camps-dates-parella .camp-data input {
+.camp-data input {
   cursor: pointer;
   background: var(--white);
-}
-
-/* Els 3 idiomes del Nom/Descripció en columnes, no un sota l'altre. Amb
-   textarea (en lloc d'input) el text llarg salta de línia dins del propi
-   camp en comptes de desbordar-lo horitzontalment. */
-.camps-traduccio {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 6px;
-}
-
-.camp-traduccio {
-  position: relative;
-  min-width: 0;
-}
-
-.camp-traduccio label {
-  padding-right: 22px;
-}
-
-.camps-traduccio textarea {
-  resize: vertical;
-  min-height: 72px;
-}
-
-/* Cadenat de bloqueig de traducció, a l'extrem superior dret de cada
-   camp (fora del flux, així no toca el selector d'asterisc obligatori
-   "label:has(+ textarea[required])", que necessita label i textarea
-   com a germans immediats). Estat per defecte discret; en bloquejar es
-   fon amb el mateix to fosc que la resta de botons de l'admin. */
-.btn-bloqueig-traduccio {
-  position: absolute;
-  top: -3px;
-  right: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: rgba(34, 31, 30, 0.3);
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.btn-bloqueig-traduccio:hover {
-  background: rgba(34, 31, 30, 0.08);
-  color: var(--dark);
-}
-
-.btn-bloqueig-traduccio[aria-pressed="true"] {
-  color: var(--light);
-  background: var(--dark);
-}
-
-.btn-bloqueig-traduccio[aria-pressed="true"]:hover {
-  background: #3a3532;
-}
-
-@media (max-width: 640px) {
-  .camps-traduccio {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Mateix patró que .admin-col-title-row del modal principal: títol i
@@ -1273,13 +1256,6 @@ body:has(> .admin-shell) {
   border-radius: 8px;
 }
 
-.mini-calendari-seguent {
-  display: block;
-  width: 100%;
-  text-align: center;
-  margin-top: 10px;
-}
-
 /* Centrat al mig del modal (no just sota les dates): amb position:fixed
    respecte al viewport es manté al mig independentment de per on vagi el
    scroll intern del formulari, ja que el propi modal ja queda centrat en
@@ -1308,52 +1284,18 @@ body:has(> .admin-shell) {
   color: rgba(34, 31, 30, 0.3);
 }
 
-.calendari-dia--interval .calendari-dia-numero {
-  background: rgba(34, 31, 30, 0.1);
-  border-radius: 8px;
-}
-
-.calendari-dia--marcat .calendari-dia-numero {
-  background: var(--dark);
-  color: var(--light);
-  border-radius: 8px;
-  font-weight: 600;
-}
-
 .calendari-dia--seleccionat .calendari-dia-numero {
   outline: 2px solid var(--dark);
   outline-offset: 1px;
 }
 
-.mini-calendari-llegenda {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 10px;
-  font-size: 10px;
-  color: var(--admin-muted-text);
-}
-
-.mini-calendari-llegenda span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.calendari-punt--marcat { background: var(--dark); }
-.calendari-punt--interval { background: rgba(34, 31, 30, 0.2); }
-
 /* Secció "Formulari de compra": subsecció dins .admin-form (ja blanca),
-   no una targeta pròpia — mateix patró de separador que .fiscal-fields
-   (forms.css), amb la mateixa vora fina que separa files de taula. */
+   no una targeta pròpia — mateix patró de separador (vora fina) que ja
+   s'usa per separar files de taula. */
 .camps-formulari-seccio {
   margin: 28px 0 32px;
   padding-top: 20px;
   border-top: 1px solid rgba(34, 31, 30, 0.1);
-}
-
-#btn-afegir-camp {
-  margin-top: 16px;
 }
 
 /* Mateix tractament que el títol "Compres" (evento.html), perquè els dos
@@ -1375,139 +1317,38 @@ body:has(> .admin-shell) {
   margin: 0 0 16px;
 }
 
-.camps-formulari-buit {
-  font-family: var(--font-ui);
-  font-size: 13px;
-  color: var(--admin-muted-text);
-  padding: 12px 0;
-}
-
-.fila-camp-formulari {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto auto auto auto;
-  align-items: center;
-  gap: 4px;
-  padding: 10px 0;
-  box-shadow: inset 0 -1px 0 0 rgba(34, 31, 30, 0.08);
-}
-
-.fila-camp-formulari-etiqueta {
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--dark);
-  margin-right: 12px;
-}
-
-.fila-camp-formulari-tipus {
-  font-family: var(--font-ui);
-  font-size: 12px;
-  color: var(--admin-muted-text);
-  margin-right: 12px;
-  white-space: nowrap;
-}
-
-/* Botons de fila (reordenar/editar/eliminar): mateix cercle petit amb
-   vora fina que .btn-tancar-modal / .btn-calendari-nav, per no barrejar
-   controls natius sense estilitzar amb la resta de la interfície. */
-.fila-camp-formulari button[data-accio] {
-  width: 26px;
-  height: 26px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--white);
-  border: 1px solid rgba(34, 31, 30, 0.2);
-  border-radius: 50%;
-  font-size: 12px;
-  line-height: 1;
-  color: var(--dark);
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.fila-camp-formulari button[data-accio]:hover:not(:disabled) {
+.camps-formulari-ajuda code {
   background: rgba(34, 31, 30, 0.06);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--dark);
 }
 
-.fila-camp-formulari button[data-accio]:disabled {
-  opacity: 0.3;
-  cursor: default;
+/* Llista de convidats/ponents (nom + càrrec): input(s) en línia + botó
+   circular d'eliminar, amb dos inputs en lloc d'un. */
+.invitats-seccio {
+  margin: 20px 0;
 }
 
-.fila-camp-formulari button[data-accio="eliminar"] {
-  border-color: rgba(179, 38, 30, 0.4);
-  color: var(--error);
+.invitats-ajuda {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--admin-muted-text);
+  margin: -4px 0 12px;
 }
 
-.fila-camp-formulari button[data-accio="eliminar"]:hover {
-  background: rgba(179, 38, 30, 0.08);
-}
-
-/* Toggle "Obligatori": buit quan el camp és opcional, ple (mateix
-   tractament que .btn-bloqueig-traduccio en estat actiu) quan és
-   obligatori — es pot canviar directament des de la fila. */
-.fila-camp-formulari button[data-accio="requerido"] {
-  font-weight: 700;
-}
-
-.fila-camp-formulari button[data-accio="requerido"][aria-pressed="true"] {
-  background: var(--dark);
-  border-color: var(--dark);
-  color: var(--light);
-}
-
-.fila-camp-formulari button[data-accio="requerido"][aria-pressed="true"]:hover {
-  background: #3a3532;
-}
-
-/* Modal de camp: mateix vidre fosc, targeta clara i ombra que
-   .admin-modal-overlay/.admin-modal, perquè no es llegeixi com un
-   component d'un altre sistema de disseny. */
-.modal-camp-formulari {
-  position: fixed;
-  inset: 0;
-  background: rgba(34, 31, 30, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  z-index: 50;
-}
-
-.modal-camp-formulari.hidden {
-  display: none;
-}
-
-.modal-camp-formulari-cos {
-  background: var(--light);
-  padding: 28px;
-  border-radius: var(--radius-card);
-  box-shadow: 0 30px 60px -20px rgba(34, 31, 30, 0.35);
-  max-width: 420px;
-  width: 100%;
-  max-height: 85vh;
-  overflow-y: auto;
-}
-
-.modal-camp-formulari-accions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-
-.fila-opcio-camp {
+.fila-invitat {
   display: flex;
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
 }
 
-.fila-opcio-camp input { flex: 1; margin-bottom: 0; }
+.fila-invitat input { flex: 1; margin-bottom: 0; }
 
-.fila-opcio-camp button {
+.fila-invitat button {
   width: 26px;
   height: 26px;
   flex-shrink: 0;
@@ -1524,17 +1365,17 @@ body:has(> .admin-shell) {
   transition: background 0.2s ease;
 }
 
-.fila-opcio-camp button:hover {
+.fila-invitat button:hover:not(:disabled) {
   background: rgba(179, 38, 30, 0.08);
 }
 
-.camps-formulari-ajuda code {
-  background: rgba(34, 31, 30, 0.06);
-  border-radius: 4px;
-  padding: 1px 5px;
-  font-family: monospace;
-  font-size: 12px;
-  color: var(--dark);
+.fila-invitat button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+#btn-afegir-invitat {
+  margin-top: 4px;
 }
 
 #email_html {
@@ -1565,4 +1406,65 @@ body:has(> .admin-shell) {
 
 #email-prova-missatge.email-prova-ok {
   color: #1e7a34;
+}
+
+/* Quantitat de la taula de compres: si la compra té acompanyants, la xifra
+   és un botó que desplega/plega la fila de detall just a sota — sense
+   pes visual de botó normal, es llegeix com el número amb un indicador
+   discret. Si cantidad=1 (sense acompanyants) queda com a text pla, sense
+   cap control. */
+.btn-veure-acompanyants {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--dark);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+.btn-veure-acompanyants svg {
+  flex-shrink: 0;
+}
+
+.btn-veure-acompanyants:hover {
+  color: var(--dark-hover);
+}
+
+.fila-acompanyants td {
+  background: rgba(34, 31, 30, 0.03);
+  padding: 12px 16px;
+}
+
+.acompanyants-detall-titol {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--admin-muted-text);
+  margin: 0 0 8px;
+}
+
+.acompanyants-detall-fila {
+  display: flex;
+  gap: 16px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--dark);
+  margin: 0 0 4px;
+}
+
+.acompanyants-detall-fila:last-child {
+  margin-bottom: 0;
+}
+
+.acompanyants-detall-fila span {
+  color: var(--admin-muted-text);
 }

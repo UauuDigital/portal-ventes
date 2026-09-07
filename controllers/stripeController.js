@@ -1,29 +1,33 @@
 const Stripe = require('stripe');
 const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
-const { enviarEmailConfirmacio, enviarNotificacioFactura } = require('../utils/mailer');
-const { validarRespuestas } = require('../utils/camposFormulario');
+const { enviarEmailConfirmacio } = require('../utils/mailer');
+const { validarAcompanyants } = require('../utils/validarAcompanyants');
+const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
+const { EMAIL_REGEX } = require('../utils/validacio');
 
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
-// Stripe exigeix que expires_at sigui com a mínim 30 minuts després de crear
-// la sessió de Checkout.
-const EXPIRA_MINUTS = Math.max(30, parseInt(process.env.CHECKOUT_EXPIRES_MINUTES || '30', 10));
+// Client de Stripe perezós: abans es creava a nivell de mòdul
+// (Stripe(process.env.STRIPE_SECRET_KEY) just en fer require d'aquest
+// fitxer), cosa que impedia fer require('../controllers/stripeController')
+// en un test sense una clau vàlida, i que un desplegament sense
+// STRIPE_SECRET_KEY arrenqués igualment sense cap error fins al primer
+// intent real de cobrar (Stripe('') no llança res en aquesta versió de
+// l'SDK). Ara el client només es crea — i la clau només es valida — la
+// primera vegada que de veritat fa falta.
+let stripe = null;
+function stripeClient() {
+  if (!stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('Falta STRIPE_SECRET_KEY a l\'entorn.');
+    }
+    stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripe;
+}
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Telèfon: accepta prefix internacional opcional, espais, guions i parèntesis,
 // entre 9 i 15 dígits en total (suficient per a fixos/mòbils ES i estrangers).
 const TELEFON_REGEX = /^\+?[\d\s().-]{9,20}$/;
-// NIF (DNI + lletra), NIE (X/Y/Z + 7 dígits + lletra) i CIF (lletra + 7 dígits + lletra/dígit).
-// Valida format, no el dígit de control — suficient per detectar errors de picada
-// sense necessitat d'una llibreria externa.
-const NIF_REGEX = /^[0-9]{8}[A-Za-z]$/;
-const NIE_REGEX = /^[XYZxyz][0-9]{7}[A-Za-z]$/;
-const CIF_REGEX = /^[A-Za-z][0-9]{7}[A-Za-z0-9]$/;
-
-function nifValid(value) {
-  const v = String(value || '').trim().toUpperCase();
-  return NIF_REGEX.test(v) || NIE_REGEX.test(v) || CIF_REGEX.test(v);
-}
 
 function validarBody(body) {
   const errors = [];
@@ -48,14 +52,6 @@ function validarBody(body) {
 
   if (!body.accepta_condicions) {
     errors.push('cal acceptar les condicions de venda');
-  }
-
-  if (body.quiere_factura) {
-    if (!body.nif || !body.nombre_fiscal || !body.direccion_fiscal) {
-      errors.push('dades fiscals incompletes');
-    } else if (!nifValid(body.nif)) {
-      errors.push('nif invàlid');
-    }
   }
 
   return errors;
@@ -96,12 +92,21 @@ async function crearCheckoutSession(req, res) {
       return res.status(409).json({ error: 'aforament_insuficient', disponibles });
     }
 
-    const { errors: errorsCamps, respuestasNormalizadas } = validarRespuestas(
-      evento.campos_formulario || [],
-      req.body.respuestas_campos
-    );
-    if (errorsCamps.length) {
-      return res.status(400).json({ error: 'dades_invalides', detalls: errorsCamps });
+    // Acompanyants: només si cantidad > 1 (el comprador principal ja compta
+    // com a 1 plaça). Amb cantidad=1 el camp ni s'exigeix ni es processa —
+    // si arriba igualment (client vell/cache), s'ignora sense error, no es
+    // valida ni es desa enlloc.
+    let acompanyantsNormalizados = [];
+    if (cantidad > 1) {
+      const errorsAcompanyants = validarAcompanyants(req.body.acompanyants, cantidad);
+      if (errorsAcompanyants.length) {
+        return res.status(400).json({ error: 'dades_invalides', detalls: errorsAcompanyants });
+      }
+      acompanyantsNormalizados = req.body.acompanyants.map((ac) => ({
+        nombre: String(ac.nombre).trim(),
+        email: String(ac.email).trim().toLowerCase(),
+        telefono: ac.telefono ? String(ac.telefono).trim() : null,
+      }));
     }
 
     const importeTotal = cantidad * evento.precio; // cèntims
@@ -115,11 +120,7 @@ async function crearCheckoutSession(req, res) {
       telefono: telefono || null,
       cantidad,
       importe_total: importeTotal,
-      quiere_factura: !!req.body.quiere_factura,
-      nif: req.body.quiere_factura ? String(req.body.nif).trim().toUpperCase() : null,
-      nombre_fiscal: req.body.quiere_factura ? String(req.body.nombre_fiscal).trim() : null,
-      direccion_fiscal: req.body.quiere_factura ? String(req.body.direccion_fiscal).trim() : null,
-      respuestas_campos: respuestasNormalizadas,
+      acompanyants: acompanyantsNormalizados,
     }, { origen: 'client', usuari: req.body.email.trim().toLowerCase() });
 
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
@@ -131,7 +132,7 @@ async function crearCheckoutSession(req, res) {
     // pagament associada (mai arribaria cap webhook que la desbloqués).
     let session;
     try {
-      session = await stripe.checkout.sessions.create({
+      session = await stripeClient().checkout.sessions.create({
         mode: 'payment',
         payment_method_types: ['card'],
         customer_email: compra.email,
@@ -140,7 +141,7 @@ async function crearCheckoutSession(req, res) {
           {
             price_data: {
               currency: 'eur',
-              product_data: { name: `Entrada — ${evento.nombre}` },
+              product_data: { name: `Plaça — ${evento.nombre}` },
               unit_amount: evento.precio,
             },
             quantity: cantidad,
@@ -199,7 +200,7 @@ async function webhook(req, res) {
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripeClient().webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error('Signatura de webhook invàlida:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -216,9 +217,6 @@ async function webhook(req, res) {
         if (evento) {
           const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
           await enviarEmailConfirmacio({ compra: { ...compra, estado_pago: 'pagado' }, evento, baseUrl });
-          if (compra.quiere_factura) {
-            await enviarNotificacioFactura({ compra, evento });
-          }
         }
       }
       break;
@@ -259,7 +257,6 @@ async function obtenerConfirmacion(req, res) {
       nombre_comprador: compra.nombre_comprador,
       cantidad: compra.cantidad,
       importe_total: compra.importe_total,
-      quiere_factura: compra.quiere_factura,
     },
   });
 }

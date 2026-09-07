@@ -1,6 +1,4 @@
-function localeActual() {
-  return window.i18n ? window.i18n.localeActual() : 'ca-ES';
-}
+const LOCALE = 'ca-ES';
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -15,20 +13,15 @@ function renderitzarConfirmacio() {
   if (!contenidor || !dadesConfirmacio) return;
 
   const data = dadesConfirmacio;
-  const dataText = new Date(data.evento.fecha).toLocaleString(localeActual());
+  const dataText = new Date(data.evento.fecha).toLocaleString(LOCALE);
   const importText = (data.compra.importe_total / 100).toFixed(2) + ' €';
-
-  const avisFactura = data.compra.quiere_factura
-    ? `<p class="subtitle">${escapeHtml(window.i18n ? window.i18n.t('avis_dos_correus') : 'Com que has demanat factura, rebràs dos correus: la confirmació de la teva entrada i, més endavant, la factura.')}</p>`
-    : '';
 
   contenidor.innerHTML = `
     <p class="subtitle">
       <strong>${escapeHtml(data.evento.nombre)}</strong><br>
       📅 ${escapeHtml(dataText)}<br>
-      🎟️ ${data.compra.cantidad} entrada(es) — ${escapeHtml(importText)}
+      🎟️ ${data.compra.cantidad} ${data.compra.cantidad === 1 ? 'plaça' : 'places'} — ${escapeHtml(importText)}
     </p>
-    ${avisFactura}
   `;
 }
 
@@ -54,4 +47,3 @@ async function carregarConfirmacio() {
 }
 
 document.addEventListener('DOMContentLoaded', carregarConfirmacio);
-document.addEventListener('idiomaCanviat', renderitzarConfirmacio);

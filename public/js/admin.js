@@ -186,7 +186,7 @@ async function aplicarRestriccionsPerRol() {
       el.disabled = true;
     });
   }
-  const linkExportEl = document.getElementById('link-export-csv');
+  const linkExportEl = document.getElementById('link-export-pdf');
   if (linkExportEl) linkExportEl.style.display = 'none';
   const btnEmailProvaEl = document.getElementById('btn-enviar-email-prova');
   if (btnEmailProvaEl) btnEmailProvaEl.style.display = 'none';
@@ -195,72 +195,6 @@ async function aplicarRestriccionsPerRol() {
 // encara i provocaria un bucle de redireccions via el 401 de apiFetch).
 if (document.getElementById('btn-logout') && !document.getElementById('form-evento-editar')) {
   document.addEventListener('DOMContentLoaded', aplicarRestriccionsPerRol);
-}
-
-const ICONA_CADENAT_TANCAT =
-  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
-const ICONA_CADENAT_OBERT =
-  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.75-3.5"/></svg>';
-
-// Cadenats de bloqueig de traducció: quan un camp ES/CA/EN es marca com a
-// bloquejat, la traducció automàtica del blur d'un altre idioma ja no el
-// pot sobreescriure, però l'admin el pot continuar editant a mà sense
-// problema.
-function inicialitzarBloquejosTraduccio() {
-  document.querySelectorAll('.btn-bloqueig-traduccio').forEach((btn) => {
-    if (btn.dataset.bloquejInicialitzat) return;
-    btn.dataset.bloquejInicialitzat = '1';
-    btn.innerHTML = ICONA_CADENAT_OBERT;
-    btn.addEventListener('click', () => {
-      const bloquejat = btn.getAttribute('aria-pressed') === 'true';
-      btn.setAttribute('aria-pressed', String(!bloquejat));
-      btn.innerHTML = bloquejat ? ICONA_CADENAT_OBERT : ICONA_CADENAT_TANCAT;
-      btn.setAttribute(
-        'aria-label',
-        bloquejat
-          ? 'Bloqueja aquesta traducció perquè no es sobreescrigui automàticament'
-          : 'Desbloqueja aquesta traducció'
-      );
-    });
-  });
-}
-
-function campTraduccioBloquejat(input) {
-  const camp = input.closest('.camp-traduccio');
-  const btn = camp && camp.querySelector('.btn-bloqueig-traduccio');
-  return !!btn && btn.getAttribute('aria-pressed') === 'true';
-}
-
-// Traducció en viu del "Nom" de l'esdeveniment: es pot escriure en
-// qualsevol dels 3 idiomes i, en sortir del camp, es completen sols els
-// altres dos (que després es poden editar sense problema, com qualsevol
-// altre camp de text, o bloquejar amb el cadenat perquè no es tornin a
-// sobreescriure).
-function configurarTraduccioNom(camps) {
-  inicialitzarBloquejosTraduccio();
-  Object.entries(camps).forEach(([idioma, input]) => {
-    if (!input) return;
-    input.addEventListener('blur', async () => {
-      const text = input.value.trim();
-      if (!text) return;
-      const res = await apiFetch('/api/admin/traduir-nom', {
-        method: 'POST',
-        body: JSON.stringify({ nombre: text, idioma }),
-      });
-      if (!res || !res.ok) return;
-      const traduccions = await res.json();
-      Object.entries(camps).forEach(([altreIdioma, altreInput]) => {
-        if (
-          altreIdioma !== idioma &&
-          altreInput &&
-          traduccions[altreIdioma] &&
-          !campTraduccioBloquejat(altreInput)
-        ) {
-          altreInput.value = traduccions[altreIdioma];
-        }
-      });
-    });
-  });
 }
 
 function formatEuros(centims) {
@@ -286,6 +220,22 @@ function badgeEntradesRestants(ev) {
   `;
 }
 
+// Mateixos 4 estats que estado_pago a la BD (config/schema.sql): pendiente
+// | pagado | cancelado | reembolsado. Badge discret (mateix patró que
+// .admin-historial-badge) només visible amb el toggle "Mostrar totes les
+// compres" actiu — amb el filtre per defecte totes dirien "Pagat".
+const ESTATS_PAGAMENT_LLEGIBLES = {
+  pendiente: 'Pendent',
+  pagado: 'Pagat',
+  cancelado: 'Cancel·lat',
+  reembolsado: 'Reemborsat',
+};
+
+function badgeEstatPagament(estat) {
+  const text = ESTATS_PAGAMENT_LLEGIBLES[estat] || estat;
+  return `<span class="estat-pagament-badge estat-pagament-badge--${escapeAttr(estat)}">${escapeHtml(text)}</span>`;
+}
+
 function formatData(isoString) {
   const data = new Date(isoString);
   const dataText = data.toLocaleDateString('ca-ES', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -309,15 +259,110 @@ function escapeAttr(text) {
   return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Llista dinàmica de convidats/ponents d'un esdeveniment (nom + càrrec,
+// sense límit, cal almenys un amb nom per poder desar). S'usa tant al
+// formulari de creació (index.html) com al d'edició (evento.html) — per
+// això és una funció reutilitzable en lloc de duplicar-la: input(s) en
+// línia + botó circular d'eliminar, re-renderitzat sencer a cada canvi.
+// Sempre hi ha almenys una fila visible (el botó d'eliminar es desactiva
+// a l'última): la validació de "cal almenys un" es fa igualment abans
+// d'enviar, per si l'única fila es deixa sense nom.
+function crearGestorInvitados(idContenidor) {
+  const cont = document.getElementById(idContenidor);
+  let invitados = [{ nombre: '', cargo: '' }];
+
+  function render() {
+    cont.innerHTML = '';
+    invitados.forEach((inv, i) => {
+      const fila = document.createElement('div');
+      fila.className = 'fila-invitat';
+      fila.innerHTML = `
+        <input type="text" placeholder="Nom" aria-label="Nom del convidat" value="${escapeAttr(inv.nombre)}" data-camp="nombre" data-i="${i}">
+        <input type="text" placeholder="Càrrec (opcional)" aria-label="Càrrec del convidat" value="${escapeAttr(inv.cargo)}" data-camp="cargo" data-i="${i}">
+        <button type="button" data-i="${i}" aria-label="Elimina aquest convidat" ${invitados.length === 1 ? 'disabled' : ''}>✕</button>
+      `;
+      cont.appendChild(fila);
+    });
+
+    cont.querySelectorAll('input').forEach((input) => {
+      input.addEventListener('input', () => {
+        invitados[parseInt(input.dataset.i, 10)][input.dataset.camp] = input.value;
+      });
+    });
+    cont.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (invitados.length <= 1) return;
+        invitados.splice(parseInt(btn.dataset.i, 10), 1);
+        render();
+      });
+    });
+  }
+
+  render();
+
+  return {
+    afegir() {
+      invitados.push({ nombre: '', cargo: '' });
+      render();
+    },
+    // Carrega una llista existent (edició) o la reinicialitza a una fila
+    // buida (formulari nou / després de crear amb èxit).
+    carregar(llista) {
+      invitados = Array.isArray(llista) && llista.length
+        ? llista.map((inv) => ({ nombre: inv.nombre || '', cargo: inv.cargo || '' }))
+        : [{ nombre: '', cargo: '' }];
+      render();
+    },
+    // Només els que tenen nom (les files buides s'ignoren), retallats d'espais.
+    obtenirValid() {
+      return invitados
+        .map((inv) => ({ nombre: inv.nombre.trim(), cargo: inv.cargo.trim() }))
+        .filter((inv) => inv.nombre);
+    },
+  };
+}
+
+// Substitueix el globus de validació nativa del navegador (el "Completa
+// aquest camp"): tots els formularis de l'admin porten `novalidate` a
+// l'HTML perquè no aparegui, i aquesta funció fa la mateixa comprovació
+// (form.checkValidity(), basada en required/type=... dels <input>) però
+// mostrant l'error amb el mateix bloc .form-error/paràgraf d'error que ja
+// fa servir cada formulari, amb focus al primer camp que falla. Mateix
+// patró visual que ja tenia l'acordió d'acompanyants del checkout
+// (:invalid + una classe "--validat" que activa la vora vermella, vegeu
+// forms.css) — aquí generalitzat a .form-validat per a qualsevol
+// formulari en lloc d'inventar-ne un altre.
+function missatgeValidacioCamp(camp) {
+  if (!camp) return 'Revisa les dades del formulari.';
+  if (camp.type === 'checkbox' && camp.validity.valueMissing) {
+    return "Has d'acceptar-ho per continuar.";
+  }
+  if (camp.validity.valueMissing) return 'Aquest camp és obligatori.';
+  if (camp.validity.typeMismatch) return 'Introdueix un email vàlid.';
+  return camp.validationMessage || 'Revisa aquest camp.';
+}
+
+function validarCampsNatius(form, errorEl) {
+  form.classList.add('form-validat');
+  if (form.checkValidity()) return true;
+  const camp = form.querySelector(':invalid');
+  if (camp) camp.focus();
+  if (errorEl) errorEl.textContent = missatgeValidacioCamp(camp);
+  return false;
+}
+
 // Formulari de login
 const formLogin = document.getElementById('form-login');
 if (formLogin) {
   formLogin.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const usuari = document.getElementById('usuari').value;
-    const contrasenya = document.getElementById('contrasenya').value;
     const errorEl = document.getElementById('error-login');
     errorEl.textContent = '';
+
+    if (!validarCampsNatius(formLogin, errorEl)) return;
+
+    const usuari = document.getElementById('usuari').value;
+    const contrasenya = document.getElementById('contrasenya').value;
 
     const res = await fetch('/admin/login', {
       method: 'POST',
@@ -381,7 +426,7 @@ function mostrarTooltipCalendari(evt, eventosDia) {
         <div>
           <div>${escapeHtml(ev.nombre)}</div>
           <div>Aforament: <strong>${ev.aforo_total}</strong></div>
-          <div>Entrades comprades: <strong>${ev.ocupadas || 0}</strong></div>
+          <div>Places comprades: <strong>${ev.ocupadas || 0}</strong></div>
           <button type="button" class="calendari-tooltip-link" data-evento-id="${ev.id}">Veure detall ›</button>
         </div>
       `
@@ -606,42 +651,34 @@ if (taulaEventos) {
   }
 
   const formEvento = document.getElementById('form-evento');
-  configurarTraduccioNom({
-    ca: document.getElementById('nombre'),
-    es: document.getElementById('nombre_es'),
-    en: document.getElementById('nombre_en'),
-  });
-  configurarTraduccioNom({
-    ca: document.getElementById('descripcion'),
-    es: document.getElementById('descripcion_es'),
-    en: document.getElementById('descripcion_en'),
-  });
+
+  const gestorInvitatsCrear = crearGestorInvitados('llista-invitats');
+  document.getElementById('btn-afegir-invitat').addEventListener('click', () => gestorInvitatsCrear.afegir());
+
   formEvento.addEventListener('submit', async (e) => {
     e.preventDefault();
     const errorEl = document.getElementById('error-evento');
     errorEl.textContent = '';
 
     const fechaEventoInput = document.getElementById('fecha');
-    const fechaLimiteInput = document.getElementById('fecha_limite_compra');
-    const fechaLimite = new Date(fechaLimiteInput.dataset.valor || fechaLimiteInput.value);
-    if (fechaLimite < new Date()) {
-      errorEl.textContent = 'La data límit de compra no pot ser una data ja passada.';
+    if (!fechaEventoInput.dataset.valor) {
+      errorEl.textContent = "Tria la data de l'esdeveniment.";
+      return;
+    }
+
+    if (!validarCampsNatius(formEvento, errorEl)) return;
+
+    const invitados = gestorInvitatsCrear.obtenirValid();
+    if (invitados.length === 0) {
+      errorEl.textContent = 'Cal almenys un convidat amb nom.';
       return;
     }
 
     const body = {
       nombre: document.getElementById('nombre').value,
-      nombre_es: document.getElementById('nombre_es').value,
-      nombre_en: document.getElementById('nombre_en').value,
       fecha: new Date(fechaEventoInput.dataset.valor || fechaEventoInput.value).toISOString(),
       descripcion: document.getElementById('descripcion').value,
-      descripcion_es: document.getElementById('descripcion_es').value,
-      descripcion_en: document.getElementById('descripcion_en').value,
-      precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
-      aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
-      fecha_limite_compra: fechaLimite.toISOString(),
-      nombre_invitado: document.getElementById('nombre_invitado').value,
-      cargo_invitado: document.getElementById('cargo_invitado').value,
+      invitados,
     };
 
     const res = await apiFetch('/api/admin/eventos', {
@@ -653,9 +690,10 @@ if (taulaEventos) {
     if (res.ok) {
       formEvento.reset();
       delete fechaEventoInput.dataset.valor;
-      delete fechaLimiteInput.dataset.valor;
+      document.getElementById('preview-limit-compra').textContent = '';
+      gestorInvitatsCrear.carregar([]);
       carregarEventos();
-      renderCalendariLimit();
+      renderMiniCalendari();
       if (modalCrearEvento) tancarModalCrear();
     } else {
       const data = await res.json();
@@ -666,19 +704,18 @@ if (taulaEventos) {
   carregarEventos();
 }
 
-// Mini-calendari compartit pels camps "Data de l'esdeveniment" i "Data
-// límit de compra" (només al formulari de creació): en clicar el primer
-// camp s'obre en mode "esdeveniment" (qualsevol dia futur); un cop triat,
-// canvia sol a mode "límit" (marca el dia de l'esdeveniment i pinta més
-// clar els dies vàlids entremig, deshabilitant la resta) perquè triïs de
-// seguida el termini de compra, sense haver d'obrir un segon calendari.
+// Mini-calendari per triar la "Data de l'esdeveniment" al formulari de
+// creació. La data límit de compra ja NO es tria aquí (abans hi havia un
+// segon "mode" del calendari per fer-ho): es calcula sempre al backend com
+// 48h abans de l'esdeveniment (calcularFechaLimiteCompra, vegeu
+// utils/eventoConfig.js). El que es veu sota el camp és només una
+// previsualització de només lectura, recalculada en triar cada dia — el
+// valor que compta de debò el torna a calcular el backend igualment.
 const limitGraella = document.getElementById('limit-graella');
 if (limitGraella) {
   let calMesVisible = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  let modeCalendari = 'esdeveniment'; // 'esdeveniment' | 'limit'
   const inputFecha = document.getElementById('fecha');
-  const inputLimit = document.getElementById('fecha_limite_compra');
-  const titolCalendari = document.getElementById('mini-calendari-titol');
+  const previewLimit = document.getElementById('preview-limit-compra');
   const miniCalendari = document.getElementById('mini-calendari-limit');
   const campAmbMinicalendari = document.querySelector('.camp-amb-minicalendari');
 
@@ -715,38 +752,34 @@ if (limitGraella) {
     inputHora.value = horaActual;
   }
 
-  // Canviar l'hora actualitza a l'instant el camp actiu (si ja té data
-  // triada), sense necessitat de tornar a clicar cap dia del calendari.
+  function actualitzarPreviewLimit() {
+    const dataEvento = valorInput(inputFecha);
+    if (!dataEvento) {
+      previewLimit.textContent = '';
+      return;
+    }
+    const limit = new Date(dataEvento.getTime() - 48 * 3600 * 1000);
+    previewLimit.textContent = `Data límit de compra: ${formatData(limit.toISOString())} (calculada automàticament, 48h abans de l'esdeveniment).`;
+  }
+
+  // Canviar l'hora actualitza a l'instant el camp (si ja té data triada),
+  // sense necessitat de tornar a clicar cap dia del calendari.
   inputHora.addEventListener('input', () => {
-    const inputActiu = modeCalendari === 'esdeveniment' ? inputFecha : inputLimit;
-    const cru = inputActiu.dataset.valor;
+    const cru = inputFecha.dataset.valor;
     if (cru && cru.includes('T') && inputHora.value) {
       const [any, mes, dia] = cru.split('T')[0].split('-').map(Number);
-      inputActiu.dataset.valor = `${cru.split('T')[0]}T${inputHora.value}`;
-      inputActiu.value = formatVisual(any, mes - 1, dia, inputHora.value);
+      inputFecha.dataset.valor = `${cru.split('T')[0]}T${inputHora.value}`;
+      inputFecha.value = formatVisual(any, mes - 1, dia, inputHora.value);
+      actualitzarPreviewLimit();
     }
   });
 
-  function renderCalendariLimit() {
-    const dataEventoRaw = valorInput(inputFecha);
-    const dataEvento = dataEventoRaw ? inicioDia(dataEventoRaw) : null;
+  function renderMiniCalendari() {
     const avui = inicioDia(new Date());
-    const inputActiu = modeCalendari === 'esdeveniment' ? inputFecha : inputLimit;
-    const seleccionatRaw = valorInput(inputActiu);
+    const seleccionatRaw = valorInput(inputFecha);
     const seleccionat = seleccionatRaw ? clauData(seleccionatRaw) : null;
 
-    inputHora.value = inputActiu.dataset.valor
-      ? inputActiu.dataset.valor.split('T')[1]
-      : modeCalendari === 'esdeveniment' ? '20:00' : '23:59';
-
-    titolCalendari.textContent =
-      modeCalendari === 'esdeveniment' ? "Tria la data de l'esdeveniment" : 'Tria el límit de compra';
-
-    // El botó "Següent" només té sentit en mode "esdeveniment" i un cop ja
-    // s'ha triat un dia (perquè abans encara no hi ha res a confirmar).
-    document
-      .getElementById('mini-calendari-seguent')
-      .classList.toggle('hidden', !(modeCalendari === 'esdeveniment' && inputFecha.dataset.valor));
+    inputHora.value = inputFecha.dataset.valor ? inputFecha.dataset.valor.split('T')[1] : '13:00';
 
     const any = calMesVisible.getFullYear();
     const mes = calMesVisible.getMonth();
@@ -770,17 +803,9 @@ if (limitGraella) {
     for (let dia = 1; dia <= diesAlMes; dia++) {
       const data = new Date(any, mes, dia);
       const clau = clauData(data);
-
-      // En mode "esdeveniment" només cal que el dia no hagi passat. En mode
-      // "límit" el dia ha d'estar entre avui i el dia de l'esdeveniment.
-      const foraDeRang =
-        modeCalendari === 'esdeveniment' ? data < avui : data < avui || (dataEvento && data > dataEvento);
-      const esMarcat = modeCalendari === 'limit' && dataEvento && data.getTime() === dataEvento.getTime();
-      const esInterval = modeCalendari === 'limit' && !esMarcat && !foraDeRang && dataEvento;
+      const foraDeRang = data < avui;
 
       const classes = ['calendari-dia'];
-      if (esMarcat) classes.push('calendari-dia--marcat');
-      if (esInterval) classes.push('calendari-dia--interval');
       if (foraDeRang) classes.push('calendari-dia--fora-rang');
       if (clau === seleccionat) classes.push('calendari-dia--seleccionat');
 
@@ -795,16 +820,10 @@ if (limitGraella) {
         btn.className = 'calendari-dia-numero';
         btn.textContent = dia;
         btn.addEventListener('click', () => {
-          if (modeCalendari === 'esdeveniment') {
-            // Es queda en mode "esdeveniment" perquè l'admin pugui ajustar
-            // l'hora abans de passar al límit de compra (amb el botó "Següent").
-            omplirCampData(inputFecha, any, mes, dia, '20:00');
-            renderCalendariLimit();
-          } else {
-            omplirCampData(inputLimit, any, mes, dia, '23:59');
-            renderCalendariLimit();
-            amagarMiniCalendariLimit();
-          }
+          omplirCampData(inputFecha, any, mes, dia, '13:00');
+          renderMiniCalendari();
+          actualitzarPreviewLimit();
+          amagarMiniCalendari();
         });
         cella.appendChild(btn);
       }
@@ -815,46 +834,37 @@ if (limitGraella) {
 
   document.getElementById('limit-mes-anterior').addEventListener('click', () => {
     calMesVisible.setMonth(calMesVisible.getMonth() - 1);
-    renderCalendariLimit();
+    renderMiniCalendari();
   });
   document.getElementById('limit-mes-seguent').addEventListener('click', () => {
     calMesVisible.setMonth(calMesVisible.getMonth() + 1);
-    renderCalendariLimit();
+    renderMiniCalendari();
   });
 
-  document.getElementById('mini-calendari-seguent').addEventListener('click', () => {
-    const dataEvento = valorInput(inputFecha);
-    modeCalendari = 'limit';
-    if (dataEvento) calMesVisible = new Date(dataEvento.getFullYear(), dataEvento.getMonth(), 1);
-    renderCalendariLimit();
-    inputLimit.focus();
-  });
-
-  function obrirCalendari(mode) {
-    modeCalendari = mode;
-    const referencia = mode === 'esdeveniment' ? valorInput(inputFecha) : valorInput(inputLimit) || valorInput(inputFecha);
-    calMesVisible = referencia ? new Date(referencia.getFullYear(), referencia.getMonth(), 1) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    renderCalendariLimit();
+  function obrirCalendari() {
+    const referencia = valorInput(inputFecha);
+    calMesVisible = referencia
+      ? new Date(referencia.getFullYear(), referencia.getMonth(), 1)
+      : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    renderMiniCalendari();
     miniCalendari.classList.remove('hidden');
   }
 
-  function amagarMiniCalendariLimit() {
+  function amagarMiniCalendari() {
     miniCalendari.classList.add('hidden');
   }
 
-  inputFecha.addEventListener('focus', () => obrirCalendari('esdeveniment'));
-  inputFecha.addEventListener('click', () => obrirCalendari('esdeveniment'));
-  inputLimit.addEventListener('focus', () => obrirCalendari('limit'));
-  inputLimit.addEventListener('click', () => obrirCalendari('limit'));
+  inputFecha.addEventListener('focus', obrirCalendari);
+  inputFecha.addEventListener('click', obrirCalendari);
   miniCalendari.addEventListener('click', (evt) => evt.stopPropagation());
-  document.getElementById('btn-tancar-mini-calendari').addEventListener('click', amagarMiniCalendariLimit);
+  document.getElementById('btn-tancar-mini-calendari').addEventListener('click', amagarMiniCalendari);
   document.addEventListener('click', (evt) => {
     if (!campAmbMinicalendari.contains(evt.target)) {
-      amagarMiniCalendariLimit();
+      amagarMiniCalendari();
     }
   });
   document.addEventListener('keydown', (evt) => {
-    if (evt.key === 'Escape') amagarMiniCalendariLimit();
+    if (evt.key === 'Escape') amagarMiniCalendari();
   });
 }
 
@@ -869,19 +879,6 @@ const formEventoEditar = document.getElementById('form-evento-editar');
 if (formEventoEditar) {
   const params = new URLSearchParams(window.location.search);
   const eventoId = params.get('id');
-
-  document.getElementById('link-export-csv').href = `/api/admin/eventos/${eventoId}/compras/export.csv`;
-
-  configurarTraduccioNom({
-    ca: document.getElementById('nombre'),
-    es: document.getElementById('nombre_es'),
-    en: document.getElementById('nombre_en'),
-  });
-  configurarTraduccioNom({
-    ca: document.getElementById('descripcion'),
-    es: document.getElementById('descripcion_es'),
-    en: document.getElementById('descripcion_en'),
-  });
 
   const btnEliminar = document.getElementById('btn-eliminar-evento');
   btnEliminar.addEventListener('click', async () => {
@@ -913,156 +910,63 @@ if (formEventoEditar) {
     }
   });
 
-  let camposFormularioActuals = [];
-  let indexCampEditant = null;
-  let opcionsModalActuals = [];
+  const gestorInvitatsEditar = crearGestorInvitados('llista-invitats');
+  document.getElementById('btn-afegir-invitat').addEventListener('click', () => gestorInvitatsEditar.afegir());
 
-  function generarIdCamp() {
-    return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  // Avís propi (no beforeunload natiu, expressament exclòs: això és
+  // navegació dins l'admin, no tancar la pestanya) en sortir de l'edició
+  // amb canvis sense desar. `hiHaCanvisSenseDesar` es marca a true amb
+  // qualsevol canvi als camps de l'esdeveniment (incloent afegir/eliminar
+  // convidats) i es reinicialitza a false just després de carregar les
+  // dades (perquè omplir el formulari no compti com "un canvi") i després
+  // de desar amb èxit.
+  let hiHaCanvisSenseDesar = false;
+  function marcarCanvisSenseDesar() {
+    hiHaCanvisSenseDesar = true;
   }
-
-  function etiquetaTipo(tipo) {
-    return { texto: 'Text lliure', numero: 'Número', seleccion: 'Selecció' }[tipo] || tipo;
-  }
-
-  function renderLlistaCamps() {
-    const cont = document.getElementById('llista-camps-formulari');
-    cont.innerHTML = '';
-    if (camposFormularioActuals.length === 0) {
-      cont.innerHTML = '<p class="camps-formulari-buit">Encara no hi ha cap camp definit.</p>';
-      return;
-    }
-    camposFormularioActuals.forEach((campo, i) => {
-      const fila = document.createElement('div');
-      fila.className = 'fila-camp-formulari';
-      fila.innerHTML = `
-        <span class="fila-camp-formulari-etiqueta">${escapeHtml(campo.etiqueta)}</span>
-        <span class="fila-camp-formulari-tipus">${etiquetaTipo(campo.tipo)}</span>
-        <button type="button" data-accio="requerido" data-i="${i}" aria-pressed="${campo.requerido ? 'true' : 'false'}" aria-label="${campo.requerido ? 'Camp obligatori (clica per fer-lo opcional)' : 'Camp opcional (clica per fer-lo obligatori)'}" title="Obligatori">*</button>
-        <button type="button" data-accio="pujar" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Puja ${escapeHtml(campo.etiqueta)}">▲</button>
-        <button type="button" data-accio="baixar" data-i="${i}" ${i === camposFormularioActuals.length - 1 ? 'disabled' : ''} aria-label="Baixa ${escapeHtml(campo.etiqueta)}">▼</button>
-        <button type="button" data-accio="editar" data-i="${i}" aria-label="Edita ${escapeHtml(campo.etiqueta)}">✎</button>
-        <button type="button" data-accio="eliminar" data-i="${i}" aria-label="Elimina ${escapeHtml(campo.etiqueta)}">✕</button>
-      `;
-      cont.appendChild(fila);
-    });
-
-    cont.querySelectorAll('button[data-accio]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const i = parseInt(btn.dataset.i, 10);
-        const accio = btn.dataset.accio;
-        if (accio === 'requerido') {
-          camposFormularioActuals[i].requerido = !camposFormularioActuals[i].requerido;
-          renderLlistaCamps();
-        } else if (accio === 'pujar' && i > 0) {
-          [camposFormularioActuals[i - 1], camposFormularioActuals[i]] = [camposFormularioActuals[i], camposFormularioActuals[i - 1]];
-          renderLlistaCamps();
-        } else if (accio === 'baixar' && i < camposFormularioActuals.length - 1) {
-          [camposFormularioActuals[i + 1], camposFormularioActuals[i]] = [camposFormularioActuals[i], camposFormularioActuals[i + 1]];
-          renderLlistaCamps();
-        } else if (accio === 'eliminar') {
-          camposFormularioActuals.splice(i, 1);
-          renderLlistaCamps();
-        } else if (accio === 'editar') {
-          obrirModalCamp(i);
-        }
-      });
-    });
-  }
-
-  function renderOpcionsModal(opciones) {
-    const cont = document.getElementById('llista-opcions-camp');
-    cont.innerHTML = '';
-    opciones.forEach((opcio, i) => {
-      const fila = document.createElement('div');
-      fila.className = 'fila-opcio-camp';
-      fila.innerHTML = `<input type="text" value="${escapeAttr(opcio)}" data-i="${i}"><button type="button" data-i="${i}">✕</button>`;
-      cont.appendChild(fila);
-    });
-    cont.querySelectorAll('button').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        opcionsModalActuals.splice(parseInt(btn.dataset.i, 10), 1);
-        renderOpcionsModal(opcionsModalActuals);
-      });
-    });
-    cont.querySelectorAll('input').forEach((input) => {
-      input.addEventListener('input', () => {
-        opcionsModalActuals[parseInt(input.dataset.i, 10)] = input.value;
-      });
-    });
-  }
-
-  function obrirModalCamp(i) {
-    indexCampEditant = i === undefined ? null : i;
-    const campo = i === undefined ? null : camposFormularioActuals[i];
-    document.getElementById('camp-etiqueta').value = campo ? campo.etiqueta : '';
-    document.getElementById('camp-tipo').value = campo ? campo.tipo : 'texto';
-    document.getElementById('camp-unidad').value = campo && campo.unidad ? campo.unidad : '';
-    document.getElementById('camp-min').value = campo && campo.min !== undefined ? campo.min : '';
-    document.getElementById('camp-max').value = campo && campo.max !== undefined ? campo.max : '';
-    document.getElementById('camp-requerido').checked = !!(campo && campo.requerido);
-    document.getElementById('camp-multiple').checked = !!(campo && campo.multiple);
-    opcionsModalActuals = campo && Array.isArray(campo.opciones) ? [...campo.opciones] : [];
-    renderOpcionsModal(opcionsModalActuals);
-    document.getElementById('error-camp-formulari').textContent = '';
-    actualitzarVisibilitatTipusModal();
-    document.getElementById('modal-camp-formulari').classList.remove('hidden');
-  }
-
-  function actualitzarVisibilitatTipusModal() {
-    const tipo = document.getElementById('camp-tipo').value;
-    document.getElementById('camp-opcions-numero').classList.toggle('hidden', tipo !== 'numero');
-    document.getElementById('camp-opcions-seleccion').classList.toggle('hidden', tipo !== 'seleccion');
-  }
-
-  document.getElementById('camp-tipo').addEventListener('change', actualitzarVisibilitatTipusModal);
-  document.getElementById('btn-afegir-camp').addEventListener('click', () => obrirModalCamp(undefined));
-  document.getElementById('btn-cancelar-camp').addEventListener('click', () => {
-    document.getElementById('modal-camp-formulari').classList.add('hidden');
+  ['nombre', 'fecha', 'descripcion', 'estado', 'email_asunto', 'email_html'].forEach((id) => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', marcarCanvisSenseDesar);
+    el.addEventListener('change', marcarCanvisSenseDesar);
   });
-  document.getElementById('btn-afegir-opcio-camp').addEventListener('click', () => {
-    opcionsModalActuals.push('');
-    renderOpcionsModal(opcionsModalActuals);
+  // Els inputs de nom/càrrec de cada convidat es recreen a cada render()
+  // (crearGestorInvitados): delegat sobre el contenidor estable en lloc de
+  // re-enganxar el listener a cada fila nova. Els botons (afegir/eliminar
+  // convidat) no disparen input/change, per això cal 'click' a part.
+  document.getElementById('llista-invitats').addEventListener('input', marcarCanvisSenseDesar);
+  document.getElementById('llista-invitats').addEventListener('click', (e) => {
+    if (e.target.tagName === 'BUTTON') marcarCanvisSenseDesar();
   });
+  document.getElementById('btn-afegir-invitat').addEventListener('click', marcarCanvisSenseDesar);
 
-  document.getElementById('btn-desar-camp').addEventListener('click', () => {
-    const errorEl = document.getElementById('error-camp-formulari');
-    const etiqueta = document.getElementById('camp-etiqueta').value.trim();
-    const tipo = document.getElementById('camp-tipo').value;
-    if (!etiqueta) {
-      errorEl.textContent = 'Cal una etiqueta per al camp.';
-      return;
-    }
-    if (tipo === 'seleccion' && opcionsModalActuals.filter((o) => o.trim()).length === 0) {
-      errorEl.textContent = 'Cal almenys una opció.';
-      return;
-    }
-    const campo = {
-      id: indexCampEditant !== null ? camposFormularioActuals[indexCampEditant].id : generarIdCamp(),
-      etiqueta,
-      tipo,
-      requerido: document.getElementById('camp-requerido').checked,
-    };
-    if (tipo === 'numero') {
-      const unidad = document.getElementById('camp-unidad').value.trim();
-      const min = document.getElementById('camp-min').value;
-      const max = document.getElementById('camp-max').value;
-      if (unidad) campo.unidad = unidad;
-      if (min !== '') campo.min = parseFloat(min);
-      if (max !== '') campo.max = parseFloat(max);
-    }
-    if (tipo === 'seleccion') {
-      campo.opciones = opcionsModalActuals.map((o) => o.trim()).filter(Boolean);
-      campo.multiple = document.getElementById('camp-multiple').checked;
-    }
+  const modalCanvis = document.getElementById('modal-canvis-sense-desar');
+  const linkTornar = document.getElementById('link-tornar-esdeveniments');
+  let urlSortidaPendent = null;
 
-    if (indexCampEditant !== null) {
-      camposFormularioActuals[indexCampEditant] = campo;
-    } else {
-      camposFormularioActuals.push(campo);
+  function obrirModalCanvis(url) {
+    urlSortidaPendent = url;
+    modalCanvis.classList.remove('hidden');
+  }
+  function tancarModalCanvis() {
+    modalCanvis.classList.add('hidden');
+    urlSortidaPendent = null;
+  }
+
+  linkTornar.addEventListener('click', (e) => {
+    if (hiHaCanvisSenseDesar) {
+      e.preventDefault();
+      obrirModalCanvis(linkTornar.href);
     }
-    document.getElementById('modal-camp-formulari').classList.add('hidden');
-    renderLlistaCamps();
+  });
+  document.getElementById('btn-canvis-quedar').addEventListener('click', tancarModalCanvis);
+  document.getElementById('btn-canvis-sortir').addEventListener('click', () => {
+    if (urlSortidaPendent) window.location.href = urlSortidaPendent;
+  });
+  modalCanvis.addEventListener('click', (e) => {
+    if (e.target === modalCanvis) tancarModalCanvis();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modalCanvis.classList.contains('hidden')) tancarModalCanvis();
   });
 
   async function carregarEvento() {
@@ -1075,44 +979,50 @@ if (formEventoEditar) {
     const evento = await res.json();
     document.getElementById('titol-evento').textContent = evento.nombre;
     document.getElementById('nombre').value = evento.nombre;
-    document.getElementById('nombre_es').value = evento.nombre_es || '';
-    document.getElementById('nombre_en').value = evento.nombre_en || '';
     document.getElementById('fecha').value = aInputDatetimeLocal(evento.fecha);
     document.getElementById('descripcion').value = evento.descripcion || '';
-    document.getElementById('descripcion_es').value = evento.descripcion_es || '';
-    document.getElementById('descripcion_en').value = evento.descripcion_en || '';
-    document.getElementById('precio').value = (evento.precio / 100).toFixed(2);
-    document.getElementById('aforo_total').value = evento.aforo_total;
-    document.getElementById('fecha_limite_compra').value = aInputDatetimeLocal(evento.fecha_limite_compra);
+    document.getElementById('dades-fixes-evento').textContent =
+      `Preu: ${formatEuros(evento.precio)} · Aforament: ${evento.aforo_total} places (fixos, no editables des d'aquí).`;
+    document.getElementById('dades-limit-compra').textContent =
+      `Data límit de compra: ${formatData(evento.fecha_limite_compra)} (calculada automàticament, 48h abans de l'esdeveniment — no editable).`;
     document.getElementById('estado').value = evento.estado;
-    document.getElementById('nombre_invitado').value = evento.nombre_invitado || '';
-    document.getElementById('cargo_invitado').value = evento.cargo_invitado || '';
+    gestorInvitatsEditar.carregar(evento.invitados);
     document.getElementById('email_asunto').value = evento.email_asunto || '';
     document.getElementById('email_html').value = evento.email_html || '';
-    camposFormularioActuals = Array.isArray(evento.campos_formulario) ? evento.campos_formulario : [];
-    renderLlistaCamps();
   }
+
+  // Previsualització de només lectura: es recalcula si l'admin canvia la
+  // data de l'esdeveniment (abans de desar). El valor real el torna a
+  // calcular el backend en rebre la petició (calcularFechaLimiteCompra a
+  // utils/eventoConfig.js), això és només perquè es vegi actualitzat aquí.
+  document.getElementById('fecha').addEventListener('input', () => {
+    const inputFecha = document.getElementById('fecha').value;
+    const dataEvento = new Date(inputFecha);
+    if (Number.isNaN(dataEvento.getTime())) return;
+    const limit = new Date(dataEvento.getTime() - 48 * 3600 * 1000);
+    document.getElementById('dades-limit-compra').textContent =
+      `Data límit de compra: ${formatData(limit.toISOString())} (calculada automàticament, 48h abans de l'esdeveniment — no editable).`;
+  });
 
   formEventoEditar.addEventListener('submit', async (e) => {
     e.preventDefault();
     const errorEl = document.getElementById('error-evento-editar');
     errorEl.textContent = '';
 
+    if (!validarCampsNatius(formEventoEditar, errorEl)) return;
+
+    const invitados = gestorInvitatsEditar.obtenirValid();
+    if (invitados.length === 0) {
+      errorEl.textContent = 'Cal almenys un convidat amb nom.';
+      return;
+    }
+
     const body = {
       nombre: document.getElementById('nombre').value,
-      nombre_es: document.getElementById('nombre_es').value,
-      nombre_en: document.getElementById('nombre_en').value,
       fecha: new Date(document.getElementById('fecha').value).toISOString(),
       descripcion: document.getElementById('descripcion').value,
-      descripcion_es: document.getElementById('descripcion_es').value,
-      descripcion_en: document.getElementById('descripcion_en').value,
-      precio: Math.round(parseFloat(document.getElementById('precio').value) * 100),
-      aforo_total: parseInt(document.getElementById('aforo_total').value, 10),
-      fecha_limite_compra: new Date(document.getElementById('fecha_limite_compra').value).toISOString(),
       estado: document.getElementById('estado').value,
-      nombre_invitado: document.getElementById('nombre_invitado').value,
-      cargo_invitado: document.getElementById('cargo_invitado').value,
-      campos_formulario: camposFormularioActuals,
+      invitados,
       email_asunto: document.getElementById('email_asunto').value,
       email_html: document.getElementById('email_html').value,
     };
@@ -1124,6 +1034,7 @@ if (formEventoEditar) {
     if (!res) return;
 
     if (res.ok) {
+      hiHaCanvisSenseDesar = false;
       window.location.href = '/admin/index.html';
     } else {
       const data = await res.json();
@@ -1168,49 +1079,85 @@ if (formEventoEditar) {
 
   const taulaCompras = document.getElementById('taula-compras');
   const filaCapsaleraCompras = document.getElementById('fila-capsalera-compras');
+  const totaComprasToggle = document.getElementById('tota-compres-toggle');
+  const linkExportPdf = document.getElementById('link-export-pdf');
+
+  // El PDF ha de reflectir sempre el mateix filtre que la taula en aquell
+  // moment (pagades per defecte, totes amb el toggle actiu) — es recalcula
+  // l'enllaç cada cop que el toggle canvia, no només un cop en carregar.
+  function actualitzarLinkExportPdf() {
+    if (!linkExportPdf) return;
+    const estat = totaComprasToggle && totaComprasToggle.checked ? 'todas' : 'pagado';
+    linkExportPdf.href = `/api/admin/eventos/${eventoId}/compras/export.pdf?estado=${estat}`;
+  }
 
   function actualitzarCapsaleraCompras() {
     if (!filaCapsaleraCompras) return;
-    filaCapsaleraCompras.querySelectorAll('th[data-camp-dinamic]').forEach((th) => th.remove());
+    filaCapsaleraCompras.querySelectorAll('th[data-estat-col]').forEach((th) => th.remove());
     const thAccions = filaCapsaleraCompras.querySelector('th:last-child');
-    camposFormularioActuals.forEach((campo) => {
-      const th = document.createElement('th');
-      th.dataset.campDinamic = '1';
-      th.textContent = campo.etiqueta;
-      filaCapsaleraCompras.insertBefore(th, thAccions);
-    });
+    // La columna d'estat només aporta res quan la taula pot mostrar
+    // compres que no siguin totes "pagado" (toggle "totes" actiu): amb el
+    // filtre per defecte, totes les files dirien el mateix.
+    if (totaComprasToggle && totaComprasToggle.checked) {
+      const thEstat = document.createElement('th');
+      thEstat.dataset.estatCol = '1';
+      thEstat.textContent = 'Estat';
+      filaCapsaleraCompras.insertBefore(thEstat, thAccions);
+    }
   }
 
   async function carregarCompras() {
-    const res = await apiFetch(`/api/admin/eventos/${eventoId}/compras`);
+    const mostrarTotes = !!(totaComprasToggle && totaComprasToggle.checked);
+    const res = await apiFetch(`/api/admin/eventos/${eventoId}/compras?estado=${mostrarTotes ? 'todas' : 'pagado'}`);
     if (!res) return;
     const compras = await res.json();
     actualitzarCapsaleraCompras();
     taulaCompras.innerHTML = '';
+    // Nombre de columnes de la taula (per al colspan de la fila de detall
+    // dels acompanyants): comprador/email/telèfon/quantitat/import/data (6)
+    // + la columna d'estat (només amb el toggle actiu) + la columna d'accions.
+    const numColumnes = 6 + (mostrarTotes ? 1 : 0) + 1;
     compras.forEach((c) => {
       const potCancelar = ['pendiente', 'pagado'].includes(c.estado_pago) && rolActual !== 'viewer';
-      const respuestas = c.respuestas_campos || {};
-      const tdsCamps = camposFormularioActuals.map((campo) => {
-        const valor = respuestas[campo.id];
-        const text = Array.isArray(valor) ? valor.join(', ') : (valor ?? '');
-        return `<td>${escapeHtml(text)}</td>`;
-      }).join('');
+      const tdEstat = mostrarTotes ? `<td>${badgeEstatPagament(c.estado_pago)}</td>` : '';
+      const teAcompanyants = Array.isArray(c.acompanyants) && c.acompanyants.length > 0;
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escapeHtml(c.nombre_comprador)}</td>
         <td>${escapeHtml(c.email)}</td>
         <td>${escapeHtml(c.telefono || '—')}</td>
-        <td>${c.cantidad}</td>
+        <td>${teAcompanyants
+          ? `<button type="button" class="btn-veure-acompanyants" data-id="${c.id}" aria-expanded="false" aria-controls="acompanyants-detall-${c.id}">${c.cantidad} <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+          : c.cantidad}</td>
         <td>${formatEuros(c.importe_total)}</td>
-        <td>${c.quiere_factura ? 'Sí' : 'No'}</td>
-        <td>${escapeHtml(c.nif || '—')}</td>
-        <td>${escapeHtml(c.nombre_fiscal || '—')}</td>
-        <td>${escapeHtml(c.direccion_fiscal || '—')}</td>
         <td>${formatData(c.created_at)}</td>
-        ${tdsCamps}
+        ${tdEstat}
         <td>${potCancelar ? `<button type="button" class="btn-cancelar-compra" data-id="${c.id}">Cancel·lar</button>` : ''}</td>
       `;
       taulaCompras.appendChild(tr);
+
+      // Fila de detall amagada, plegada per defecte: només informativa
+      // (nom/email/telèfon de cada acompanyant), no editable des d'aquí.
+      if (teAcompanyants) {
+        const trDetall = document.createElement('tr');
+        trDetall.className = 'fila-acompanyants hidden';
+        trDetall.id = `acompanyants-detall-${c.id}`;
+        trDetall.innerHTML = `
+          <td colspan="${numColumnes}">
+            <div class="acompanyants-detall">
+              <p class="acompanyants-detall-titol">Acompanyants</p>
+              ${c.acompanyants.map((ac) => `
+                <p class="acompanyants-detall-fila">
+                  <strong>${escapeHtml(ac.nombre)}</strong>
+                  <span>${escapeHtml(ac.email)}</span>
+                  ${ac.telefono ? `<span>${escapeHtml(ac.telefono)}</span>` : ''}
+                </p>
+              `).join('')}
+            </div>
+          </td>
+        `;
+        taulaCompras.appendChild(trDetall);
+      }
     });
 
     taulaCompras.querySelectorAll('.btn-cancelar-compra').forEach((btn) => {
@@ -1219,12 +1166,34 @@ if (formEventoEditar) {
         if (res2 && res2.ok) carregarCompras();
       });
     });
+
+    taulaCompras.querySelectorAll('.btn-veure-acompanyants').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const fila = document.getElementById(`acompanyants-detall-${btn.dataset.id}`);
+        if (!fila) return;
+        const obert = !fila.classList.contains('hidden');
+        fila.classList.toggle('hidden');
+        btn.setAttribute('aria-expanded', String(!obert));
+      });
+    });
   }
+
+  if (totaComprasToggle) {
+    totaComprasToggle.addEventListener('change', () => {
+      actualitzarLinkExportPdf();
+      carregarCompras();
+    });
+  }
+  actualitzarLinkExportPdf();
 
   // Espera a conèixer el rol abans de pintar les compres, perquè el botó
   // "Cancel·lar" no aparegui un instant per després desaparèixer.
   aplicarRestriccionsPerRol().then(async () => {
     await carregarEvento();
+    // Omplir el formulari amb les dades carregades no compta com "un
+    // canvi" — es reinicialitza aquí, després que carregarEvento() ja hagi
+    // assignat tots els valors (i disparat qualsevol event que això comporti).
+    hiHaCanvisSenseDesar = false;
     carregarCompras();
   });
 }

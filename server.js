@@ -3,6 +3,7 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 
+const db = require('./config/db');
 const webhookRoutes = require('./routes/webhookRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -41,8 +42,20 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'error_intern' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Portal Espai Econòmic escoltant a http://localhost:${PORT}`);
+// L'esquema es carrega explícitament aquí, abans d'acceptar cap petició —
+// abans era un efecte secundari de fer require('./config/db') (vegeu el
+// comentari d'aplicarSchema() allà), amb el mateix resultat net: el servidor
+// no serveix res fins que l'esquema està aplicat.
+async function iniciar() {
+  await db.aplicarSchema();
+  app.listen(PORT, () => {
+    console.log(`Portal Espai Econòmic escoltant a http://localhost:${PORT}`);
+  });
+}
+
+iniciar().catch((err) => {
+  console.error('Error arrencant el servidor:', err);
+  process.exit(1);
 });
 
 module.exports = app;

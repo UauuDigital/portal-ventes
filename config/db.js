@@ -11,14 +11,29 @@ const pool = new Pool({
   ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false },
 });
 
-const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-
-// S'espera abans de qualsevol consulta perquè les taules existeixin
-// (equivalent al raw.exec(schema) síncron que abans feia node:sqlite).
-const ready = pool.query(schema).catch((err) => {
-  console.error('Error aplicant l\'esquema a la base de dades:', err);
-  throw err;
-});
+/**
+ * Aplica config/schema.sql contra la BD connectada. Abans això passava sol
+ * en carregar aquest mòdul (efecte secundari del require): calia fer
+ * require('../config/db') — directament o via qualsevol model/controller —
+ * per tocar de veritat la BD, cosa que feia impossible fer require d'un
+ * model en un test sense connectar-se a una BD real (vegeu hallazgo ALT #9
+ * de l'auditoria inicial).
+ *
+ * Ara és responsabilitat explícita de qui arrenca l'aplicació (server.js,
+ * abans d'app.listen) o de qui l'escriu (scripts/migrar-invitados.js,
+ * scripts/seed.js, tests que necessitin BD de debò). És idempotent
+ * (CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS): es pot cridar
+ * tantes vegades com calgui sense trencar res.
+ */
+async function aplicarSchema() {
+  const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+  try {
+    await pool.query(schema);
+  } catch (err) {
+    console.error('Error aplicant l\'esquema a la base de dades:', err);
+    throw err;
+  }
+}
 
 /**
  * Converteix una sentència amb paràmetres amb nom estil "@nom" (com abans amb
@@ -49,14 +64,13 @@ function build(sql, args) {
 }
 
 async function execute(sql, args) {
-  await ready;
   const { text, values } = build(sql, args);
   return pool.query(text, values);
 }
 
 const db = {
-  ready,
   pool,
+  aplicarSchema,
   prepare(sql) {
     return {
       async get(...args) {

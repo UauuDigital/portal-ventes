@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title data-i18n="titol_index">Espai Econòmic — Reserva la teva entrada</title>
+<title>Espai Econòmic — Reserva la teva plaça</title>
 <link rel="icon" href="/assets/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Inter via Google Fonts (Ogg és una tipografia amb llicència pròpia de UAUU:
      veure comentari a css/style.css sobre com afegir-la a public/fonts/) -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css?v=10">
+<link rel="stylesheet" href="/css/style.css?v=18">
 </head>
 <body class="pagina-principal">
 
@@ -26,91 +26,82 @@
     <span class="logo-icon" aria-hidden="true"></span>
     <span>Espai Econòmic</span>
   </div>
-  <h1 data-i18n="selector_titol">Tria l'esdeveniment</h1>
-  <p class="subtitle" data-i18n="selector_subtitol">Ara mateix hi ha diverses reserves obertes. Tria a quina vols apuntar-te.</p>
+  <h1>Tria l'esdeveniment</h1>
+  <p class="subtitle">Ara mateix hi ha diverses reserves obertes. Tria a quina vols apuntar-te.</p>
   <div class="selector-grid" id="selector-grid"></div>
 </section>
+
+<button type="button" class="breadcrumb-tornar hidden" id="btn-tornar-selector">‹ Tots els esdeveniments</button>
 
 <main class="card hidden" data-layout="info-left" id="main-card">
 
   <section class="panel panel-color evento-info">
-    <div class="logo">
-      <span class="logo-icon" aria-hidden="true"></span>
-      <span>Espai Econòmic</span>
-    </div>
     <div class="evento-info-titol">
-      <button type="button" class="breadcrumb-tornar hidden" id="btn-tornar-selector" data-i18n="breadcrumb_tornar">‹ Tots els esdeveniments</button>
       <h1 id="evento-nombre">Carregant l'esdeveniment…</h1>
+      <p class="evento-data" id="evento-data"></p>
       <p id="evento-descripcio"></p>
     </div>
+    <div class="evento-convidats hidden" id="evento-convidats">
+      <span class="eyebrow">Ponents</span>
+      <div id="evento-convidats-llista"></div>
+    </div>
     <div class="evento-meta">
-      <span id="evento-data"></span>
-      <span id="evento-preu"></span>
-      <span id="evento-aforo"></span>
-      <div class="aforo-bar" id="aforo-bar" role="progressbar" aria-labelledby="evento-aforo">
-        <div class="aforo-bar-fill" id="aforo-bar-fill"></div>
-      </div>
+      <span class="eyebrow">Preu del menú</span>
+      <span class="evento-preu" id="evento-preu"></span>
     </div>
   </section>
 
   <section class="panel panel-white form-side">
-    <h2 data-i18n="form_titol">Reserva la teva plaça</h2>
-    <p class="subtitle" data-i18n="form_subtitol">Paga de forma segura amb targeta.</p>
+    <h2>Reserva la teva plaça</h2>
+    <p class="subtitle">Paga de forma segura amb targeta.</p>
 
     <div id="estat-no-disponible" class="estat-missatge hidden" role="status" aria-live="polite"></div>
 
-    <form id="form-compra">
-      <label for="cantidad" data-i18n="label_cantidad">Nombre d'entrades</label>
-      <input type="number" id="cantidad" name="cantidad" min="1" value="1" required>
+    <form id="form-compra" novalidate>
+      <span class="stepper-label" id="cantidad-label">Nombre de places</span>
+      <div class="stepper-cantidad" role="group" aria-labelledby="cantidad-label">
+        <button type="button" class="stepper-btn" id="btn-cantidad-menys" aria-label="Reduir nombre de places">−</button>
+        <span class="stepper-valor" id="cantidad-valor" aria-live="polite">1</span>
+        <button type="button" class="stepper-btn" id="btn-cantidad-mes" aria-label="Augmentar nombre de places">+</button>
+      </div>
+      <input type="hidden" id="cantidad" name="cantidad" value="1">
 
-      <label for="nombre_comprador" data-i18n="label_nom">Nom i cognoms</label>
+      <label for="nombre_comprador">Nom i cognoms</label>
       <input type="text" id="nombre_comprador" name="nombre_comprador" required>
 
-      <label for="email" data-i18n="label_email">Email</label>
+      <label for="email">Email</label>
       <input type="email" id="email" name="email" required>
 
-      <label for="telefono" data-i18n="label_telefon">Telèfon</label>
+      <label for="telefono">Telèfon</label>
       <div class="camp-telefon">
-        <div class="prefix-telefon" id="prefix-telefon">
-          <button type="button" class="prefix-telefon-btn" id="prefix-telefon-btn" aria-haspopup="listbox" aria-expanded="false">
-            <span id="prefix-telefon-bandera"></span>
-            <span id="prefix-telefon-codi">+34</span>
+        <div class="prefix-telefon">
+          <button type="button" class="prefix-telefon-btn" aria-haspopup="listbox" aria-expanded="false">
+            <span class="prefix-telefon-bandera"></span>
+            <span class="prefix-telefon-codi">+34</span>
             <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <ul class="prefix-telefon-llista hidden" id="prefix-telefon-llista" role="listbox" data-i18n-aria="prefix_pais_label" aria-label="Prefix del país"></ul>
-          <input type="hidden" id="prefix_telefono" value="+34">
+          <ul class="prefix-telefon-llista hidden" role="listbox" aria-label="Prefix del país"></ul>
+          <input type="hidden" class="prefix-telefon-valor" value="+34">
         </div>
         <input type="tel" id="telefono" name="telefono">
       </div>
 
-      <div class="checkbox-row">
-        <input type="checkbox" id="quiere_factura" name="quiere_factura">
-        <label for="quiere_factura" data-i18n="checkbox_factura">Vull factura amb dades fiscals</label>
-      </div>
+      <div id="acompanyants-dinamics"></div>
 
-      <div id="camps-formulari-dinamics"></div>
-
-      <div id="camps-fiscals" class="fiscal-fields hidden">
-        <label for="nif" data-i18n="label_nif">NIF / CIF</label>
-        <input type="text" id="nif" name="nif">
-        <label for="nombre_fiscal" data-i18n="label_nom_fiscal">Nom fiscal</label>
-        <input type="text" id="nombre_fiscal" name="nombre_fiscal">
-        <label for="direccion_fiscal" data-i18n="label_direccio_fiscal">Adreça fiscal</label>
-        <input type="text" id="direccion_fiscal" name="direccion_fiscal">
-      </div>
+      <p class="factura-avis">En cas de necessitar factura, escriure un correu a <a href="mailto:anna@uauu.cat">anna@uauu.cat</a>.</p>
 
       <div class="checkbox-row">
         <input type="checkbox" id="accepta_condicions" name="accepta_condicions" required>
         <label for="accepta_condicions">
-          <span data-i18n="accepta_pre">Accepto les </span><a href="/condicions.html" data-legal="condicions" data-i18n="accepta_condicions">condicions de venda</a><span data-i18n="accepta_i"> i la </span><a href="/privacitat.html" data-legal="privacitat" data-i18n="accepta_privacitat">política de privacitat</a>.
+          <span>Accepto les </span><a href="/condicions.html" data-legal="condicions">condicions de venda</a><span> i la </span><a href="/privacitat.html" data-legal="privacitat">política de privacitat</a>.
         </label>
       </div>
 
-      <button type="submit" class="btn-primary" id="btn-comprar" data-i18n="btn_comprar">Pagar i reservar entrada</button>
+      <button type="submit" class="btn-primary" id="btn-comprar">Pagar i reservar plaça</button>
       <p id="error-missatge" class="form-error" role="alert" aria-live="polite"></p>
     </form>
 
-    <div class="divider" data-i18n="pagament_divider">mètodes de pagament acceptats</div>
+    <div class="divider">mètodes de pagament acceptats</div>
     <div class="payment-icons">
       <span>VISA</span><span>Mastercard</span>
     </div>
@@ -119,23 +110,21 @@
 </main>
 
 <footer style="max-width:920px; width:100%; margin:16px auto 0; text-align:center; font-family:var(--font-ui); font-size:11px; color:rgba(34,31,30,0.4); display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
-  <a href="/avis-legal.html" data-legal="avis-legal" style="color:inherit;" data-i18n="footer_avis">Avís legal</a>
-  <a href="/privacitat.html" data-legal="privacitat" style="color:inherit;" data-i18n="footer_privacitat">Privacitat</a>
-  <a href="/cookies.html" data-legal="cookies" style="color:inherit;" data-i18n="footer_cookies">Cookies</a>
-  <a href="/condicions.html" data-legal="condicions" style="color:inherit;" data-i18n="footer_condicions">Condicions de venda</a>
-  <a href="/admin/login.html" style="color:inherit;" data-i18n-aria="footer_acces_equip" aria-label="Accés d'equip">·</a>
+  <a href="/avis-legal.html" data-legal="avis-legal" style="color:inherit;">Avís legal</a>
+  <a href="/privacitat.html" data-legal="privacitat" style="color:inherit;">Privacitat</a>
+  <a href="/cookies.html" data-legal="cookies" style="color:inherit;">Cookies</a>
+  <a href="/condicions.html" data-legal="condicions" style="color:inherit;">Condicions de venda</a>
   <a href="https://tiquets.uauu.cat/?repo=uauudigital-portal-ventes" class="footer-link-suport">Suport</a>
 </footer>
 
 <div class="legal-modal-overlay" id="legal-modal-overlay">
   <div class="legal-modal" id="legal-modal" role="dialog" aria-modal="true">
-    <button type="button" class="legal-modal-close" id="legal-modal-close" aria-label="Tanca" data-i18n-aria="modal_tanca">✕</button>
+    <button type="button" class="legal-modal-close" id="legal-modal-close" aria-label="Tanca">✕</button>
     <div id="legal-modal-body">Carregant…</div>
   </div>
 </div>
 
-<script src="/js/i18n.js?v=2"></script>
-<script src="/js/checkout.js?v=17"></script>
+<script src="/js/checkout.js?v=32"></script>
 <script src="/js/legal-modal.js?v=2"></script>
 </body>
 </html>

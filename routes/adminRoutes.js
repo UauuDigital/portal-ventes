@@ -4,6 +4,7 @@ const router = express.Router();
 const asyncHandler = require('../utils/asyncHandler');
 const { login, logout } = require('../controllers/authController');
 const { requireAuth, requireRole } = require('../middleware/authMiddleware');
+const { loginLimiter } = require('../middleware/rateLimiter');
 const {
   llistarEventos,
   obtenirEvento,
@@ -12,13 +13,12 @@ const {
   eliminarEvento,
   llistarCompresEvento,
   cancelarCompra,
-  exportarComprasCsv,
-  traduirNom,
+  exportarAsistentesPdf,
   enviarEmailDePrueba,
   llistarHistorial,
 } = require('../controllers/adminController');
 
-router.post('/admin/login', login);
+router.post('/admin/login', loginLimiter, login);
 router.post('/admin/logout', logout);
 
 router.get('/api/admin/me', requireAuth, (req, res) => {
@@ -33,11 +33,10 @@ router.get('/api/admin/historial', requireRole('admin', 'viewer'), asyncHandler(
 
 // Escriptura/gestió: només admin
 router.post('/api/admin/eventos', requireRole('admin'), asyncHandler(crearEvento));
-router.post('/api/admin/traduir-nom', requireRole('admin'), asyncHandler(traduirNom));
 router.put('/api/admin/eventos/:id', requireRole('admin'), asyncHandler(actualitzarEvento));
 router.delete('/api/admin/eventos/:id', requireRole('admin'), asyncHandler(eliminarEvento));
 router.post('/api/admin/compras/:id/cancelar', requireRole('admin'), asyncHandler(cancelarCompra));
-router.get('/api/admin/eventos/:id/compras/export.csv', requireRole('admin'), asyncHandler(exportarComprasCsv));
+router.get('/api/admin/eventos/:id/compras/export.pdf', requireRole('admin'), asyncHandler(exportarAsistentesPdf));
 router.post('/api/admin/eventos/:id/email-prova', requireRole('admin'), asyncHandler(enviarEmailDePrueba));
 
 module.exports = router;

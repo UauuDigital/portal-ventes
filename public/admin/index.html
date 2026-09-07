@@ -7,7 +7,7 @@
 <link rel="icon" href="/assets/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css?v=88">
+<link rel="stylesheet" href="/css/admin.css?v=96">
 </head>
 <body>
 <div class="admin-shell">
@@ -36,7 +36,7 @@
               <th>Data</th>
               <th>Preu</th>
               <th>Aforament</th>
-              <th>Entrades restants</th>
+              <th>Places restants</th>
             </tr>
           </thead>
           <tbody id="taula-eventos"></tbody>
@@ -90,34 +90,16 @@
         <h2 class="admin-col-title" id="titol-modal-crear">Crear esdeveniment</h2>
         <button type="button" id="btn-tancar-crear" class="btn-tancar-modal objectiu-tactil" aria-label="Tanca">×</button>
       </div>
-      <form id="form-evento" class="admin-form">
-        <div class="camps-traduccio">
-          <div class="camp-traduccio">
-            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
-            <label for="nombre">Nom (català)</label>
-            <textarea id="nombre" name="nombre" rows="2" required></textarea>
-          </div>
-          <div class="camp-traduccio">
-            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
-            <label for="nombre_es">Nom (castellà)</label>
-            <textarea id="nombre_es" name="nombre_es" rows="2"></textarea>
-          </div>
-          <div class="camp-traduccio">
-            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
-            <label for="nombre_en">Nom (anglès)</label>
-            <textarea id="nombre_en" name="nombre_en" rows="2"></textarea>
-          </div>
-        </div>
+      <form id="form-evento" class="admin-form" novalidate>
+        <label for="nombre">Nom</label>
+        <textarea id="nombre" name="nombre" rows="2" required></textarea>
 
-        <div class="camp-amb-minicalendari camps-dates-parella">
+        <div class="camp-amb-minicalendari">
           <div class="camp-data">
             <label for="fecha">Data de l'esdeveniment</label>
             <input type="text" id="fecha" name="fecha" placeholder="Tria un dia al calendari" readonly required autocomplete="off">
           </div>
-          <div class="camp-data">
-            <label for="fecha_limite_compra">Data límit de compra</label>
-            <input type="text" id="fecha_limite_compra" name="fecha_limite_compra" placeholder="Tria un dia al calendari" readonly required autocomplete="off">
-          </div>
+          <p class="camps-formulari-ajuda" id="preview-limit-compra"></p>
 
           <div class="mini-calendari hidden" id="mini-calendari-limit">
             <div class="mini-calendari-header">
@@ -137,51 +119,28 @@
               <label for="mini-calendari-hora-input">Hora</label>
               <input type="time" id="mini-calendari-hora-input">
             </div>
-            <button type="button" class="btn-secundari mini-calendari-seguent hidden" id="mini-calendari-seguent">Següent: tria el límit ›</button>
-            <div class="mini-calendari-llegenda">
-              <span><i class="calendari-punt calendari-punt--marcat"></i> Dia de l'esdeveniment</span>
-              <span><i class="calendari-punt calendari-punt--interval"></i> Dies vàlids per al termini</span>
-            </div>
           </div>
         </div>
 
-        <div class="camps-traduccio">
-          <div class="camp-traduccio">
-            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
-            <label for="descripcion">Descripció (català)</label>
-            <textarea id="descripcion" name="descripcion" rows="2"></textarea>
-          </div>
-          <div class="camp-traduccio">
-            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
-            <label for="descripcion_es">Descripció (castellà)</label>
-            <textarea id="descripcion_es" name="descripcion_es" rows="2"></textarea>
-          </div>
-          <div class="camp-traduccio">
-            <button type="button" class="btn-bloqueig-traduccio" aria-pressed="false" aria-label="Bloqueja aquesta traducció perquè no es sobreescrigui automàticament"></button>
-            <label for="descripcion_en">Descripció (anglès)</label>
-            <textarea id="descripcion_en" name="descripcion_en" rows="2"></textarea>
-          </div>
+        <label for="descripcion">Descripció</label>
+        <textarea id="descripcion" name="descripcion" rows="2"></textarea>
+
+        <p class="camps-formulari-ajuda">Preu i aforament fixos per a tots els esdeveniments: 65,00 € i 50 places, no editables.</p>
+
+        <div class="invitats-seccio">
+          <label>Convidats / ponents</label>
+          <p class="invitats-ajuda">Persona o persones que fan la ponència abans del dinar. Cal almenys una.</p>
+          <div id="llista-invitats"></div>
+          <button type="button" id="btn-afegir-invitat" class="btn-secundari">+ Afegir convidat</button>
         </div>
-
-        <label for="precio">Preu (€)</label>
-        <input type="number" id="precio" name="precio" min="0.01" step="0.01" required>
-
-        <label for="aforo_total">Aforament total</label>
-        <input type="number" id="aforo_total" name="aforo_total" min="1" step="1" required>
-
-        <label for="nombre_invitado">Nom del convidat (informatiu, opcional)</label>
-        <input type="text" id="nombre_invitado" name="nombre_invitado">
-
-        <label for="cargo_invitado">Càrrec del convidat (informatiu, opcional)</label>
-        <input type="text" id="cargo_invitado" name="cargo_invitado">
 
         <button type="submit" class="btn-primary">Crear esdeveniment</button>
-        <p id="error-evento" style="color:#b3261e; font-size:12px; margin-top:10px; font-family:var(--font-ui);"></p>
+        <p id="error-evento" class="form-error"></p>
       </form>
     </div>
   </div>
 </div>
-<script src="/js/admin.js?v=60"></script>
+<script src="/js/admin.js?v=68"></script>
 <script src="/js/admin-historial.js?v=3"></script>
 </body>
 </html>

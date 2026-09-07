@@ -90,10 +90,87 @@ input[type="checkbox"]:focus-visible {
   outline-offset: 2px;
 }
 
+/* Vora vermella pels camps que fallen la validació nativa (required/type
+   invàlid) en substituir el globus del navegador per un avís propi (vegeu
+   validarCampsNatius a checkout.js/admin.js): mateix patró que ja feia
+   servir només l'acordió d'acompanyants (.acompanyants-acordio--validat),
+   generalitzat aquí a qualsevol formulari amb la classe .form-validat.
+   Només activa després d'un intent d'enviament fallit (la classe l'afegeix
+   el JS just abans de mostrar l'error), mai en carregar la pàgina amb
+   camps buits. Els checkboxes queden fora, igual que al :focus de dalt:
+   la vora no s'hi veu de forma fiable entre navegadors. */
+.form-validat input:not([type="checkbox"]):not([type="radio"]):invalid,
+.form-validat select:invalid,
+.form-validat textarea:invalid {
+  border-color: var(--error);
+}
+
+.stepper-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dark-muted-text);
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Stepper de "Nombre de places": substitueix l'input numèric pla. El valor
+   real es manté a l'input ocult #cantidad (llegit tal qual per checkout.js
+   en construir el body de la compra), perquè els botons +/- no dupliquin
+   cap lògica de recàlcul: només canvien aquest input i en disparen l'event
+   "input" ja escoltat avui (recalcula preu i acordeó d'acompanyants). */
+.stepper-cantidad {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: fit-content;
+  margin: 0 0 16px auto;
+}
+
+.stepper-btn {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-input);
+  background: var(--dark);
+  color: var(--white);
+  font-family: var(--font-ui);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background: var(--dark-hover);
+}
+
+.stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.stepper-valor {
+  min-width: 28px;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--dark);
+}
+
 /* Prefix de país + número de telèfon com un sol camp visual. El prefix és
    un desplegable personalitzat (bandera + país + codi) en lloc d'un
    <select> natiu, perquè el navegador no permet estilitzar la llista
-   d'aquest últim. */
+   d'aquest últim. Estils basats en classes (no ids): checkout.js en pot
+   inicialitzar diverses instàncies independents a la mateixa pàgina (el
+   comprador i cada acompanyant obert de l'acordió). */
 .camp-telefon {
   display: flex;
   margin-bottom: 16px;
@@ -180,7 +257,7 @@ input[type="checkbox"]:focus-visible {
   flex-shrink: 0;
 }
 
-#prefix-telefon-bandera svg,
+.prefix-telefon-bandera svg,
 .prefix-telefon-opcio-bandera svg {
   display: block;
   width: 20px;
@@ -189,7 +266,7 @@ input[type="checkbox"]:focus-visible {
   box-shadow: 0 0 0 1px rgba(34, 31, 30, 0.12);
 }
 
-#prefix-telefon-bandera {
+.prefix-telefon-bandera {
   display: flex;
 }
 
@@ -290,10 +367,17 @@ input[type="checkbox"]:focus-visible {
   display: none !important;
 }
 
-.fiscal-fields {
-  border-top: 1px dashed rgba(34, 31, 30, 0.15);
-  padding-top: 12px;
-  margin-top: -4px;
+.factura-avis {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--dark-muted-text);
+  margin: 0 0 16px;
+}
+
+.factura-avis a {
+  color: var(--dark);
+  font-weight: 500;
 }
 
 .form-error {
@@ -310,52 +394,120 @@ input[type="checkbox"]:focus-visible {
   font-family: var(--font-ui);
 }
 
-.camp-dinamic { margin-bottom: 16px; }
-
-/* .camp-dinamic-etiqueta és un <span> (no <label>): no hereta l'estil de
-   label global (majúscules, mida, color), així que cal repetir-lo aquí
-   perquè faci joc amb la resta de títols de camp del formulari. */
-.camp-dinamic-etiqueta {
-  display: block;
-  margin-bottom: 6px;
+/* Formulari dinàmic d'acompanyants (checkout.js): apareix/creix segons
+   "Nombre de places". Es mostra com un acordió: una capçalera
+   "Acompanyant N" per cadascun, amb com a molt un panell desplegat
+   alhora (obrir-ne un tanca automàticament el que estigués obert) —
+   mateix patró d'interacció que el desplegable d'acompanyants de
+   l'admin (public/css/admin.css, .btn-veure-acompanyants), reutilitzat
+   aquí en lloc d'inventar-ne un altre. Els camps del panell (label +
+   input) no porten cap tractament propi: hereten exactament l'estil de
+   la resta del formulari (mateixos `label`/`input[type=...]` globals que
+   fa servir el comprador principal), sense cap regla "scoped" que en
+   redueixi la mida — ja no cal comprimir-los, l'acordió pot créixer en
+   alçada en obrir una secció sense cap restricció de disseny. */
+.acompanyants-titol {
   font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--dark-muted-text);
+  margin: 4px 0 12px;
 }
 
-/* .opcio-dinamica SÍ és un <label> real: sense aquesta regla heretaria
-   l'estil de label global (majúscules/mida petita/color apagat), pensat
-   per a títols de camp, no per al text d'una opció triable — es reseteja
-   per fer joc amb .checkbox-row en lloc d'això. */
-.opcio-dinamica {
+/* Un sol contenidor amb vora pròpia i divisors fins entre seccions (en
+   lloc d'una vora+radi propis per a cada secció, amb el seu marge entre
+   elles): estalvia les vores i separacions duplicades i es llegeix com
+   una sola llista, com el patró de files desplegables de l'admin. */
+.acompanyants-acordio {
+  border: 1px solid rgba(34, 31, 30, 0.12);
+  border-radius: var(--radius-input);
+  margin-bottom: 16px;
+}
+
+.acompanyant-seccio {
+  border-bottom: 1px solid rgba(34, 31, 30, 0.12);
+}
+
+.acompanyant-seccio:last-child {
+  border-bottom: none;
+}
+
+/* Les cantonades arrodonides del contenidor es repliquen aquí (capçalera
+   de la primera secció, capçalera o panell —el que quedi visible al
+   final— de la darrera) en lloc de retallar-les amb overflow:hidden al
+   contenidor: el desplegable de prefix telefònic (position:absolute) de
+   qualsevol secció necessita poder sortir visualment per sobre del marc
+   de l'acordió, i un overflow:hidden l'hauria tallat. */
+.acompanyant-seccio:first-child .acompanyant-capcalera {
+  border-top-left-radius: var(--radius-input);
+  border-top-right-radius: var(--radius-input);
+}
+
+.acompanyant-seccio:last-child .acompanyant-capcalera,
+.acompanyant-seccio:last-child .acompanyant-panell {
+  border-bottom-left-radius: var(--radius-input);
+  border-bottom-right-radius: var(--radius-input);
+}
+
+/* Capçalera: "Acompanyant N" en Ogg (--font-heading), la mateixa família
+   que el <h1> de l'evento i la resta de titulars del projecte — mida
+   reduïda respecte al <h1> (38px) perquè aquí és una capçalera dins una
+   llista, no el protagonista de la pantalla; 18px és la mateixa mida que
+   ja fa servir .selector-btn-nom (layout.css) per a un patró equivalent
+   (títol d'un bloc individual dins una llista/graella). */
+.acompanyant-capcalera {
+  width: 100%;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 300;
-  letter-spacing: normal;
-  text-transform: none;
+  padding: 14px 16px;
+  background: var(--white);
+  border: none;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   color: var(--dark);
   cursor: pointer;
+  text-align: left;
 }
 
-.opcio-dinamica:last-child { margin-bottom: 0; }
-
-.opcio-dinamica input[type="checkbox"],
-.opcio-dinamica input[type="radio"] {
+.acompanyant-capcalera svg {
   flex-shrink: 0;
-  accent-color: var(--dark);
+  transition: transform 0.2s ease;
 }
 
-/* Els labels dels camps dinàmics ja inclouen el " *" al text (generat en
-   JS), a diferència de la resta del formulari (que el genera per CSS via
-   label:has(+ input[required])::after). Es desactiva aquí per no duplicar
-   l'asterisc. */
-.camp-dinamic label:has(+ input[required])::after {
-  content: none;
+.acompanyant-capcalera[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+/* Text de la capçalera vermell: només apareix després d'un intent
+   d'enviament fallit, per assenyalar quina secció (oberta o tancada) té
+   dades invàlides/incompletes — amb el disseny anterior (tot apilat i
+   visible alhora) no calia cap indicador d'aquest tipus. */
+.acompanyant-seccio--error .acompanyant-capcalera {
+  color: var(--error);
+}
+
+/* Padding-bottom a 0: el darrer input ja porta el seu propi
+   margin-bottom (16px, regla global dels inputs) — si el panell hi
+   afegís padding a sota, l'aire per sota del darrer camp quedaria el
+   doble que per sobre del primer label. Amb padding-top a 16px (igual
+   que aquest margin-bottom global) l'aire queda igual als dos costats. */
+.acompanyant-panell {
+  padding: 16px 16px 0;
+  background: var(--light);
+}
+
+/* Vora vermella pels camps concrets que fallen (no la secció sencera):
+   reutilitza el pseudo-classe :invalid natiu del navegador (ja actiu
+   gràcies a required/type=email als <input>) enlloc de calcular-ho a mà
+   en JS — només es mostra després d'un intent d'enviament fallit
+   (.acompanyants-acordio--validat), perquè un camp buit no es vegi en
+   vermell abans que l'usuari hagi ni intentat enviar. */
+.acompanyants-acordio--validat .acompanyant-panell input:invalid {
+  border-color: var(--error);
 }

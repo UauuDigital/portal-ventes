@@ -1,6 +1,7 @@
-const crypto = require('crypto');
 const db = require('../config/db');
 const Historial = require('./Historial');
+const Evento = require('./Evento');
+const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
 
 // Estats que encara ocupen aforament: pagades + pendents que no han expirat
 // (les pendents expirades es marquen 'cancelado' des del webhook checkout.session.expired)
@@ -8,39 +9,45 @@ const ESTATS_OCUPEN_AFORO = ['pendiente', 'pagado'];
 
 // Temps que una reserva 'pendiente' compta com a ocupada encara que el
 // webhook (o l'usuari tornant per cancel_url) no l'hagi marcada 'cancelado'.
-// Independent del temps de vida real de la sessió de Stripe (EXPIRA_MINUTS a
-// stripeController.js, que ha de ser >= 30 min per exigència de Stripe): quan
-// l'usuari torna amb les fletxes del navegador (sense passar per cancel_url
-// ni per cap redirecció), no hi ha manera de saber-ho al moment, així que
-// aquest marge és el que decideix com de ràpid es torna a alliberar la plaça.
-// Compensació acceptada: si algú triga més de MINUTS_RESERVA a completar el
-// pagament mentre un altre compra la plaça "alliberada", hi ha risc de
-// sobrevenda puntual (s'hauria de resoldre manualment si passa).
-const MINUTS_RESERVA = parseInt(process.env.RESERVA_MINUTES || '15', 10);
+// Quan l'usuari torna amb les fletxes del navegador (sense passar per
+// cancel_url ni per cap redirecció), no hi ha manera de saber-ho al moment,
+// així que aquest marge és el que decideix com de ràpid es torna a alliberar
+// la plaça.
+//
+// Ha de ser sempre >= EXPIRA_MINUTS (el temps que la sessió de Stripe segueix
+// viva i pagable, utils/checkoutConfig.js): si RESERVA_MINUTES fos més curt,
+// la reserva deixaria de comptar com a ocupada abans que la sessió de Stripe
+// hagués pogut expirar, i algú altre podria comprar la plaça "alliberada"
+// mentre el primer comprador encara la pot pagar — sobrevenda determinista,
+// no una condició de carrera rara. Per això es deriva amb Math.max enlloc de
+// llegir-se com un valor solt que es pogués desincronitzar.
+const MINUTS_RESERVA = Math.max(EXPIRA_MINUTS, parseInt(process.env.RESERVA_MINUTES || '15', 10));
 
 async function create(data, meta = {}) {
   const stmt = db.prepare(
     `INSERT INTO compras (
        evento_id, nombre_comprador, email, telefono, cantidad, importe_total,
-       quiere_factura, nif, nombre_fiscal, direccion_fiscal, estado_pago,
-       respuestas_campos, edit_token
+       estado_pago
      ) VALUES (
        @evento_id, @nombre_comprador, @email, @telefono, @cantidad, @importe_total,
-       @quiere_factura, @nif, @nombre_fiscal, @direccion_fiscal, 'pendiente',
-       @respuestas_campos, @edit_token
+       'pendiente'
      ) RETURNING id`
   );
   const info = await stmt.run({
-    nif: null,
-    nombre_fiscal: null,
-    direccion_fiscal: null,
     telefono: null,
     ...data,
-    quiere_factura: !!data.quiere_factura,
-    respuestas_campos: JSON.stringify(data.respuestas_campos || {}),
-    edit_token: crypto.randomBytes(24).toString('hex'),
   });
+  // Els acompanyants no són una columna de compras: es guarden a part, dins
+  // la mateixa operació de creació (mateix patró que Evento.create amb els
+  // invitados). Array buit si cantidad=1 (stripeController.js no en fa cap
+  // ni els accepta en aquest cas).
+  await setAcompanyants(info.lastInsertRowid, Array.isArray(data.acompanyants) ? data.acompanyants : []);
   const compra = await getById(info.lastInsertRowid);
+  // S'adjunten aquí (no a getById en general, per no afegir una consulta
+  // extra a cada lectura de compra arreu de l'app — webhook, confirmació,
+  // etc. — que no els necessita) només perquè quedin al registre
+  // d'historial i al valor retornat just després de crear-la.
+  compra.acompanyants = await getAcompanyants(compra.id);
   await Historial.registrar({
     tipus_entitat: 'compra',
     entitat_id: compra.id,
@@ -48,7 +55,7 @@ async function create(data, meta = {}) {
     accio: 'compra',
     origen: meta.origen || 'client',
     usuari: meta.usuari || compra.email,
-    descripcio: `Compra #${compra.id} creada per ${compra.nombre_comprador} (${compra.cantidad} entrades)`,
+    descripcio: `Compra #${compra.id} creada per ${compra.nombre_comprador} (${compra.cantidad} places)`,
     dades_despres: compra,
   });
   return compra;
@@ -58,23 +65,70 @@ async function getById(id) {
   return db.prepare('SELECT * FROM compras WHERE id = ?').get(id);
 }
 
+/**
+ * Retorna els acompanyants d'una compra, en l'ordre en què es van introduir.
+ */
+async function getAcompanyants(compraId) {
+  return db
+    .prepare('SELECT id, nombre, email, telefono, orden FROM compra_acompanyants WHERE compra_id = ? ORDER BY orden ASC, id ASC')
+    .all(compraId);
+}
+
+/**
+ * Substitueix tota la llista d'acompanyants d'una compra (esborra els
+ * existents i insereix els nous, en l'ordre rebut). Mateix patró que
+ * Evento.setInvitados: no hi ha CRUD granular per acompanyant individual,
+ * es reemplaça la llista sencera de cop (aquí, en crear la compra).
+ */
+async function setAcompanyants(compraId, acompanyants) {
+  await db.prepare('DELETE FROM compra_acompanyants WHERE compra_id = ?').run(compraId);
+  let orden = 1;
+  for (const ac of acompanyants) {
+    await db
+      .prepare(
+        `INSERT INTO compra_acompanyants (compra_id, nombre, email, telefono, orden)
+         VALUES (@compra_id, @nombre, @email, @telefono, @orden)`
+      )
+      .run({ compra_id: compraId, nombre: ac.nombre, email: ac.email, telefono: ac.telefono || null, orden: orden++ });
+  }
+}
+
 async function findBySessionId(sessionId) {
   return db.prepare('SELECT * FROM compras WHERE stripe_checkout_session_id = ?').get(sessionId);
 }
 
-async function findByEditToken(token) {
-  return db.prepare('SELECT * FROM compras WHERE edit_token = ?').get(token);
-}
-
-async function updateRespuestas(id, respuestas) {
-  await db
-    .prepare('UPDATE compras SET respuestas_campos = ? WHERE id = ?')
-    .run(JSON.stringify(respuestas || {}), id);
-  return getById(id);
-}
-
 async function setSessionId(id, sessionId) {
   await db.prepare('UPDATE compras SET stripe_checkout_session_id = ? WHERE id = ?').run(sessionId, id);
+}
+
+/**
+ * Comprovació de sobrevenda posterior al pagament: només detecta i deixa
+ * rastre, MAI bloqueja. Quan es crida, Stripe ja ha cobrat el comprador —
+ * rebutjar o desfer el pagament aquí no és una opció, l'única resposta és
+ * alertar l'equip perquè ho resolgui manualment (contactar el comprador,
+ * ampliar l'aforament, etc.). El risc real que això detecta és la
+ * comprovació d'aforament sense transacció a crearCheckoutSession
+ * (stripeController.js): dues peticions concurrents pel darrer seient poden
+ * passar totes dues la comprovació abans que cap hagi inserit la compra.
+ */
+async function comprovarSobrevenda(eventoId) {
+  const evento = await Evento.getById(eventoId);
+  if (!evento) return;
+  const ocupades = await cantidadOcupada(eventoId);
+  if (ocupades <= evento.aforo_total) return;
+
+  const descripcio = `Sobrevenda detectada a "${evento.nombre}": ${ocupades}/${evento.aforo_total} places ocupades`;
+  console.error(descripcio);
+  await Historial.registrar({
+    tipus_entitat: 'evento',
+    entitat_id: eventoId,
+    evento_id: eventoId,
+    accio: 'sobrevenda',
+    origen: 'automatic',
+    usuari: 'sistema',
+    descripcio,
+    dades_despres: { ocupades, aforo_total: evento.aforo_total },
+  });
 }
 
 async function marcarPagado(id, meta = {}) {
@@ -92,6 +146,7 @@ async function marcarPagado(id, meta = {}) {
     dades_abans: { estado_pago: abans.estado_pago },
     dades_despres: { estado_pago: 'pagado' },
   });
+  await comprovarSobrevenda(abans.evento_id);
 }
 
 const DESCRIPCIONS_CANCELACIO = {
@@ -140,7 +195,18 @@ async function cantidadOcupada(eventoId) {
   return Number(row.total);
 }
 
-async function listByEvento(eventoId) {
+/**
+ * `estado` és opcional i filtra per estado_pago exacte (p. ex. 'pagado').
+ * Sense filtre, retorna totes les compres de l'evento sigui quin sigui el
+ * seu estat — el comportament de sempre, que altres criders (com
+ * eliminarPerEvento més avall) segueixen necessitant sense cap filtre.
+ */
+async function listByEvento(eventoId, { estado } = {}) {
+  if (estado) {
+    return db
+      .prepare('SELECT * FROM compras WHERE evento_id = ? AND estado_pago = ? ORDER BY created_at DESC')
+      .all(eventoId, estado);
+  }
   return db
     .prepare('SELECT * FROM compras WHERE evento_id = ? ORDER BY created_at DESC')
     .all(eventoId);
@@ -166,9 +232,9 @@ async function eliminarPerEvento(eventoId, meta = {}) {
 module.exports = {
   create,
   getById,
+  getAcompanyants,
+  setAcompanyants,
   findBySessionId,
-  findByEditToken,
-  updateRespuestas,
   setSessionId,
   marcarPagado,
   marcarCancelado,

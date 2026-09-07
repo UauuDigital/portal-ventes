@@ -10,16 +10,9 @@ CREATE TABLE IF NOT EXISTS eventos (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Traducció automàtica del títol (vegeu utils/traduccio.js): "nombre" es
--- manté sempre en català (idioma en què el crea el personal), i aquestes
--- dues es generen soles en crear/editar l'esdeveniment.
-ALTER TABLE eventos ADD COLUMN IF NOT EXISTS nombre_es TEXT;
-ALTER TABLE eventos ADD COLUMN IF NOT EXISTS nombre_en TEXT;
-ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion_es TEXT;
-ALTER TABLE eventos ADD COLUMN IF NOT EXISTS descripcion_en TEXT;
-
--- Camps informatius que introdueix l'admin a la fitxa de l'esdeveniment
--- (no els respon el comprador al formulari de compra).
+-- OBSOLETO: sustituït per evento_invitados (vegeu més avall, permet més d'un
+-- convidat per esdeveniment). Pendent d'eliminar un cop verificat en
+-- producció que la migració de dades i el sistema nou funcionen bé.
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS nombre_invitado TEXT;
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS cargo_invitado TEXT;
 
@@ -31,10 +24,6 @@ CREATE TABLE IF NOT EXISTS compras (
   telefono TEXT,
   cantidad INTEGER NOT NULL,
   importe_total INTEGER NOT NULL,       -- en cèntims
-  quiere_factura BOOLEAN NOT NULL DEFAULT false,
-  nif TEXT,
-  nombre_fiscal TEXT,
-  direccion_fiscal TEXT,
   stripe_checkout_session_id TEXT,
   estado_pago TEXT NOT NULL DEFAULT 'pendiente', -- pendiente | pagado | cancelado | reembolsado
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -43,19 +32,45 @@ CREATE TABLE IF NOT EXISTS compras (
 CREATE INDEX IF NOT EXISTS idx_compras_evento ON compras(evento_id);
 CREATE INDEX IF NOT EXISTS idx_compras_session ON compras(stripe_checkout_session_id);
 
--- Constructor de formulari de compra personalitzat per esdeveniment (vegeu
--- docs/superpowers/specs/2026-08-18-formulari-compra-personalitzat-design.md).
-ALTER TABLE eventos ADD COLUMN IF NOT EXISTS campos_formulario JSONB NOT NULL DEFAULT '[]'::jsonb;
-
-ALTER TABLE compras ADD COLUMN IF NOT EXISTS respuestas_campos JSONB NOT NULL DEFAULT '{}'::jsonb;
-ALTER TABLE compras ADD COLUMN IF NOT EXISTS edit_token TEXT;
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_compras_edit_token ON compras(edit_token) WHERE edit_token IS NOT NULL;
-
 -- Email de confirmació personalitzable per esdeveniment (utils/mailer.js).
 -- Buits = es fa servir la plantilla per defecte (comportament actual).
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_asunto TEXT;
 ALTER TABLE eventos ADD COLUMN IF NOT EXISTS email_html TEXT;
+
+-- Convidats/ponents de l'esdeveniment: dada informativa que introdueix
+-- l'admin (no la respon el comprador), substitueix eventos.nombre_invitado/
+-- cargo_invitado de dalt perquè ara n'hi pot haver més d'un. Sempre almenys
+-- un (validat a l'admin, no amb una constraint de BD). L'admin edita la
+-- llista sencera de cop en desar l'esdeveniment: per això no hi ha CRUD
+-- granular per invitat individual, es reemplaça tota la llista cada vegada.
+CREATE TABLE IF NOT EXISTS evento_invitados (
+  id SERIAL PRIMARY KEY,
+  evento_id INTEGER NOT NULL REFERENCES eventos(id) ON DELETE CASCADE,
+  nombre TEXT NOT NULL,
+  cargo TEXT,
+  orden INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_evento_invitados_evento ON evento_invitados(evento_id);
+
+-- Acompanyants d'una compra (nom + email + telèfon de cadascú). Obligatori
+-- si cantidad > 1: n'han de ser exactament cantidad - 1 (el comprador
+-- principal ja compta com a 1 plaça) — validat a l'aplicació
+-- (utils/validarAcompanyants.js), no amb una constraint de BD. Mateix patró
+-- que evento_invitados: sense CRUD granular, es reemplaça la llista sencera
+-- en crear la compra.
+CREATE TABLE IF NOT EXISTS compra_acompanyants (
+  id SERIAL PRIMARY KEY,
+  compra_id INTEGER NOT NULL REFERENCES compras(id) ON DELETE CASCADE,
+  nombre TEXT NOT NULL,
+  email TEXT NOT NULL,
+  telefono TEXT,
+  orden INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_compra_acompanyants_compra ON compra_acompanyants(compra_id);
 
 -- Historial/auditoria: registre de creacions, modificacions (manuals o
 -- automàtiques), compres, pagaments i cancel·lacions d'entrades. Es
@@ -83,3 +98,5 @@ CREATE INDEX IF NOT EXISTS idx_historial_created ON historial(created_at DESC);
 ALTER TABLE eventos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE compras ENABLE ROW LEVEL SECURITY;
 ALTER TABLE historial ENABLE ROW LEVEL SECURITY;
+ALTER TABLE evento_invitados ENABLE ROW LEVEL SECURITY;
+ALTER TABLE compra_acompanyants ENABLE ROW LEVEL SECURITY;

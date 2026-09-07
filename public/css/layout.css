@@ -32,56 +32,33 @@
   position: relative;
 }
 
-/* Ancoratge del crumb de tornada: perquè quedi sempre al mateix nivell que
-   "Esdeveniment del mes" (i no un valor fix en píxels, fràgil si canvia
-   l'alçada del logo o el text), s'ubica dins el mateix bloc que l'eyebrow
-   i es posiciona relatiu a aquest contenidor, no al panell sencer. */
-.evento-info-titol {
-  position: relative;
-}
-
 /* Crumb de tornada al selector d'esdeveniments (només visible quan s'hi ha
-   arribat des de la quadrícula, quan hi havia diversos esdeveniments actius). */
+   arribat des de la quadrícula, quan hi havia diversos esdeveniments actius).
+   Viu FORA de .card, com una línia pròpia per sobre de la targeta: amb
+   noms d'esdeveniment llargs el títol (h1) pot ocupar tota l'amplada del
+   panell fosc i arribar a dues línies, de manera que un crumb ancorat en
+   absolut a la cantonada del panell (com abans) acabava solapant-se amb el
+   text del títol. Fora de la targeta mai hi pot xocar, en cap amplada. */
 .breadcrumb-tornar {
-  position: absolute;
-  top: 0;
-  right: 0;
-  /* Sense això l'eyebrow (bloc a tota l'amplada, mateix requadre) rebia
-     els clics per sobre del botó tot i ser contingut estàtic. */
-  z-index: 1;
+  display: block;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto 12px;
+  padding: 0 40px;
   background: transparent;
   border: none;
-  padding: 0;
   font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.03em;
-  color: var(--light-muted);
+  color: var(--dark-muted-text);
   cursor: pointer;
   transition: color 0.2s ease;
 }
 
 .breadcrumb-tornar:hover {
-  color: var(--white);
+  color: var(--dark);
   text-decoration: underline;
-}
-
-/* Només a escriptori: el crumb puja al mateix nivell que "Espai Econòmic".
-   Traiem el position:relative de .evento-info-titol perquè el contenidor
-   de referència de l'absolute torni a ser .panel-color (que ja té
-   position:relative). Com que top/right d'un absolute es calculen contra
-   la padding-box del seu contenidor —no contra on comença el contingut—,
-   cal repetir el padding del panell (48px 40px) perquè quedi alineat amb
-   el logo en lloc de la cantonada exterior del panell. A mòbil es manté
-   el comportament original (relatiu a .evento-info-titol). */
-@media (min-width: 721px) {
-  .evento-info-titol {
-    position: static;
-  }
-  .breadcrumb-tornar {
-    top: 48px;
-    right: 40px;
-  }
 }
 
 .panel-white {
@@ -130,6 +107,19 @@
   margin: 0 0 16px;
 }
 
+/* Subtítol amb la data, just sota el títol: mateixa família (Ogg) per
+   llegir-se com a part del mateix bloc, però clarament per sota en mida —
+   és informació de suport, no el protagonista. Sense hora ni icona: aquí
+   fa de subtítol elegant, no de línia de metadades. */
+.evento-data {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  color: var(--light-muted);
+  margin: 0 0 16px;
+}
+
 .evento-info p {
   font-family: var(--font-ui);
   font-size: 14px;
@@ -140,13 +130,53 @@
 
 .evento-meta {
   margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+}
+
+/* El preu és l'única dada que queda al peu del panell (l'aforament s'ha
+   eliminat de la fitxa): li dona protagonisme visual — Ogg, blanc ple (no
+   --light-muted) i clarament més gran que .evento-data, perquè es llegeixi
+   com la xifra que importa, no com una metadada més. */
+.evento-preu {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 33px;
+  letter-spacing: -0.01em;
+  color: var(--white);
+}
+
+/* Convidats/ponents de l'esdeveniment (evento.invitados): sol ser-ne un,
+   però pot haver-n'hi diversos. Sense numerar-los ("Convidat 1"...): un de
+   sol s'ha de llegir net, com una simple fitxa; amb més d'un, un separador
+   prim entre files hi aporta l'aire que li falta sense necessitar-lo. */
+.evento-convidats {
+  margin: 4px 0 24px;
+}
+
+.evento-convidat {
+  margin: 0;
+  padding: 8px 0;
+}
+
+.evento-convidat + .evento-convidat {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.evento-convidat-nom {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--white);
+}
+
+.evento-convidat-carrec {
+  display: block;
   font-family: var(--font-ui);
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 300;
   color: var(--light-muted);
+  margin-top: 2px;
 }
 
 /* Indicador visual del nivell d'aforament ocupat: barra clara sobre el fons
@@ -196,18 +226,8 @@
   .panel {
     padding: 32px 24px;
   }
-
-  /* A mòbil, el selector d'idioma només s'ha de veure mentre s'està triant
-     entre diversos esdeveniments actius (#selector-esdeveniments), no un
-     cop ja s'ha entrat al formulari de compra. Si només hi ha un
-     esdeveniment, el selector mai apareix i aquesta regla no s'activa —
-     el switch es queda visible com sempre.
-     #selector-grid conserva els botons encara que el selector quedi
-     amagat (només es torna a buidar si es refresca la llista), així que
-     "el grid té un segon .selector-btn" és un senyal fiable que hi havia
-     més d'un esdeveniment, sense necessitat de marcar-ho des del JS. */
-  body:has(#selector-grid > .selector-btn:nth-child(2)):has(#main-card:not(.hidden)) .menu-idioma {
-    display: none;
+  .breadcrumb-tornar {
+    padding: 0 24px;
   }
 }
 
