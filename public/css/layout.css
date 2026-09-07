@@ -315,3 +315,16 @@
   }
 }
 
+.footer-link-suport {
+  color: inherit;
+  font-size: 10px;
+  opacity: 0.55;
+  text-decoration: none;
+}
+
+.footer-link-suport:hover,
+.footer-link-suport:focus {
+  opacity: 1;
+  text-decoration: underline;
+}
+
