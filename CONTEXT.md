@@ -34,7 +34,7 @@ Desenvolupament (Stripe en mode test segons README). Repositori actiu amb commit
 
 **Dependències EXTERNES que aquest projecte CONSUMEIX**
 - Altres recursos UAUU:
-  - Portal de suport/tiquets extern: enllaç a `https://tiquets.uauu.cat/?repo=uauudigital-portal-ventes` (`public/index.html`).
+  - Portal de suport/tiquets extern: enllaç a `https://tiquets.uauu.cat/?repo=uauudigital-portal-ventes`, només a l'àrea admin (`public/admin/index.html`, `public/admin/evento.html`), no a la pàgina pública de compra.
   - Repositori de disseny `catalegs-web` (github.com/UauuDigital/catalegs-web), referenciat per a identitat visual (tipografia Ogg, estils).
 - Serveis de tercers:
   - **Stripe** (Checkout Sessions + Webhooks) — pagaments.

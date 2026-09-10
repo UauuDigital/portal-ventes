@@ -599,6 +599,12 @@ body:has(> .admin-shell) {
   margin-bottom: 0;
 }
 
+.admin-topbar-accions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .admin-link-back {
   color: var(--dark);
   font-size: 13px;
