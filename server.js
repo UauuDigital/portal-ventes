@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const path = require('path');
 const express = require('express');
+const cache = require('./utils/cache-headers');
 
 const db = require('./config/db');
 const webhookRoutes = require('./routes/webhookRoutes');
@@ -14,6 +15,9 @@ const PORT = process.env.PORT || 3000;
 
 // El webhook de Stripe necessita el body en brut per verificar la signatura,
 // per això es registra ABANS del parser JSON global.
+// Caché: API i webhooks no es guarden mai (vegeu utils/cache-headers.js).
+app.use(['/api', '/webhook'], cache.noStore);
+
 app.use(webhookRoutes);
 
 app.use(express.json());
@@ -26,11 +30,15 @@ app.use(adminRoutes);
 // redirigeix directament al panell en lloc de tornar a demanar contrasenya.
 app.get('/admin/login.html', (req, res) => {
   if (teSessioValida(req)) return res.redirect('/admin/index.html');
+  res.set('Cache-Control', 'no-cache, must-revalidate');
   res.sendFile(path.join(__dirname, 'public', 'admin', 'login.html'));
 });
-app.use('/admin', requireAuthPage, express.static(path.join(__dirname, 'public', 'admin')));
+app.use('/admin', requireAuthPage, express.static(path.join(__dirname, 'public', 'admin'), cache.staticOptions()));
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Caché: html/js/css es revaliden sempre (304 si no han canviat); imatges i
+// fonts, 7 dies. /version.json alimenta l'avís de versió nova del panell.
+app.get('/version.json', cache.versionHandler(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), cache.staticOptions()));
 
 app.use(publicRoutes);
 
