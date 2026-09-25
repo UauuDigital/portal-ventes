@@ -32,4 +32,4 @@ public/              # index.html (compra), success.html, cancel.html, admin/*, 
 ## Notes de domini
 - `eventos.fecha` és sempre un datetime complet (no hi ha hora fixa hardcoded): tota pantalla que mostri l'hora de l'esdeveniment l'ha de llegir d'aquest camp, mai reescriure-la a mà.
 - `eventos.nombre_invitado` / `cargo_invitado`: camps informatius que introdueix l'admin, no responen a res que ompli el comprador.
-- Facturació ja implementada al formulari de compra (`quiere_factura`, `nif`, `nombre_fiscal`, `direccion_fiscal`).
+- **Facturació: la plataforma no en fa cap menció.** No hi ha camps, avisos, textos ni variables d'email relacionats amb factures; qui en vulgui una s'ho gestiona pel seu compte. No reintroduir cap referència a factura/NIF del comprador enlloc (UI, emails, textos legals, README).

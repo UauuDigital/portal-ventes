@@ -83,7 +83,7 @@ La sessió és una cookie signada amb HMAC-SHA256 (`utils/sessionCookie.js`), se
 
 **Evento**: `id`, `nombre`, `fecha`, `descripcion`, `precio`, `aforo_total`, `fecha_limite_compra`, `estado` (abierto/cerrado), `created_at`.
 
-**Compra**: `id`, `evento_id`, `nombre_comprador`, `email`, `telefono`, `cantidad`, `importe_total`, `quiere_factura`, `nif`, `nombre_fiscal`, `direccion_fiscal`, `stripe_checkout_session_id`, `estado_pago` (pendiente/pagado/cancelado/reembolsado), `created_at`.
+**Compra**: `id`, `evento_id`, `nombre_comprador`, `email`, `telefono`, `cantidad`, `importe_total`, `stripe_checkout_session_id`, `estado_pago` (pendiente/pagado/cancelado/reembolsado), `created_at`.
 
 `precio` i `importe_total` es guarden en **cèntims** (enters), perquè encaixen directament amb `unit_amount` de l'API de Stripe. Ex: 35,00 € → `3500`.
 
@@ -120,4 +120,4 @@ Aquestes decisions no s'han assumit ni donat per fetes; queden documentades tal 
 - Mai s'emmagatzemen dades de targeta (les gestiona Stripe).
 - La signatura del webhook de Stripe es verifica sempre (`STRIPE_WEBHOOK_SECRET`), amb el body en brut.
 - Rate limiting a l'endpoint de creació de Checkout Session.
-- Validació d'inputs del formulari: email (format), telèfon (format, si s'indica), quantitat (enter positiu), NIF/NIE/CIF (format, si es demana factura — sense dígit de control), i acceptació de condicions obligatòria. Els camps es sanegen (trim, email/NIF normalitzats) abans de desar-los.
+- Validació d'inputs del formulari: email (format), telèfon (format, si s'indica), quantitat (enter positiu), i acceptació de condicions obligatòria. Els camps es sanegen (trim, email normalitzat) abans de desar-los.

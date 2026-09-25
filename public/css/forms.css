@@ -367,19 +367,6 @@ input[type="checkbox"]:focus-visible {
   display: none !important;
 }
 
-.factura-avis {
-  font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 300;
-  color: var(--dark-muted-text);
-  margin: 0 0 16px;
-}
-
-.factura-avis a {
-  color: var(--dark);
-  font-weight: 500;
-}
-
 .form-error {
   color: var(--error);
   font-size: 12px;
