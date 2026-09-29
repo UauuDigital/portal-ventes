@@ -240,7 +240,7 @@ async function exportarAsistentesPdf(req, res) {
   );
 
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="assistents-evento-${eventoId}.pdf"`);
+  res.setHeader('Content-Disposition', `inline; filename="assistents-evento-${eventoId}.pdf"`);
 
   const doc = new PDFDocument({ size: 'A4', margin: 40 });
   doc.pipe(res);
