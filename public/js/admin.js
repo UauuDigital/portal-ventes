@@ -1204,7 +1204,7 @@ if (formEventoEditar) {
       const data = await res.json().catch(() => ({}));
       errorConvidat.textContent = data.error === 'aforament_complet'
         ? "L'aforament de l'esdeveniment està complet."
-        : (data.detalls || [data.error || 'Error desconegut']).join(', ');
+        : (data.detalls || [data.error || `Error desconegut (HTTP ${res.status})`]).join(', ');
     });
   }
 
