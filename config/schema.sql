@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS compras (
   cantidad INTEGER NOT NULL,
   importe_total INTEGER NOT NULL,       -- en cèntims
   stripe_checkout_session_id TEXT,
-  estado_pago TEXT NOT NULL DEFAULT 'pendiente', -- pendiente | pagado | cancelado | reembolsado
+  estado_pago TEXT NOT NULL DEFAULT 'pendiente', -- pendiente | pagado | cancelado | reembolsado | sin_pago (convidat afegit manualment per l'admin, sense passar per Stripe)
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

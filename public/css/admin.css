@@ -1011,6 +1011,18 @@ body:has(> .admin-shell) {
 
 .estat-pagament-badge--pagado { background: #C7D9BE; }
 .estat-pagament-badge--pendiente { background: #DEDBD8; }
+.estat-pagament-badge--sin_pago { background: #F3E3B5; }
+
+.convidat-manual-fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0 4px;
+}
+.convidat-manual-fila input { flex: 1 1 160px; margin-bottom: 0; }
+.convidat-manual-fila .btn-secundari { flex-shrink: 0; }
+body.rol-viewer .convidat-manual-fila { display: none; }
 .estat-pagament-badge--cancelado,
 .estat-pagament-badge--reembolsado { background: #F0C9C4; }
 

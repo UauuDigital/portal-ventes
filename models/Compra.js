@@ -5,7 +5,8 @@ const { EXPIRA_MINUTS } = require('../utils/checkoutConfig');
 
 // Estats que encara ocupen aforament: pagades + pendents que no han expirat
 // (les pendents expirades es marquen 'cancelado' des del webhook checkout.session.expired)
-const ESTATS_OCUPEN_AFORO = ['pendiente', 'pagado'];
+// 'sin_pago' = convidat afegit manualment per l'admin: ocupa plaça com una compra pagada.
+const ESTATS_OCUPEN_AFORO = ['pendiente', 'pagado', 'sin_pago'];
 
 // Temps que una reserva 'pendiente' compta com a ocupada encara que el
 // webhook (o l'usuari tornant per cancel_url) no l'hagi marcada 'cancelado'.
@@ -56,6 +57,32 @@ async function create(data, meta = {}) {
     origen: meta.origen || 'client',
     usuari: meta.usuari || compra.email,
     descripcio: `Compra #${compra.id} creada per ${compra.nombre_comprador} (${compra.cantidad} places)`,
+    dades_despres: compra,
+  });
+  return compra;
+}
+
+/**
+ * Afegeix un convidat manualment (admin), sense passar per Stripe. Queda
+ * amb estado_pago 'sin_pago' (etiquetat com a no pagat), import 0 i 1 plaça.
+ * Ocupa aforament igual que una compra pagada.
+ */
+async function createManual({ evento_id, nombre_comprador, email, telefono }, meta = {}) {
+  const info = await db
+    .prepare(
+      `INSERT INTO compras (evento_id, nombre_comprador, email, telefono, cantidad, importe_total, estado_pago)
+       VALUES (@evento_id, @nombre_comprador, @email, @telefono, 1, 0, 'sin_pago') RETURNING id`
+    )
+    .run({ evento_id, nombre_comprador, email, telefono: telefono || null });
+  const compra = await getById(info.lastInsertRowid);
+  await Historial.registrar({
+    tipus_entitat: 'compra',
+    entitat_id: compra.id,
+    evento_id,
+    accio: 'compra',
+    origen: 'manual',
+    usuari: meta.usuari || null,
+    descripcio: `Convidat ${compra.nombre_comprador} afegit manualment per l'admin (sense pagament), compra #${compra.id}`,
     dades_despres: compra,
   });
   return compra;
@@ -202,6 +229,11 @@ async function cantidadOcupada(eventoId) {
  * eliminarPerEvento més avall) segueixen necessitant sense cap filtre.
  */
 async function listByEvento(eventoId, { estado } = {}) {
+  if (Array.isArray(estado)) {
+    return db
+      .prepare('SELECT * FROM compras WHERE evento_id = ? AND estado_pago = ANY(?) ORDER BY created_at DESC')
+      .all(eventoId, estado);
+  }
   if (estado) {
     return db
       .prepare('SELECT * FROM compras WHERE evento_id = ? AND estado_pago = ? ORDER BY created_at DESC')
@@ -231,6 +263,7 @@ async function eliminarPerEvento(eventoId, meta = {}) {
 
 module.exports = {
   create,
+  createManual,
   getById,
   getAcompanyants,
   setAcompanyants,

@@ -7,7 +7,7 @@
 <link rel="icon" href="/assets/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
-<link rel="stylesheet" href="/css/admin.css?v=96">
+<link rel="stylesheet" href="/css/admin.css?v=97">
 </head>
 <body>
 <div class="admin-shell">
@@ -80,6 +80,14 @@
     </div>
   </div>
 
+  <form id="form-convidat-manual" class="convidat-manual-fila" novalidate>
+    <input type="text" id="convidat-nom" placeholder="Nom del convidat" required>
+    <input type="email" id="convidat-email" placeholder="Email" required>
+    <input type="tel" id="convidat-telefon" placeholder="Telèfon (opcional)">
+    <button type="submit" class="btn-secundari">+ Afegir convidat sense pagament</button>
+  </form>
+  <p id="error-convidat-manual" class="form-error"></p>
+
   <div class="admin-table-scroll admin-table-scroll--compras">
     <table class="admin-table admin-table--compras">
       <thead>
@@ -108,7 +116,7 @@
     </div>
   </div>
 </div>
-<script src="/js/admin.js?v=68"></script>
+<script src="/js/admin.js?v=69"></script>
   <script src="/js/uauu-update-check.js" defer data-version-url="/version.json"></script>
 </body>
 </html>

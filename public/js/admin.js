@@ -229,6 +229,7 @@ const ESTATS_PAGAMENT_LLEGIBLES = {
   pagado: 'Pagat',
   cancelado: 'Cancel·lat',
   reembolsado: 'Reemborsat',
+  sin_pago: 'Sense pagament',
 };
 
 function badgeEstatPagament(estat) {
@@ -1087,7 +1088,7 @@ if (formEventoEditar) {
   // l'enllaç cada cop que el toggle canvia, no només un cop en carregar.
   function actualitzarLinkExportPdf() {
     if (!linkExportPdf) return;
-    const estat = totaComprasToggle && totaComprasToggle.checked ? 'todas' : 'pagado';
+    const estat = totaComprasToggle && totaComprasToggle.checked ? 'todas' : 'pagado,sin_pago';
     linkExportPdf.href = `/api/admin/eventos/${eventoId}/compras/export.pdf?estado=${estat}`;
   }
 
@@ -1098,7 +1099,7 @@ if (formEventoEditar) {
     // La columna d'estat només aporta res quan la taula pot mostrar
     // compres que no siguin totes "pagado" (toggle "totes" actiu): amb el
     // filtre per defecte, totes les files dirien el mateix.
-    if (totaComprasToggle && totaComprasToggle.checked) {
+    {
       const thEstat = document.createElement('th');
       thEstat.dataset.estatCol = '1';
       thEstat.textContent = 'Estat';
@@ -1116,10 +1117,10 @@ if (formEventoEditar) {
     // Nombre de columnes de la taula (per al colspan de la fila de detall
     // dels acompanyants): comprador/email/telèfon/quantitat/import/data (6)
     // + la columna d'estat (només amb el toggle actiu) + la columna d'accions.
-    const numColumnes = 6 + (mostrarTotes ? 1 : 0) + 1;
+    const numColumnes = 6 + 1 + 1;
     compras.forEach((c) => {
-      const potCancelar = ['pendiente', 'pagado'].includes(c.estado_pago) && rolActual !== 'viewer';
-      const tdEstat = mostrarTotes ? `<td>${badgeEstatPagament(c.estado_pago)}</td>` : '';
+      const potCancelar = ['pendiente', 'pagado', 'sin_pago'].includes(c.estado_pago) && rolActual !== 'viewer';
+      const tdEstat = `<td>${badgeEstatPagament(c.estado_pago)}</td>`;
       const teAcompanyants = Array.isArray(c.acompanyants) && c.acompanyants.length > 0;
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -1175,6 +1176,35 @@ if (formEventoEditar) {
         fila.classList.toggle('hidden');
         btn.setAttribute('aria-expanded', String(!obert));
       });
+    });
+  }
+
+  const formConvidat = document.getElementById('form-convidat-manual');
+  if (formConvidat) {
+    const errorConvidat = document.getElementById('error-convidat-manual');
+    formConvidat.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorConvidat.textContent = '';
+      const body = {
+        nombre: document.getElementById('convidat-nom').value,
+        email: document.getElementById('convidat-email').value,
+        telefono: document.getElementById('convidat-telefon').value,
+      };
+      const res = await apiFetch(`/api/admin/eventos/${eventoId}/convidats-manuals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res) return;
+      if (res.ok) {
+        formConvidat.reset();
+        carregarCompras();
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      errorConvidat.textContent = data.error === 'aforament_complet'
+        ? "L'aforament de l'esdeveniment està complet."
+        : (data.detalls || [data.error || 'Error desconegut']).join(', ');
     });
   }
 

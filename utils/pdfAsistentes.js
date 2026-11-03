@@ -11,6 +11,7 @@ const ESTATS_LLEGIBLES = {
   pagado: 'Pagat',
   cancelado: 'Cancel·lat',
   reembolsado: 'Reemborsat',
+  sin_pago: 'Sense pagament',
 };
 
 const MARGE = 40;

@@ -3,6 +3,7 @@ const Evento = require('../models/Evento');
 const Compra = require('../models/Compra');
 const Historial = require('../models/Historial');
 const { validarInvitados } = require('../utils/validarInvitados');
+const { EMAIL_REGEX } = require('../utils/validacio');
 const { enviarEmailPrueba } = require('../utils/mailer');
 const { escriureAsistentsPdf } = require('../utils/pdfAsistentes');
 const { AFORAMENT_FIX, PREU_FIX_CENTIMS, calcularFechaLimiteCompra } = require('../utils/eventoConfig');
@@ -115,8 +116,6 @@ async function actualitzarEvento(req, res) {
   res.json(evento);
 }
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 /**
  * POST /api/admin/eventos/:id/email-prova
  * Envia l'email de confirmació amb dades d'exemple a l'adreça indicada,
@@ -178,7 +177,8 @@ async function eliminarEvento(req, res) {
 // amagant per defecte les que no interessen, amb un toggle exprés al
 // frontend per veure-les totes). `?estado=todas` treu el filtre.
 function resoldreFiltreEstat(req) {
-  return req.query.estado === 'todas' ? undefined : 'pagado';
+  // Per defecte: pagades + convidats manuals (sin_pago, etiquetats com a no pagats).
+  return req.query.estado === 'todas' ? undefined : ['pagado', 'sin_pago'];
 }
 
 async function llistarCompresEvento(req, res) {
@@ -193,6 +193,35 @@ async function llistarCompresEvento(req, res) {
     }))
   );
   res.json(ambAcompanyants);
+}
+
+/**
+ * POST /api/admin/eventos/:id/convidats-manuals
+ * Afegeix un assistent sense passar per Stripe: queda com a 'sin_pago'.
+ */
+async function afegirConvidatManual(req, res) {
+  const eventoId = parseInt(req.params.id, 10);
+  const evento = await Evento.getById(eventoId);
+  if (!evento) return res.status(404).json({ error: 'no_trobat' });
+
+  const nombre = String(req.body.nombre || '').trim();
+  const email = String(req.body.email || '').trim();
+  const telefono = req.body.telefono ? String(req.body.telefono).trim() : null;
+  const errors = [];
+  if (nombre.length < 2) errors.push('nom invàlid');
+  if (!EMAIL_REGEX.test(email)) errors.push('email invàlid');
+  if (errors.length) return res.status(400).json({ error: 'dades_invalides', detalls: errors });
+
+  const ocupades = await Compra.cantidadOcupada(eventoId);
+  if (ocupades + 1 > evento.aforo_total) {
+    return res.status(409).json({ error: 'aforament_complet' });
+  }
+
+  const compra = await Compra.createManual(
+    { evento_id: eventoId, nombre_comprador: nombre, email, telefono },
+    { usuari: req.adminUser }
+  );
+  res.status(201).json(compra);
 }
 
 async function cancelarCompra(req, res) {
@@ -250,7 +279,7 @@ async function exportarAsistentesPdf(req, res) {
     // Amb el filtre per defecte totes les files dirien "Pagat" — la
     // columna només aporta informació quan el llistat pot incloure
     // compres en altres estats (toggle "totes").
-    incloureEstat: filtreEstat === undefined,
+    incloureEstat: filtreEstat === undefined || compresAmbAcompanyants.some((c) => c.estado_pago !== 'pagado'),
   });
   doc.end();
 }
@@ -263,6 +292,7 @@ module.exports = {
   eliminarEvento,
   llistarCompresEvento,
   cancelarCompra,
+  afegirConvidatManual,
   exportarAsistentesPdf,
   enviarEmailDePrueba,
   llistarHistorial,

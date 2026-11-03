@@ -13,6 +13,7 @@ const {
   eliminarEvento,
   llistarCompresEvento,
   cancelarCompra,
+  afegirConvidatManual,
   exportarAsistentesPdf,
   enviarEmailDePrueba,
   llistarHistorial,
@@ -35,6 +36,7 @@ router.get('/api/admin/historial', requireRole('admin', 'viewer'), asyncHandler(
 router.post('/api/admin/eventos', requireRole('admin'), asyncHandler(crearEvento));
 router.put('/api/admin/eventos/:id', requireRole('admin'), asyncHandler(actualitzarEvento));
 router.delete('/api/admin/eventos/:id', requireRole('admin'), asyncHandler(eliminarEvento));
+router.post('/api/admin/eventos/:id/convidats-manuals', requireRole('admin'), asyncHandler(afegirConvidatManual));
 router.post('/api/admin/compras/:id/cancelar', requireRole('admin'), asyncHandler(cancelarCompra));
 router.get('/api/admin/eventos/:id/compras/export.pdf', requireRole('admin'), asyncHandler(exportarAsistentesPdf));
 router.post('/api/admin/eventos/:id/email-prova', requireRole('admin'), asyncHandler(enviarEmailDePrueba));
